@@ -1,0 +1,7 @@
+apiVersion: neutron.openstack-k8s-operators/v1alpha1
+kind: OvsAgent
+metadata:
+  name: ovsagent
+spec:
+  openvswitchImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+  label: compute
