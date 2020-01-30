@@ -1,9 +1,9 @@
-package ovsagent
+package neutronovsagent
 
 import (
 	"context"
 
-	neutronv1alpha1 "github.com/neutron-operator/pkg/apis/neutron/v1alpha1"
+	neutronv1 "github.com/neutron-operator/pkg/apis/neutron/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,48 +20,40 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_ovsagent")
+var log = logf.Log.WithName("controller_neutronovsagent")
 
 const (
         NEUTRON_CONFIGMAP_NAME  string = "neutron-config"
 )
 
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
-// Add creates a new OvsAgent Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileOvsAgent{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileNeutronOvsAgent{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("ovsagent-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("neutronovsagent-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource OvsAgent
-	err = c.Watch(&source.Kind{Type: &neutronv1alpha1.OvsAgent{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource NeutronOvsAgent
+	err = c.Watch(&source.Kind{Type: &neutronv1.NeutronOvsAgent{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner OvsAgent
+	// Watch for changes to secondary resource Pods and requeue the owner NeutronOvsAgent
 	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &neutronv1alpha1.OvsAgent{},
+		OwnerType:    &neutronv1.NeutronOvsAgent{},
 	})
 	if err != nil {
 		return err
@@ -70,30 +62,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileOvsAgent implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileOvsAgent{}
+// blank assignment to verify that ReconcileNeutronOvsAgent implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcileNeutronOvsAgent{}
 
-// ReconcileOvsAgent reconciles a OvsAgent object
-type ReconcileOvsAgent struct {
+// ReconcileNeutronOvsAgent reconciles a NeutronOvsAgent object
+type ReconcileNeutronOvsAgent struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a OvsAgent object and makes changes based on the state read
-// and what is in the OvsAgent.Spec
+// Reconcile reads that state of the cluster for a NeutronOvsAgent object and makes changes based on the state read
+// and what is in the NeutronOvsAgent.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileOvsAgent) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling OvsAgent")
+	reqLogger.Info("Reconciling NeutronOvsAgent")
 
-	// Fetch the OvsAgent instance
-	instance := &neutronv1alpha1.OvsAgent{}
+	// Fetch the NeutronOvsAgent instance
+	instance := &neutronv1.NeutronOvsAgent{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -109,33 +101,33 @@ func (r *ReconcileOvsAgent) Reconcile(request reconcile.Request) (reconcile.Resu
         // Define a new Daemonset object
         ds := newDaemonset(instance)
 
-        // Set Compute instance as the owner and controller
-        if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
-                return reconcile.Result{}, err
-        }
+	// Set NeutronOvsAgent instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
 
-        // Check if this Daemonset already exists
-        found := &appsv1.DaemonSet{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
-        if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new Daemonset", "ds.Namespace", ds.Namespace, "ds.Name", ds.Name)
-                err = r.client.Create(context.TODO(), ds)
-                if err != nil {
-                        return reconcile.Result{}, err
-                }
+	// Check if this Daemonset already exists
+	found := &appsv1.DaemonSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Daemonset", "ds.Namespace", ds.Namespace, "ds.Name", ds.Name)
+		err = r.client.Create(context.TODO(), ds)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
-                // Daemonset created successfully - don't requeue
-                return reconcile.Result{}, nil
-        } else if err != nil {
-                return reconcile.Result{}, err
-        }
+		// ds created successfully - don't requeue
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
 
-        // Daemonset already exists - don't requeue
-        reqLogger.Info("Skip reconcile: Daemonset already exists", "ds.Namespace", found.Namespace, "ds.Name", found.Name)
-        return reconcile.Result{}, nil
+	// Daemonset already exists - don't requeue
+	reqLogger.Info("Skip reconcile: Daemonset already exists", "ds.Namespace", found.Namespace, "ds.Name", found.Name)
+	return reconcile.Result{}, nil
 }
 
-func newDaemonset(cr *neutronv1alpha1.OvsAgent) *appsv1.DaemonSet {
+func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
@@ -180,7 +172,6 @@ func newDaemonset(cr *neutronv1alpha1.OvsAgent) *appsv1.DaemonSet {
                         },
                 },
         }
-
 
         opsHostAliases := []corev1.HostAlias{
                 {

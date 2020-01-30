@@ -41,7 +41,7 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - neutron.openstack-k8s-operators
+  - neutron.openstack.org
   resources:
   - '*'
   verbs:

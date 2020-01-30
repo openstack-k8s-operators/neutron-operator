@@ -1,14 +1,14 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: ovsagents.neutron.openstack-k8s-operators
+  name: neutronovsagents.neutron.openstack.org
 spec:
-  group: neutron.openstack-k8s-operators
+  group: neutron.openstack.org
   names:
-    kind: OvsAgent
-    listKind: OvsAgentList
-    plural: ovsagents
-    singular: ovsagent
+    kind: NeutronOvsAgent
+    listKind: NeutronOvsAgentList
+    plural: neutronovsagents
+    singular: neutronovsagent
   scope: Namespaced
   subresources:
     status: {}
@@ -49,8 +49,8 @@ spec:
           required:
           - count
           type: object
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true

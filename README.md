@@ -1,5 +1,4 @@
 # neutron-operator
-POC neutron-operator
 
 NOTE: 
 - The current functionality is on install at the moment, no update/upgrades or other features.
@@ -9,21 +8,16 @@ NOTE:
 - OSP16 with OVS instead of OVN deployed
 - worker nodes have connection to internalapi and tenant network VLAN
 
-
 #### Clone it
 
     $ git clone https://github.com/stuggi/neutron-operator.git
     $ cd neutron-operator
 
-#### Updates required to pkg/controller/ovsagent/ovsagent_controller.go atm:
-  - update opsHostAliases to reflect the hosts entries of your OSP env
-  - update `ip route get 172.17.1.29` to reflect the overcloud.internalapi.localdomain IP address
-
 #### Create the operator
 
 Build the image
     
-    $ oc create -f deploy/crds/neutron_v1alpha1_ovsagent_crd.yaml
+    $ oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     $ operator-sdk build <image e.g quay.io/mschuppe/neutron-operator:v0.0.1>
 
 Replace `image:` in deploy/operator.yaml with your image
@@ -41,7 +35,7 @@ Create operator
 
     $ oc create -f deploy/operator.yaml
 
-    POD=`oc get pods -l name=nova-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
+    POD=`oc get pods -l name=neutron-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
 
 Create custom resource for a compute node which specifies the container images and the label
@@ -52,54 +46,61 @@ or
     $ python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
     f8b48998e5d600f24513848b600e84176ce90223_243bc231
 
-Update `deploy/crds/neutron_v1alpha1_ovsagent_cr.yaml`
+Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml`
 
-    apiVersion: neutron.openstack-k8s-operators/v1alpha1
-    kind: OvsAgent
+    apiVersion: neutron.openstack.org/v1
+    kind: NeutronOvsAgent
     metadata:
-      name: ovsagent
+      name: neutron-ovsagent
     spec:
       openvswitchImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
       label: compute
 
-Required configMap got already create in nova-operator readme (TODO -split part into this one)
+### Create required configMaps
+TODO: move passwords, connection urls, ... to Secret
 
-Apply `deploy/crds/neutron_v1alpha1_ovsagent_cr.yaml`
+Get the following configs from a compute node in the OSP env:
+- /etc/hosts
+- /var/lib/config-data/puppet-generated/neutron/etc/neutron/neutron.conf
+- /var/lib/config-data/puppet-generated/neutron/etc/neutron/plugins/ml2/openvswitch_agent.ini
 
-    oc apply -f deploy/crds/neutron_v1alpha1_ovsagent_cr.yaml
+Place each group in a config dir like:
+- common-conf
+- neutron-conf
+
+Add OSP environment controller-0 short hostname in common-conf/osp_controller_hostname
+
+    echo "SHORT OSP CTRL-0 HOSTNAME"> /root/common-conf/osp_controller_hostname
+
+Create the configMaps
+
+    oc create configmap common-config --from-file=/root/common-conf/
+    oc create configmap neutron-config --from-file=./neutron-conf/
+
+Note: if a later update is needed do e.g.
+
+    oc create configmap neutron-config --from-file=./neutron-conf/ --dry-run -o yaml | oc apply -f -
+
+!! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi and tenant network !!
+
+Apply `deploy/crds/neutron_v1_neutronovsagent_cr.yaml`
+
+    oc apply -f deploy/crds/neutron_v1_neutronovsagent_cr.yaml
 
     oc get pods
-    NAME                              READY   STATUS     RESTARTS   AGE
-    neutron-operator-5df665ff-97t5w   1/1     Running    0          5m37s
-    nova-compute-daemonset-gjjnm      3/3     Running    0          31m
-    nova-compute-daemonset-grb7j      3/3     Running    0          29m
-    nova-operator-5d56d8459b-mbqrn    1/1     Running    0          39m
-    ovsagent-daemonset-k2dgz          1/1     Running   0          28s
-    ovsagent-daemonset-nvdfr          1/1     Running   0          28s
+    NAME                               READY   STATUS    RESTARTS   AGE
+    neutron-operator-5df665ff-79swh    1/1     Running   0          3m35s
+    neutron-ovsagent-daemonset-2t8hs   1/1     Running   0          97s
+    neutron-ovsagent-daemonset-s72r8   1/1     Running   0          97s
+    ...
 
     oc get ds
-    NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    nova-compute-daemonset   2         2         2       2            2           daemon=compute   37m
-    ovsagent-daemonset       2         2         2       2            2           daemon=compute   24s
+    NAME                         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
+    neutron-ovsagent-daemonset   2         2         2       2            2           daemon=compute   116s
+    ...
 
-    oc describe OvsAgent
-    Name:         ovsagent
-    Namespace:    default
-    Labels:       <none>
-    Annotations:  kubectl.kubernetes.io/last-applied-configuration:
-                    {"apiVersion":"neutron.openstack-k8s-operators/v1alpha1","kind":"OvsAgent","metadata":{"annotations":{},"name":"ovsagent","namespace":"def...
-    API Version:  neutron.openstack-k8s-operators/v1alpha1
-    Kind:         OvsAgent
-    Metadata:
-      Creation Timestamp:  2020-01-24T14:44:13Z
-      Generation:          1
-      Resource Version:    3830313
-      Self Link:           /apis/neutron.openstack-k8s-operators/v1alpha1/namespaces/default/ovsagents/ovsagent
-      UID:                 fd4bfa07-3eb7-11ea-a590-5254002c0120
-    Spec:
-      Label:              compute
-      Openvswitch Image:  trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
-    Events:               <none>
+
+Verify that the ovs-agent successfully registered in neutron:
 
     (overcloud) $ openstack network agent list -c ID -c 'Agent Type' -c Host -c State
     +--------------------------------------+--------------------+---------------------------+-------+
@@ -118,9 +119,9 @@ Apply `deploy/crds/neutron_v1alpha1_ovsagent_cr.yaml`
 
 ## Cleanup
 
-    oc delete -f deploy/crds/neutron_v1alpha1_ovsagent_cr.yaml
+    oc delete -f deploy/crds/neutron_v1_neutronovsagent_cr.yaml
     oc delete -f deploy/operator.yaml
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
     oc delete -f deploy/service_account.yaml
-    oc delete -f deploy/crds/neutron_v1alpha1_ovsagent_crd.yaml
+    oc delete -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
