@@ -2,6 +2,8 @@ package neutronovsagent
 
 import (
 	"context"
+        "strings"
+        "regexp"
 
 	neutronv1 "github.com/neutron-operator/pkg/apis/neutron/v1"
         appsv1 "k8s.io/api/apps/v1"
@@ -21,8 +23,10 @@ import (
 )
 
 var log = logf.Log.WithName("controller_neutronovsagent")
+var ospHostAliases = []corev1.HostAlias{}
 
 const (
+        COMMON_CONFIGMAP_NAME   string = "common-config"
         NEUTRON_CONFIGMAP_NAME  string = "neutron-config"
 )
 
@@ -98,6 +102,18 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, err
 	}
 
+        commonConfigMap := &corev1.ConfigMap{}
+        // TODO: to update hosts infocheck configmap ResourceVersion and update if needed.
+        //currentConfigVersion := commonConfigMap.ResourceVersion
+
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP_NAME)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP_NAME, Namespace: instance.Namespace}, commonConfigMap)
+
+        if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
+                return reconcile.Result{}, err
+        }
+        ospHostAliases = createOspHostsEntries(commonConfigMap)
+
         // Define a new Daemonset object
         ds := newDaemonset(instance)
 
@@ -125,6 +141,38 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
 	// Daemonset already exists - don't requeue
 	reqLogger.Info("Skip reconcile: Daemonset already exists", "ds.Namespace", found.Namespace, "ds.Name", found.Name)
 	return reconcile.Result{}, nil
+}
+
+func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias{
+        hostAliases := []corev1.HostAlias{}
+
+        hostsFile := commonConfigMap.Data["hosts"]
+        re := regexp.MustCompile(`(?s).*BEGIN ANSIBLE MANAGED BLOCK\n(.*)# END ANSIBLE MANAGED BLOCK.*`)
+
+        hostsFile = re.FindStringSubmatch(hostsFile)[1]
+
+        for _, hostRecord := range strings.Split(hostsFile, "\n") {
+                if len(hostRecord) > 0 {
+                        var ip string
+                        var names []string
+
+                        for i, r := range strings.Fields(hostRecord) {
+                                if i == 0 {
+                                        ip = r
+                                } else {
+                                        names = append(names, r)
+                                }
+                        }
+
+                        hostAlias := corev1.HostAlias{
+                                IP: ip,
+                                Hostnames: names,
+                        }
+                        hostAliases = append(hostAliases, hostAlias)
+                }
+        }
+
+        return hostAliases
 }
 
 func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
@@ -165,47 +213,13 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                                         NodeSelector:   map[string]string{"daemon": cr.Spec.Label},
                                         HostNetwork:    true,
                                         HostPID:        true,
-                                        HostAliases:    []corev1.HostAlias{},
+                                        DNSPolicy:      "ClusterFirstWithHostNet",
+                                        HostAliases:    ospHostAliases,
                                         InitContainers: []corev1.Container{},
                                         Containers:     []corev1.Container{},
                                 },
                         },
                 },
-        }
-
-        opsHostAliases := []corev1.HostAlias{
-                {
-                        IP: "172.17.1.83",
-                        Hostnames: []string{ "controller-0.internalapi.redhat.local", "controller-0.internalapi"},
-                },
-                {
-                        IP: "172.17.2.16",
-                        Hostnames: []string{ "controller-0.tenant.redhat.local", "controller-0.tenant"},
-                },
-                {
-                        IP: "172.17.1.146",
-                        Hostnames: []string{ "compute-0.internalapi.redhat.local", "compute-0.internalapi"},
-                },
-                {
-                        IP: "172.17.2.55",
-                        Hostnames: []string{ "compute-0.tenant.redhat.local", "compute-0.tenant"},
-                },
-                {
-                        IP: "172.17.1.84",
-                        Hostnames: []string{ "compute-1.internalapi.redhat.local", "compute-1.internalapi"},
-                },
-                {
-                        IP: "172.17.2.21",
-                        Hostnames: []string{ "compute-1.tenant.redhat.local", "compute-1.tenant"},
-                },
-                {
-                        IP: "172.17.1.29",
-                        Hostnames: []string{"overcloud.internalapi.localdomain"},
-                },
-        }
-
-        for _, opsHostAlias := range opsHostAliases {
-                daemonSet.Spec.Template.Spec.HostAliases = append(daemonSet.Spec.Template.Spec.HostAliases, opsHostAlias)
         }
 
         initContainerSpec := corev1.Container{
@@ -215,7 +229,7 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                         Privileged:  &trueVar,
                 },
                 Command: []string{
-                        "/bin/bash", "-c", "export POD_IP_TENANT=$(ip route get 172.17.2.16 | awk '{print $5}') && cp /etc/neutron/plugins/ml2/openvswitch_agent.ini /mnt/openvswitch_agent.ini && crudini --set /mnt/openvswitch_agent.ini ovs local_ip $POD_IP_TENANT",
+                        "/bin/bash", "-c", "export CTRL_IP_TENANT=$(getent hosts controller-0.tenant | awk '{print $1}') && export POD_IP_TENANT=$(ip route get $CTRL_IP_TENANT | awk '{print $5}') && cp /etc/neutron/plugins/ml2/openvswitch_agent.ini /mnt/openvswitch_agent.ini && crudini --set /mnt/openvswitch_agent.ini ovs local_ip $POD_IP_TENANT",
                 },
                 Env: []corev1.EnvVar{
                         {
@@ -244,6 +258,11 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                                 Name:      "rendered-config-vol",
                                 MountPath: "/mnt",
                                 ReadOnly:  false,
+                        },
+                        {
+                                Name:      "etc-machine-id",
+                                MountPath: "/etc/machine-id",
+                                ReadOnly:  true,
                         },
                 },
         }
@@ -285,6 +304,11 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                                 SubPath:   "openvswitch_agent.ini",
                         },
                         {
+                                Name:      "etc-machine-id",
+                                MountPath: "/etc/machine-id",
+                                ReadOnly:  true,
+                        },
+                        {
                                 Name:      "lib-modules-volume",
                                 MountPath: "/lib/modules",
                                 MountPropagation: &hostToContainer,
@@ -322,6 +346,14 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/boot",
+                                },
+                        },
+                },
+                {
+                        Name: "etc-machine-id",
+                        VolumeSource: corev1.VolumeSource{
+                                HostPath: &corev1.HostPathVolumeSource{
+                                        Path: "/etc/machine-id",
                                 },
                         },
                 },
