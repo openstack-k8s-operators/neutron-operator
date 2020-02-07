@@ -1,13 +1,17 @@
 package neutronovsagent
 
 import (
-	"context"
-        "strings"
+        "context"
+        "reflect"
         "regexp"
+        "strings"
+        "time"
 
-	neutronv1 "github.com/neutron-operator/pkg/apis/neutron/v1"
+	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1"
         appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+        neutronovsagent "github.com/openstack-k8s-operators/neutron-operator/pkg/neutronovsagent"
+        util "github.com/openstack-k8s-operators/neutron-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,7 +31,6 @@ var ospHostAliases = []corev1.HostAlias{}
 
 const (
         COMMON_CONFIGMAP_NAME   string = "common-config"
-        NEUTRON_CONFIGMAP_NAME  string = "neutron-config"
 )
 
 func Add(mgr manager.Manager) error {
@@ -52,6 +55,24 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
+
+        // Watch ConfigMaps owned by NeutronOvsAgent
+        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+                IsController: false,
+                OwnerType:    &neutronv1.NeutronOvsAgent{},
+        })
+        if err != nil {
+                return err
+        }
+
+        // Watch Secrets owned by neutronv1.NeutronOvsAgent
+        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+                IsController: false,
+                OwnerType:    &neutronv1.NeutronOvsAgent{},
+        })
+        if err != nil {
+                return err
+        }
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner NeutronOvsAgent
@@ -114,8 +135,34 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
         }
         ospHostAliases = createOspHostsEntries(commonConfigMap)
 
+
+        // ConfigMap
+        configMap := neutronovsagent.ConfigMap(instance, instance.Name)
+        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+                return reconcile.Result{}, err
+        }
+        // Check if this ConfigMap already exists
+        foundConfigMap := &corev1.ConfigMap{}
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
+                err = r.client.Create(context.TODO(), configMap)
+                if err != nil {
+                        return reconcile.Result{}, err
+                }
+        } else if !reflect.DeepEqual(util.ObjectHash(configMap.Data), util.ObjectHash(foundConfigMap.Data)) {
+                reqLogger.Info("Updating ConfigMap")
+
+                configMap.Data = foundConfigMap.Data
+        }
+
+        configMapHash := util.ObjectHash(configMap)
+        reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+
         // Define a new Daemonset object
-        ds := newDaemonset(instance)
+        ds := newDaemonset(instance, instance.Name, configMapHash)
+        dsHash := util.ObjectHash(ds)
+        reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set NeutronOvsAgent instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -136,7 +183,19 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
-	}
+        } else {
+
+                if instance.Status.DaemonsetHash != dsHash {
+                        reqLogger.Info("Daemonset Updated")
+                        found.Spec = ds.Spec
+                        err = r.client.Update(context.TODO(), found)
+                        if err != nil {
+                                return reconcile.Result{}, err
+                        }
+                        r.setDaemonsetHash(instance, dsHash)
+                        return reconcile.Result{RequeueAfter: time.Second * 10}, err
+                }
+        }
 
 	// Daemonset already exists - don't requeue
 	reqLogger.Info("Skip reconcile: Daemonset already exists", "ds.Namespace", found.Namespace, "ds.Name", found.Name)
@@ -175,7 +234,19 @@ func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias
         return hostAliases
 }
 
-func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
+func (r *ReconcileNeutronOvsAgent) setDaemonsetHash(instance *neutronv1.NeutronOvsAgent, hashStr string) error {
+
+        if hashStr != instance.Status.DaemonsetHash {
+                instance.Status.DaemonsetHash = hashStr
+                if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+                        return err
+                }
+        }
+        return nil
+
+}
+
+func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash string) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
@@ -188,8 +259,7 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                         APIVersion: "apps/v1",
                 },
                 ObjectMeta: metav1.ObjectMeta{
-                        Name:      cr.Name + "-daemonset",
-                        //Name:      fmt.Sprintf("%s-nova-%s",cr.Name, cr.Spec.NodeName),
+                        Name:      cmName,
                         Namespace: cr.Namespace,
                         //OwnerReferences: []metav1.OwnerReference{
                         //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
@@ -201,12 +271,10 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                 },
                 Spec: appsv1.DaemonSetSpec{
                         Selector: &metav1.LabelSelector{
-                                // MatchLabels: map[string]string{"daemonset": cr.Spec.NodeName + cr.Name + "-daemonset"},
                                 MatchLabels: map[string]string{"daemonset": cr.Name + "-daemonset"},
                         },
                         Template: corev1.PodTemplateSpec{
                                 ObjectMeta: metav1.ObjectMeta{
-                                        // Labels: map[string]string{"daemonset": cr.Spec.NodeName + cr.Name + "-daemonset"},
                                         Labels: map[string]string{"daemonset": cr.Name + "-daemonset"},
                                 },
                                 Spec: corev1.PodSpec{
@@ -243,26 +311,26 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                 },
                 VolumeMounts: []corev1.VolumeMount{
                         {
-                                Name:      "neutron-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
                                 MountPath: "/etc/neutron/neutron.conf",
                                 SubPath:   "neutron.conf",
                         },
                         {
-                                Name:      "neutron-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
                                 MountPath: "/etc/neutron/plugins/ml2/openvswitch_agent.ini",
                                 SubPath:   "openvswitch_agent.ini",
                         },
                         {
-                                Name:      "rendered-config-vol",
-                                MountPath: "/mnt",
-                                ReadOnly:  false,
-                        },
-                        {
                                 Name:      "etc-machine-id",
                                 MountPath: "/etc/machine-id",
                                 ReadOnly:  true,
+                        },
+                        {
+                                Name:      "rendered-config-vol",
+                                MountPath: "/mnt",
+                                ReadOnly:  false,
                         },
                 },
         }
@@ -290,15 +358,21 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                 SecurityContext: &corev1.SecurityContext{
                         Privileged:  &trueVar,
                 },
+                Env: []corev1.EnvVar{
+                        {
+                                Name:  "CONFIG_HASH",
+                                Value: configHash,
+                        },
+                },
                 VolumeMounts: []corev1.VolumeMount{
                         {
-                                Name:      "neutron-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
                                 MountPath: "/etc/neutron/neutron.conf",
                                 SubPath:   "neutron.conf",
                         },
                         {
-                                Name:      "neutron-config",
+                                Name:      cmName,
                                 ReadOnly:  true,
                                 MountPath: "/etc/neutron/plugins/ml2/openvswitch_agent.ini",
                                 SubPath:   "openvswitch_agent.ini",
@@ -334,22 +408,6 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
 
         volConfigs := []corev1.Volume{
                 {
-                        Name: "hostroot",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/",
-                                },
-                        },
-                },
-                {
-                        Name: "boot-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/boot",
-                                },
-                        },
-                },
-                {
                         Name: "etc-machine-id",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
@@ -374,22 +432,6 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                         },
                 },
                 {
-                        Name: "dev-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/dev",
-                                },
-                        },
-                },
-                {
-                        Name: "sys-fs-cgroup-volume",
-                        VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{
-                                        Path: "/sys/fs/cgroup",
-                                },
-                        },
-                },
-                {
                         Name: "run-openvswitch-volume",
                         VolumeSource: corev1.VolumeSource{
                                 HostPath: &corev1.HostPathVolumeSource{
@@ -408,12 +450,12 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent) *appsv1.DaemonSet {
                         },
                 },
                 {
-                        Name: "neutron-config",
+                        Name: cmName,
                         VolumeSource: corev1.VolumeSource{
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
                                          DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
-                                                 Name: NEUTRON_CONFIGMAP_NAME,
+                                                 Name: cmName,
                                          },
                                 },
                         },

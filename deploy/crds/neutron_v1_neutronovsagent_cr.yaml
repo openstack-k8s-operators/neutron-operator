@@ -3,5 +3,9 @@ kind: NeutronOvsAgent
 metadata:
   name: neutron-ovsagent
 spec:
+  # Rabbit transport url
+  rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+  # Debug
+  debug: "True"
   openvswitchImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
   label: compute

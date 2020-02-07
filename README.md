@@ -1,7 +1,7 @@
 # neutron-operator
 
 NOTE: 
-- The current functionality is on install at the moment, no update/upgrades or other features.
+- The current functionality is on install at the moment, no update/upgrades.
 - At the moment only covers netron-ovs-agent service
 
 ## Pre Req:
@@ -10,30 +10,46 @@ NOTE:
 
 #### Clone it
 
-    $ git clone https://github.com/stuggi/neutron-operator.git
-    $ cd neutron-operator
+    mkdir openstack-k8s-operators
+    cd openstack-k8s-operators
+    git clone https://github.com/stuggi/neutron-operator.git
+    cd neutron-operator
 
 #### Create the operator
 
-Build the image
-    
-    $ oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
-    $ operator-sdk build <image e.g quay.io/mschuppe/neutron-operator:v0.0.1>
+This is optional, a prebuild operator from quay.io/openstack-k8s-operators/neutron-operator could be used, e.g. quay.io/openstack-k8s-operators/neutron-operator:v0.0.1 .
 
-Replace `image:` in deploy/operator.yaml with your image
+Create CRDs
 
-    $ sed -i 's|REPLACE_IMAGE|quay.io/mschuppe/neutron-operator:v0.0.1|g' deploy/operator.yaml
-    $ podman push --authfile ~/mschuppe-auth.json quay.io/mschuppe/neutron-operator:v0.0.1
+    oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
+
+Build the image, using your custom registry you have write access to
+
+    operator-sdk build <image e.g quay.io/openstack-k8s-operators/neutron-operator:v0.0.X>
+
+Note: Requires https://github.com/kubernetes/kubernetes.git somewhere in $GOLANG path, or in nova-operator/vendor/k8s.io/kubernetes.
+
+Replace `image:` in deploy/operator.yaml with your custom registry
+
+    sed -i 's|REPLACE_IMAGE|quay.io/openstack-k8s-operators/neutron-operator:v0.0.X|g' deploy/operator.yaml
+    podman push --authfile ~/mschuppe-auth.json quay.io/openstack-k8s-operators/neutron-operator:v0.0.X
+
+
+#### Install the operator
+
+Create CRDs
+
+    oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
 
 Create role, binding service_account
 
-    $ oc create -f deploy/role.yaml
-    $ oc create -f deploy/role_binding.yaml
-    $ oc create -f deploy/service_account.yaml
+    oc create -f deploy/role.yaml
+    oc create -f deploy/role_binding.yaml
+    oc create -f deploy/service_account.yaml
 
-Create operator
+Install the operator
 
-    $ oc create -f deploy/operator.yaml
+    oc create -f deploy/operator.yaml
 
     POD=`oc get pods -l name=neutron-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
@@ -46,27 +62,30 @@ or
     $ python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
     f8b48998e5d600f24513848b600e84176ce90223_243bc231
 
-Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml`
+Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the `openvswitchImage` images and OpenStack environmen details.
 
     apiVersion: neutron.openstack.org/v1
     kind: NeutronOvsAgent
     metadata:
       name: neutron-ovsagent
     spec:
+      # Rabbit transport url
+      rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+      # Debug
+      debug: "True"
       openvswitchImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
       label: compute
 
 ### Create required configMaps
 TODO: move passwords, connection urls, ... to Secret
 
+Node: If already done for the nova-operator, this can be skipped!
+
 Get the following configs from a compute node in the OSP env:
 - /etc/hosts
-- /var/lib/config-data/puppet-generated/neutron/etc/neutron/neutron.conf
-- /var/lib/config-data/puppet-generated/neutron/etc/neutron/plugins/ml2/openvswitch_agent.ini
 
-Place each group in a config dir like:
+Place it in a config dir like:
 - common-conf
-- neutron-conf
 
 Add OSP environment controller-0 short hostname in common-conf/osp_controller_hostname
 
@@ -75,11 +94,10 @@ Add OSP environment controller-0 short hostname in common-conf/osp_controller_ho
 Create the configMaps
 
     oc create configmap common-config --from-file=/root/common-conf/
-    oc create configmap neutron-config --from-file=./neutron-conf/
 
 Note: if a later update is needed do e.g.
 
-    oc create configmap neutron-config --from-file=./neutron-conf/ --dry-run -o yaml | oc apply -f -
+    oc create configmap common-config --from-file=./common-conf/ --dry-run -o yaml | oc apply -f -
 
 !! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi and tenant network !!
 
@@ -90,13 +108,13 @@ Apply `deploy/crds/neutron_v1_neutronovsagent_cr.yaml`
     oc get pods
     NAME                               READY   STATUS    RESTARTS   AGE
     neutron-operator-5df665ff-79swh    1/1     Running   0          3m35s
-    neutron-ovsagent-daemonset-2t8hs   1/1     Running   0          97s
-    neutron-ovsagent-daemonset-s72r8   1/1     Running   0          97s
+    neutron-ovsagent-2t8hs             1/1     Running   0          97s
+    neutron-ovsagent-s72r8             1/1     Running   0          97s
     ...
 
     oc get ds
-    NAME                         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    neutron-ovsagent-daemonset   2         2         2       2            2           daemon=compute   116s
+    NAME               DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
+    neutron-ovsagent   2         2         2       2            2           daemon=compute   116s
     ...
 
 

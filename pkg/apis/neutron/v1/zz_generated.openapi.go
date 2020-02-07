@@ -13,9 +13,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":       schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref),
-		"github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":   schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref),
-		"github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus": schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":       schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":   schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus": schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref),
 	}
 }
 
@@ -46,19 +46,19 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref common.ReferenceCallback) co
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec"),
+							Ref: ref("github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus"),
+							Ref: ref("github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec", "github.com/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec", "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -82,8 +82,22 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"rabbitTransportUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RabbitMQ transport URL String",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"debug": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Debug",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"label", "openvswitchImage"},
+				Required: []string{"label", "openvswitchImage", "rabbitTransportUrl"},
 			},
 		},
 		Dependencies: []string{},
@@ -103,8 +117,15 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"daemonsetHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Daemonset hash used to detect changes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"count"},
+				Required: []string{"count", "daemonsetHash"},
 			},
 		},
 		Dependencies: []string{},
