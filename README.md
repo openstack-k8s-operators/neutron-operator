@@ -27,8 +27,6 @@ Build the image, using your custom registry you have write access to
 
     operator-sdk build <image e.g quay.io/openstack-k8s-operators/neutron-operator:v0.0.X>
 
-Note: Requires https://github.com/kubernetes/kubernetes.git somewhere in $GOLANG path, or in nova-operator/vendor/k8s.io/kubernetes.
-
 Replace `image:` in deploy/operator.yaml with your custom registry
 
     sed -i 's|REPLACE_IMAGE|quay.io/openstack-k8s-operators/neutron-operator:v0.0.X|g' deploy/operator.yaml

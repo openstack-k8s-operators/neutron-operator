@@ -2,6 +2,7 @@ package neutronovsagent
 
 import (
         "context"
+        "fmt"
         "reflect"
         "regexp"
         "strings"
@@ -150,19 +151,27 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
                 if err != nil {
                         return reconcile.Result{}, err
                 }
-        } else if !reflect.DeepEqual(util.ObjectHash(configMap.Data), util.ObjectHash(foundConfigMap.Data)) {
+        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
                 reqLogger.Info("Updating ConfigMap")
 
                 configMap.Data = foundConfigMap.Data
         }
 
-        configMapHash := util.ObjectHash(configMap)
-        reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+        configMapHash, err := util.ObjectHash(configMap)
+        if err != nil {
+                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+        } else {
+                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+        }
 
         // Define a new Daemonset object
         ds := newDaemonset(instance, instance.Name, configMapHash)
-        dsHash := util.ObjectHash(ds)
-        reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
+        dsHash, err := util.ObjectHash(ds)
+        if err != nil {
+                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+        } else {
+                reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
+        }
 
 	// Set NeutronOvsAgent instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
