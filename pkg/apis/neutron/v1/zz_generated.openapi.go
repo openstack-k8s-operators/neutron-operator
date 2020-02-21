@@ -13,9 +13,12 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":       schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":   schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus": schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":         schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":     schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus":   schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgent":       schema_pkg_apis_neutron_v1_NeutronSriovAgent(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentSpec":   schema_pkg_apis_neutron_v1_NeutronSriovAgentSpec(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentStatus": schema_pkg_apis_neutron_v1_NeutronSriovAgentStatus(ref),
 	}
 }
 
@@ -109,6 +112,119 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "NeutronOvsAgentStatus defines the observed state of NeutronOvsAgent",
+				Properties: map[string]spec.Schema{
+					"count": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Count is the number of nodes the daemon is deployed to",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"daemonsetHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Daemonset hash used to detect changes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"count", "daemonsetHash"},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_neutron_v1_NeutronSriovAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NeutronSriovAgent is the Schema for the neutronsriovagents API",
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentSpec", "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_neutron_v1_NeutronSriovAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NeutronSriovAgentSpec defines the desired state of NeutronSriovAgent",
+				Properties: map[string]spec.Schema{
+					"label": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Label is the value of the 'daemon=' label to set on a node that should run the daemon",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"neutronSriovImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image is the Docker image to run for the daemon",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"rabbitTransportUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RabbitMQ transport URL String",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"debug": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Debug",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"label", "neutronSriovImage", "rabbitTransportUrl"},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_neutron_v1_NeutronSriovAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NeutronSriovAgentStatus defines the observed state of NeutronSriovAgent",
 				Properties: map[string]spec.Schema{
 					"count": {
 						SchemaProps: spec.SchemaProps{

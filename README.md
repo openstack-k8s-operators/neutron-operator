@@ -2,7 +2,7 @@
 
 NOTE: 
 - The current functionality is on install at the moment, no update/upgrades.
-- At the moment only covers netron-ovs-agent service
+- At the moment only covers neutron-ovs-agent and neutron-sriov-agent service
 
 ## Pre Req:
 - OSP16 with OVS instead of OVN deployed
@@ -22,6 +22,7 @@ This is optional, a prebuild operator from quay.io/openstack-k8s-operators/neutr
 Create CRDs
 
     oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
+    oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
 
 Build the image, using your custom registry you have write access to
 
@@ -38,6 +39,7 @@ Replace `image:` in deploy/operator.yaml with your custom registry
 Create CRDs
 
     oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
+    oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
 
 Create role, binding service_account
 
@@ -73,6 +75,22 @@ Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the 
       debug: "True"
       openvswitchImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
       label: compute
+
+
+Update `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml` with the details of the `openvswitchImage` images and OpenStack environmen details.
+
+    apiVersion: neutron.openstack.org/v1
+    kind: NeutronSriovAgent
+    metadata:
+      name: neutron-sriov-agent
+    spec:
+      # Rabbit transport url
+      rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+      # Debug
+      debug: "True"
+      neutronSriovImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-sriov-agent:ae13f36b8f368e079dda53f1468790ab2253ea69_51b819f9
+      label: compute
+
 
 ### Create required configMaps
 TODO: move passwords, connection urls, ... to Secret
@@ -132,12 +150,20 @@ Verify that the ovs-agent successfully registered in neutron:
     | d6a7ce33-e1b0-412a-99ef-0f2a0fc247fb | DHCP agent         | controller-0.redhat.local | UP    |
     +--------------------------------------+--------------------+---------------------------+-------+
 
+Optional apply the `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml`
+
+    oc apply -f deploy/crds/neutron_v1_neutronsriovagent_cr.yaml
+
+Note: right now it just pulls the image, uses the same neutron.conf as the ovs agent and starts a sleep.
+
 
 ## Cleanup
 
     oc delete -f deploy/crds/neutron_v1_neutronovsagent_cr.yaml
+    oc delete -f deploy/crds/neutron_v1_neutronsriovagent_cr.yaml
     oc delete -f deploy/operator.yaml
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
     oc delete -f deploy/service_account.yaml
     oc delete -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
+    oc delete -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml

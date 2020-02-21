@@ -1,0 +1,12 @@
+apiVersion: neutron.openstack.org/v1
+kind: NeutronSriovAgent
+metadata:
+  name: neutron-sriov-agent
+spec:
+  # Rabbit transport url
+  rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+  # Debug
+  debug: "True"
+  neutronSriovImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-sriov-agent:ae13f36b8f368e079dda53f1468790ab2253ea69_51b819f9
+  label: compute
+

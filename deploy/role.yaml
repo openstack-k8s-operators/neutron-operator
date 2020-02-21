@@ -44,5 +44,6 @@ rules:
   - neutron.openstack.org
   resources:
   - '*'
+  - neutronsriovagents
   verbs:
   - '*'
