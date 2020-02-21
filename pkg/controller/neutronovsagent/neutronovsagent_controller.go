@@ -4,8 +4,6 @@ import (
         "context"
         "fmt"
         "reflect"
-        "regexp"
-        "strings"
         "time"
 
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1"
@@ -31,7 +29,7 @@ var log = logf.Log.WithName("controller_neutronovsagent")
 var ospHostAliases = []corev1.HostAlias{}
 
 const (
-        COMMON_CONFIGMAP_NAME   string = "common-config"
+        COMMON_CONFIGMAP   string = "common-config"
 )
 
 func Add(mgr manager.Manager) error {
@@ -125,17 +123,24 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
 	}
 
         commonConfigMap := &corev1.ConfigMap{}
-        // TODO: to update hosts infocheck configmap ResourceVersion and update if needed.
-        //currentConfigVersion := commonConfigMap.ResourceVersion
 
-        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP_NAME)
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP_NAME, Namespace: instance.Namespace}, commonConfigMap)
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+                return reconcile.Result{}, err
+        }
 
         if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
-        ospHostAliases = createOspHostsEntries(commonConfigMap)
 
+        // Create additional host entries added to the /etc/hosts file of the containers
+        ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
+        if err != nil {
+                reqLogger.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
+                return reconcile.Result{}, err
+        }
 
         // ConfigMap
         configMap := neutronovsagent.ConfigMap(instance, instance.Name)
@@ -209,38 +214,6 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
 	// Daemonset already exists - don't requeue
 	reqLogger.Info("Skip reconcile: Daemonset already exists", "ds.Namespace", found.Namespace, "ds.Name", found.Name)
 	return reconcile.Result{}, nil
-}
-
-func createOspHostsEntries(commonConfigMap *corev1.ConfigMap) []corev1.HostAlias{
-        hostAliases := []corev1.HostAlias{}
-
-        hostsFile := commonConfigMap.Data["hosts"]
-        re := regexp.MustCompile(`(?s).*BEGIN ANSIBLE MANAGED BLOCK\n(.*)# END ANSIBLE MANAGED BLOCK.*`)
-
-        hostsFile = re.FindStringSubmatch(hostsFile)[1]
-
-        for _, hostRecord := range strings.Split(hostsFile, "\n") {
-                if len(hostRecord) > 0 {
-                        var ip string
-                        var names []string
-
-                        for i, r := range strings.Fields(hostRecord) {
-                                if i == 0 {
-                                        ip = r
-                                } else {
-                                        names = append(names, r)
-                                }
-                        }
-
-                        hostAlias := corev1.HostAlias{
-                                IP: ip,
-                                Hostnames: names,
-                        }
-                        hostAliases = append(hostAliases, hostAlias)
-                }
-        }
-
-        return hostAliases
 }
 
 func (r *ReconcileNeutronOvsAgent) setDaemonsetHash(instance *neutronv1.NeutronOvsAgent, hashStr string) error {
