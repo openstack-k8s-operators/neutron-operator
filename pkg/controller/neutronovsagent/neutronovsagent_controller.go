@@ -142,6 +142,33 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
                 return reconcile.Result{}, err
         }
 
+        // InitConfigMap
+        initConfigMap := neutronovsagent.InitConfigMap(instance, instance.Name + "-init")
+        if err := controllerutil.SetControllerReference(instance, initConfigMap, r.scheme); err != nil {
+                return reconcile.Result{}, err
+        }
+        // Check if this InitConfigMap already exists
+        foundInitConfigMap := &corev1.ConfigMap{}
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: initConfigMap.Name, Namespace: initConfigMap.Namespace}, foundInitConfigMap)
+        if err != nil && errors.IsNotFound(err) {
+                reqLogger.Info("Creating a new InitConfigMap", "InitConfigMap.Namespace", initConfigMap.Namespace, "Job.Name", initConfigMap.Name)
+                err = r.client.Create(context.TODO(), initConfigMap)
+                if err != nil {
+                        return reconcile.Result{}, err
+                }
+        } else if !reflect.DeepEqual(initConfigMap.Data, foundInitConfigMap.Data) {
+                reqLogger.Info("Updating InitConfigMap")
+
+                initConfigMap.Data = foundInitConfigMap.Data
+        }
+
+        initConfigMapHash, err := util.ObjectHash(initConfigMap)
+        if err != nil {
+                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
+        } else {
+                reqLogger.Info("InitConfigMapHash: ", "Data Hash:", initConfigMapHash)
+        }
+
         // ConfigMap
         configMap := neutronovsagent.ConfigMap(instance, instance.Name)
         if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
@@ -170,7 +197,7 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
         }
 
         // Define a new Daemonset object
-        ds := newDaemonset(instance, instance.Name, configMapHash)
+        ds := newDaemonset(instance, instance.Name, configMapHash, initConfigMapHash)
         dsHash, err := util.ObjectHash(ds)
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
@@ -228,11 +255,12 @@ func (r *ReconcileNeutronOvsAgent) setDaemonsetHash(instance *neutronv1.NeutronO
 
 }
 
-func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash string) *appsv1.DaemonSet {
+func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash string, initConfigHash string) *appsv1.DaemonSet {
         var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
         var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
         var trueVar bool = true
-        var configVolumeDefaultMode int32 = 0644
+	var initVolumeDefaultMode      int32 = 0755
+	var defaultVolumeDefaultMode   int32 = 0644
         var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
 
         daemonSet := appsv1.DaemonSet{
@@ -279,19 +307,14 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                         Privileged:  &trueVar,
                 },
                 Command: []string{
-                        "/bin/bash", "-c", "export CTRL_IP_TENANT=$(getent hosts controller-0.tenant | awk '{print $1}') && export POD_IP_TENANT=$(ip route get $CTRL_IP_TENANT | awk '{print $5}') && cp /etc/neutron/plugins/ml2/openvswitch_agent.ini /mnt/openvswitch_agent.ini && crudini --set /mnt/openvswitch_agent.ini ovs local_ip $POD_IP_TENANT",
-                },
-                Env: []corev1.EnvVar{
-                        {
-                                Name: "MY_POD_IP",
-                                ValueFrom: &corev1.EnvVarSource{
-                                        FieldRef: &corev1.ObjectFieldSelector{
-                                                FieldPath: "status.podIP",
-                                        },
-                                },
-                        },
+                        "/bin/bash", "-c", "/tmp/container-init/openvswitch_agent_init.sh /mnt",
                 },
                 VolumeMounts: []corev1.VolumeMount{
+                        {
+                                Name:      cmName + "-init",
+                                ReadOnly:  true,
+                                MountPath: "/tmp/container-init",
+                        },
                         {
                                 Name:      cmName,
                                 ReadOnly:  true,
@@ -310,7 +333,12 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                                 ReadOnly:  true,
                         },
                         {
-                                Name:      "rendered-config-vol",
+                                Name:      "run-openvswitch-volume",
+                                MountPath: "/var/run/openvswitch",
+                                MountPropagation: &bidirectional,
+                        },
+                        {
+                                Name:      "neutron-config-vol",
                                 MountPath: "/mnt",
                                 ReadOnly:  false,
                         },
@@ -335,7 +363,7 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                 //        TimeoutSeconds:      1,
                 //},
                 Command: []string{
-                        "/usr/bin/neutron-openvswitch-agent", "--config-file", "/usr/share/neutron/neutron-dist.conf", "--config-file", "/etc/neutron/neutron.conf", "--config-file", "/mnt/openvswitch_agent.ini", "--config-dir", "/etc/neutron/conf.d/common", "--log-file=/var/log/neutron/openvswitch-agent.log",
+                        "/usr/bin/neutron-openvswitch-agent", "--config-file", "/usr/share/neutron/neutron-dist.conf", "--config-file", "/etc/neutron/neutron.conf", "--config-file", "/etc/neutron/plugins/ml2/openvswitch_agent.ini", "--config-dir", "/etc/neutron/conf.d/common", "--log-file=/var/log/neutron/openvswitch-agent.log",
                 },
                 SecurityContext: &corev1.SecurityContext{
                         Privileged:  &trueVar,
@@ -345,20 +373,12 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                                 Name:  "CONFIG_HASH",
                                 Value: configHash,
                         },
+                        {
+                                Name:  "INIT_CONFIG_HASH",
+                                Value: initConfigHash,
+                        },
                 },
                 VolumeMounts: []corev1.VolumeMount{
-                        {
-                                Name:      cmName,
-                                ReadOnly:  true,
-                                MountPath: "/etc/neutron/neutron.conf",
-                                SubPath:   "neutron.conf",
-                        },
-                        {
-                                Name:      cmName,
-                                ReadOnly:  true,
-                                MountPath: "/etc/neutron/plugins/ml2/openvswitch_agent.ini",
-                                SubPath:   "openvswitch_agent.ini",
-                        },
                         {
                                 Name:      "etc-machine-id",
                                 MountPath: "/etc/machine-id",
@@ -380,8 +400,8 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                                 MountPropagation: &bidirectional,
                         },
                         {
-                                Name:      "rendered-config-vol",
-                                MountPath: "/mnt",
+                                Name:      "neutron-config-vol",
+                                MountPath: "/etc/neutron",
                                 ReadOnly:  true,
                         },
                 },
@@ -432,10 +452,21 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                         },
                 },
                 {
+                        Name: cmName + "-init",
+                        VolumeSource: corev1.VolumeSource{
+                                ConfigMap: &corev1.ConfigMapVolumeSource{
+                                         DefaultMode: &initVolumeDefaultMode,
+                                         LocalObjectReference: corev1.LocalObjectReference{
+                                                 Name: cmName + "-init",
+                                         },
+                                },
+                        },
+                },
+                {
                         Name: cmName,
                         VolumeSource: corev1.VolumeSource{
                                 ConfigMap: &corev1.ConfigMapVolumeSource{
-                                         DefaultMode: &configVolumeDefaultMode,
+                                         DefaultMode: &defaultVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
                                                  Name: cmName,
                                          },
@@ -443,7 +474,7 @@ func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash strin
                         },
                 },
                 {
-                        Name: "rendered-config-vol",
+                        Name: "neutron-config-vol",
                         VolumeSource: corev1.VolumeSource{
                                 EmptyDir: &corev1.EmptyDirVolumeSource{},
                         },
