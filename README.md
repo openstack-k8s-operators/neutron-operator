@@ -12,7 +12,7 @@ NOTE:
 
     mkdir openstack-k8s-operators
     cd openstack-k8s-operators
-    git clone https://github.com/stuggi/neutron-operator.git
+    git clone https://github.com/openstack-k8s-operators/neutron-operator.git
     cd neutron-operator
 
 #### Create the operator
@@ -54,15 +54,11 @@ Install the operator
     POD=`oc get pods -l name=neutron-operator --field-selector=status.phase=Running -o name | head -1 -`; echo $POD
     oc logs $POD -f
 
-Create custom resource for a compute node which specifies the container images and the label
-get latest container images from rdo rhel8-train from https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml
-or
+Create custom resource for a compute node which specifies the container images and the label.
 
-    $ dnf install python2 python2-yaml
-    $ python -c 'import urllib2;import yaml;c=yaml.load(urllib2.urlopen("https://trunk.rdoproject.org/rhel8-train/current-tripleo/commit.yaml"))["commits"][0];print "%s_%s" % (c["commit_hash"],c["distro_hash"][0:8])'
-    f8b48998e5d600f24513848b600e84176ce90223_243bc231
+Note: use OpenStack train rhel-8 container images!
 
-Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the `openvswitchImage` images and OpenStack environmen details.
+Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the `openvswitchImage` image and OpenStack environment details.
 
     apiVersion: neutron.openstack.org/v1
     kind: NeutronOvsAgent
@@ -73,11 +69,11 @@ Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the 
       rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
       # Debug
       debug: "True"
-      openvswitchImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-openvswitch-agent:f8b48998e5d600f24513848b600e84176ce90223_243bc231
+      openvswitchImage: docker.io/tripleotrain/rhel-binary-neutron-openvswitch-agent:current-tripleo
       label: compute
 
 
-Update `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml` with the details of the `openvswitchImage` images and OpenStack environmen details.
+Update `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml` with the details of the `openvswitchImage` image and OpenStack environment details.
 
     apiVersion: neutron.openstack.org/v1
     kind: NeutronSriovAgent
@@ -88,7 +84,7 @@ Update `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml` with the details of th
       rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
       # Debug
       debug: "True"
-      neutronSriovImage: trunk.registry.rdoproject.org/tripleotrain/rhel-binary-neutron-sriov-agent:ae13f36b8f368e079dda53f1468790ab2253ea69_51b819f9
+      neutronSriovImage: docker.io/tripleotrain/rhel-binary-neutron-sriov-agent:current-tripleo
       label: compute
 
 
