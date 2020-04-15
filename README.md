@@ -26,7 +26,7 @@ Create CRDs
 
 Build the image, using your custom registry you have write access to
 
-    operator-sdk build <image e.g quay.io/openstack-k8s-operators/neutron-operator:v0.0.X>
+    operator-sdk build --image-builder buildah <image e.g quay.io/openstack-k8s-operators/neutron-operator:v0.0.X>
 
 Replace `image:` in deploy/operator.yaml with your custom registry
 
