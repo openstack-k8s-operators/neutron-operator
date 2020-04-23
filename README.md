@@ -163,3 +163,11 @@ Note: right now it just pulls the image, uses the same neutron.conf as the ovs a
     oc delete -f deploy/service_account.yaml
     oc delete -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc delete -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
+
+## Formatting
+
+For code formatting we are using goimports. It based on go fmt but also adding missing imports and removing unreferenced ones.
+
+    go get golang.org/x/tools/cmd/goimports
+    export PATH=$PATH:$GOPATH/bin
+    goimports -w -v ./
