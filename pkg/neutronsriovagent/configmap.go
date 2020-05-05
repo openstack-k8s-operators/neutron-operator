@@ -8,13 +8,13 @@ import (
 )
 
 type neutronSriovAgentConfigOptions struct {
-        RabbitTransportUrl string
+        RabbitTransportURL string
         Debug string
 }
 
-// custom config map
+// ConfigMap - custom config map
 func ConfigMap(cr *neutronv1.NeutronSriovAgent, cmName string) *corev1.ConfigMap {
-        opts := neutronSriovAgentConfigOptions{cr.Spec.RabbitTransportUrl,
+        opts := neutronSriovAgentConfigOptions{cr.Spec.RabbitTransportURL,
                                                cr.Spec.Debug}
 
         cm := &corev1.ConfigMap{

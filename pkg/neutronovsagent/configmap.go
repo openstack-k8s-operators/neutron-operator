@@ -8,11 +8,11 @@ import (
 )
 
 type neutronOvsAgentConfigOptions struct {
-        RabbitTransportUrl string
+        RabbitTransportURL string
         Debug string
 }
 
-// neutron-ovsagent-init config map
+// InitConfigMap - neutron-ovsagent-init config map
 func InitConfigMap(cr *neutronv1.NeutronOvsAgent, cmName string) *corev1.ConfigMap {
 
         cm := &corev1.ConfigMap{
@@ -33,9 +33,9 @@ func InitConfigMap(cr *neutronv1.NeutronOvsAgent, cmName string) *corev1.ConfigM
         return cm
 }
 
-// neutron-ovsagent config map
+// ConfigMap - neutron-ovsagent config map
 func ConfigMap(cr *neutronv1.NeutronOvsAgent, cmName string) *corev1.ConfigMap {
-        opts := neutronOvsAgentConfigOptions{cr.Spec.RabbitTransportUrl,
+        opts := neutronOvsAgentConfigOptions{cr.Spec.RabbitTransportURL,
                                              cr.Spec.Debug}
 
         cm := &corev1.ConfigMap{

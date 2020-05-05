@@ -12,7 +12,7 @@ type NeutronSriovAgentSpec struct {
         // Image is the Docker image to run for the daemon
         NeutronSriovImage string `json:"neutronSriovImage"`
         // RabbitMQ transport URL String
-        RabbitTransportUrl string `json:"rabbitTransportUrl"`
+        RabbitTransportURL string `json:"rabbitTransportURL"`
         // Debug
         Debug string `json:"debug,omitempty"`
 }

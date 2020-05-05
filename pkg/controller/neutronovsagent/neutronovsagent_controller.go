@@ -28,10 +28,12 @@ import (
 var log = logf.Log.WithName("controller_neutronovsagent")
 var ospHostAliases = []corev1.HostAlias{}
 
+// CommonConfigMAP
 const (
-        COMMON_CONFIGMAP   string = "common-config"
+        CommonConfigMAP   string = "common-config"
 )
 
+// Add func
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
@@ -124,8 +126,8 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
 
         commonConfigMap := &corev1.ConfigMap{}
 
-        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", CommonConfigMAP)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: CommonConfigMAP, Namespace: instance.Namespace}, commonConfigMap)
         if err != nil && errors.IsNotFound(err) {
                 reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
                 return reconcile.Result{}, err
@@ -165,9 +167,8 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
         initConfigMapHash, err := util.ObjectHash(initConfigMap)
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-        } else {
-                reqLogger.Info("InitConfigMapHash: ", "Data Hash:", initConfigMapHash)
         }
+        reqLogger.Info("InitConfigMapHash: ", "Data Hash:", initConfigMapHash)
 
         // ConfigMap
         configMap := neutronovsagent.ConfigMap(instance, instance.Name)
@@ -192,18 +193,16 @@ func (r *ReconcileNeutronOvsAgent) Reconcile(request reconcile.Request) (reconci
         configMapHash, err := util.ObjectHash(configMap)
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-        } else {
-                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
         }
+        reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
 
         // Define a new Daemonset object
         ds := newDaemonset(instance, instance.Name, configMapHash, initConfigMapHash)
         dsHash, err := util.ObjectHash(ds)
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-        } else {
-                reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
         }
+        reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
 	// Set NeutronOvsAgent instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -256,12 +255,12 @@ func (r *ReconcileNeutronOvsAgent) setDaemonsetHash(instance *neutronv1.NeutronO
 }
 
 func newDaemonset(cr *neutronv1.NeutronOvsAgent, cmName string, configHash string, initConfigHash string) *appsv1.DaemonSet {
-        var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional
-        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer
-        var trueVar bool = true
-	var initVolumeDefaultMode      int32 = 0755
-	var defaultVolumeDefaultMode   int32 = 0644
-        var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+        var bidirectional = corev1.MountPropagationBidirectional
+        var hostToContainer = corev1.MountPropagationHostToContainer
+        var trueVar = true
+	      var initVolumeDefaultMode      int32 = 0755
+	      var defaultVolumeDefaultMode   int32 = 0644
+        var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
         daemonSet := appsv1.DaemonSet{
                 TypeMeta: metav1.TypeMeta{

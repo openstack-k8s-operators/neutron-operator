@@ -8,7 +8,7 @@ import (
         corev1 "k8s.io/api/core/v1"
 )
 
-// Create hostAliases from added /etc/hosts file of the OSP environment.
+// CreateOspHostsEntries creates hostAliases from added /etc/hosts file of the OSP environment.
 // All entries inside the ANSIBLE MANAGED BLOCK gets added. Important is that
 // the /etc/hosts file in the config map has opening and closing tag.
 func CreateOspHostsEntries(commonConfigMap *corev1.ConfigMap) ([]corev1.HostAlias, error){
@@ -19,7 +19,7 @@ func CreateOspHostsEntries(commonConfigMap *corev1.ConfigMap) ([]corev1.HostAlia
         if isset {
                 re := regexp.MustCompile(`(?s).*BEGIN ANSIBLE MANAGED BLOCK\n(.*)# END ANSIBLE MANAGED BLOCK.*`)
                 hostsEntries := re.FindStringSubmatch(hostsFile)
-               
+
                 if len(hostsEntries)>=1 {
                         for _, hostRecord := range strings.Split(hostsEntries[1], "\n") {
                                 if len(hostRecord) > 0 {
@@ -42,10 +42,10 @@ func CreateOspHostsEntries(commonConfigMap *corev1.ConfigMap) ([]corev1.HostAlia
                                 }
                         }
                 } else {
-                        return nil, fmt.Errorf("Ansible tags not found in hosts file of common-config map!")
+                        return nil, fmt.Errorf("Ansible tags not found in hosts file of common-config map")
                 }
         } else {
-                return nil, fmt.Errorf("No hosts file in common-config map!")
+                return nil, fmt.Errorf("No hosts file in common-config map")
         }
 
         return hostAliases, nil

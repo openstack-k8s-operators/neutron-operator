@@ -66,7 +66,7 @@ Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the 
       name: neutron-ovsagent
     spec:
       # Rabbit transport url
-      rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+      rabbitTransportURL: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
       # Debug
       debug: "True"
       openvswitchImage: docker.io/tripleotrain/rhel-binary-neutron-openvswitch-agent:current-tripleo
@@ -81,7 +81,7 @@ Update `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml` with the details of th
       name: neutron-sriov-agent
     spec:
       # Rabbit transport url
-      rabbitTransportUrl: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+      rabbitTransportURL: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
       # Debug
       debug: "True"
       neutronSriovImage: docker.io/tripleotrain/rhel-binary-neutron-sriov-agent:current-tripleo

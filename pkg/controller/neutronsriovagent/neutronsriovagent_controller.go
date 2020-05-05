@@ -28,8 +28,9 @@ import (
 var log = logf.Log.WithName("controller_neutronsriovagent")
 var ospHostAliases = []corev1.HostAlias{}
 
+// CommonConfigMAP
 const (
-        COMMON_CONFIGMAP   string = "common-config"
+        CommonConfigMAP   string = "common-config"
 )
 
 // Add creates a new NeutronSriovAgent Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -58,7 +59,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
         // Watch ConfigMaps owned by NeutronSriovAgent
-        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{                                            
+        err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
                 IsController: false,
                 OwnerType:    &neutronv1.NeutronSriovAgent{},
         })
@@ -67,7 +68,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
         }
 
         // Watch Secrets owned by neutronv1.NeutronSriovAgent
-        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{                                               
+        err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
                 IsController: false,
                 OwnerType:    &neutronv1.NeutronSriovAgent{},
         })
@@ -126,19 +127,19 @@ func (r *ReconcileNeutronSriovAgent) Reconcile(request reconcile.Request) (recon
 
         commonConfigMap := &corev1.ConfigMap{}
 
-        reqLogger.Info("Creating host entries from config map:", "configMap: ", COMMON_CONFIGMAP)                                          
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: COMMON_CONFIGMAP, Namespace: instance.Namespace}, commonConfigMap)   
+        reqLogger.Info("Creating host entries from config map:", "configMap: ", CommonConfigMAP)
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: CommonConfigMAP, Namespace: instance.Namespace}, commonConfigMap)
         if err != nil && errors.IsNotFound(err) {
                 reqLogger.Error(err, "common-config ConfigMap not found!", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
                 return reconcile.Result{}, err
         }
 
-        if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {                                 
+        if err := controllerutil.SetControllerReference(instance, commonConfigMap, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
 
-        // Create additional host entries added to the /etc/hosts file of the containers                                                   
-        ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)                                                                  
+        // Create additional host entries added to the /etc/hosts file of the containers
+        ospHostAliases, err = util.CreateOspHostsEntries(commonConfigMap)
         if err != nil {
                 reqLogger.Error(err, "Failed ospHostAliases", "Instance.Namespace", instance.Namespace, "Instance.Name", instance.Name)
                 return reconcile.Result{}, err
@@ -146,20 +147,20 @@ func (r *ReconcileNeutronSriovAgent) Reconcile(request reconcile.Request) (recon
 
 
         // ConfigMap
-        configMap := neutronsriovagent.ConfigMap(instance, instance.Name)                                                                    
-        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {                                       
+        configMap := neutronsriovagent.ConfigMap(instance, instance.Name)
+        if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
                 return reconcile.Result{}, err
         }
         // Check if this ConfigMap already exists
         foundConfigMap := &corev1.ConfigMap{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)     
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, foundConfigMap)
         if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)         
+                reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "Job.Name", configMap.Name)
                 err = r.client.Create(context.TODO(), configMap)
                 if err != nil {
                         return reconcile.Result{}, err
                 }
-        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {                                                                
+        } else if !reflect.DeepEqual(configMap.Data, foundConfigMap.Data) {
                 reqLogger.Info("Updating ConfigMap")
 
                 configMap.Data = foundConfigMap.Data
@@ -167,19 +168,17 @@ func (r *ReconcileNeutronSriovAgent) Reconcile(request reconcile.Request) (recon
 
         configMapHash, err := util.ObjectHash(configMap)
         if err != nil {
-                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)                                     
-        } else {
-                reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
+                return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
         }
+        reqLogger.Info("ConfigMapHash: ", "Data Hash:", configMapHash)
 
         // Define a new Daemonset object
         ds := newDaemonset(instance, instance.Name, configMapHash)
         dsHash, err := util.ObjectHash(ds)
         if err != nil {
                 return reconcile.Result{}, fmt.Errorf("error calculating configuration hash: %v", err)
-        } else {
-                reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
         }
+        reqLogger.Info("DaemonsetHash: ", "Daemonset Hash:", dsHash)
 
         // Set NeutronSriovAgent instance as the owner and controller
         if err := controllerutil.SetControllerReference(instance, ds, r.scheme); err != nil {
@@ -188,9 +187,9 @@ func (r *ReconcileNeutronSriovAgent) Reconcile(request reconcile.Request) (recon
 
         // Check if this Daemonset already exists
         found := &appsv1.DaemonSet{}
-        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)                            
+        err = r.client.Get(context.TODO(), types.NamespacedName{Name: ds.Name, Namespace: ds.Namespace}, found)
         if err != nil && errors.IsNotFound(err) {
-                reqLogger.Info("Creating a new Daemonset", "ds.Namespace", ds.Namespace, "ds.Name", ds.Name)                               
+                reqLogger.Info("Creating a new Daemonset", "ds.Namespace", ds.Namespace, "ds.Name", ds.Name)
                 err = r.client.Create(context.TODO(), ds)
                 if err != nil {
                         return reconcile.Result{}, err
@@ -231,12 +230,12 @@ func (r *ReconcileNeutronSriovAgent) setDaemonsetHash(instance *neutronv1.Neutro
 
 }
 
-func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash string) *appsv1.DaemonSet {                                     
-        var bidirectional corev1.MountPropagationMode = corev1.MountPropagationBidirectional                                               
-        var hostToContainer corev1.MountPropagationMode = corev1.MountPropagationHostToContainer                                           
-        var trueVar bool = true
+func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash string) *appsv1.DaemonSet {
+        var bidirectional = corev1.MountPropagationBidirectional
+        var hostToContainer = corev1.MountPropagationHostToContainer
+        var trueVar = true
         var configVolumeDefaultMode int32 = 0644
-        var dirOrCreate corev1.HostPathType = corev1.HostPathDirectoryOrCreate                                                             
+        var dirOrCreate = corev1.HostPathDirectoryOrCreate
 
         daemonSet := appsv1.DaemonSet{
                 TypeMeta: metav1.TypeMeta{
@@ -247,9 +246,9 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
                         Name:      cmName,
                         Namespace: cr.Namespace,
                         //OwnerReferences: []metav1.OwnerReference{
-                        //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{                                                      
-                        //              Group:   v1beta1.SchemeGroupVersion.Group,                                                         
-                        //              Version: v1beta1.SchemeGroupVersion.Version,                                                       
+                        //      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
+                        //              Group:   v1beta1.SchemeGroupVersion.Group,
+                        //              Version: v1beta1.SchemeGroupVersion.Version,
                         //              Kind:    "GenericDaemon",
                         //      }),
                         //},
@@ -389,13 +388,13 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
 
                 },
         }
-        daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, neutronSriovAgentContainerSpec)    
+        daemonSet.Spec.Template.Spec.Containers = append(daemonSet.Spec.Template.Spec.Containers, neutronSriovAgentContainerSpec)
 
         volConfigs := []corev1.Volume{
                 {
                         Name: "etc-machine-id",
                         VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{                                                                    
+                                HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/etc/machine-id",
                                 },
                         },
@@ -403,7 +402,7 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
                 {
                         Name: "run-volume",
                         VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{                                                                    
+                                HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/run",
                                 },
                         },
@@ -411,7 +410,7 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
                 {
                         Name: "lib-modules-volume",
                         VolumeSource: corev1.VolumeSource{
-                                HostPath: &corev1.HostPathVolumeSource{                                                                    
+                                HostPath: &corev1.HostPathVolumeSource{
                                         Path: "/lib/modules",
                                 },
                         },
@@ -437,8 +436,8 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
                 {
                         Name: cmName,
                         VolumeSource: corev1.VolumeSource{
-                                ConfigMap: &corev1.ConfigMapVolumeSource{                                                                  
-                                         DefaultMode: &configVolumeDefaultMode,                                                            
+                                ConfigMap: &corev1.ConfigMapVolumeSource{
+                                         DefaultMode: &configVolumeDefaultMode,
                                          LocalObjectReference: corev1.LocalObjectReference{
                                                  Name: cmName,
                                          },

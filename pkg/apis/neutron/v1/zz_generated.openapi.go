@@ -11,18 +11,19 @@ import (
 	common "k8s.io/kube-openapi/pkg/common"
 )
 
+// GetOpenAPIDefinitions func
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":         schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":     schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus":   schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgent":       schema_pkg_apis_neutron_v1_NeutronSriovAgent(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentSpec":   schema_pkg_apis_neutron_v1_NeutronSriovAgentSpec(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentStatus": schema_pkg_apis_neutron_v1_NeutronSriovAgentStatus(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":         schemaPkgAPIsNeutronV1NeutronOvsAgent(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":     schemaPkgAPIsNeutronV1NeutronOvsAgentSpec(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus":   schemaPkgAPIsNeutronV1NeutronOvsAgentStatus(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgent":       schemaPkgAPIsNeutronV1NeutronSriovAgent(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentSpec":   schemaPkgAPIsNeutronV1NeutronSriovAgentSpec(ref),
+		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentStatus": schemaPkgAPIsNeutronV1NeutronSriovAgentStatus(ref),
 	}
 }
 
-func schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schemaPkgAPIsNeutronV1NeutronOvsAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -65,7 +66,7 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgent(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schemaPkgAPIsNeutronV1NeutronOvsAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -85,7 +86,7 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
-					"rabbitTransportUrl": {
+					"rabbitTransportURL": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RabbitMQ transport URL String",
 							Type:        []string{"string"},
@@ -100,14 +101,14 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgentSpec(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"label", "openvswitchImage", "rabbitTransportUrl"},
+				Required: []string{"label", "openvswitchImage", "rabbitTransportURL"},
 			},
 		},
 		Dependencies: []string{},
 	}
 }
 
-func schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schemaPkgAPIsNeutronV1NeutronOvsAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -135,7 +136,7 @@ func schema_pkg_apis_neutron_v1_NeutronOvsAgentStatus(ref common.ReferenceCallba
 	}
 }
 
-func schema_pkg_apis_neutron_v1_NeutronSriovAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schemaPkgAPIsNeutronV1NeutronSriovAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -178,7 +179,7 @@ func schema_pkg_apis_neutron_v1_NeutronSriovAgent(ref common.ReferenceCallback) 
 	}
 }
 
-func schema_pkg_apis_neutron_v1_NeutronSriovAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schemaPkgAPIsNeutronV1NeutronSriovAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -198,7 +199,7 @@ func schema_pkg_apis_neutron_v1_NeutronSriovAgentSpec(ref common.ReferenceCallba
 							Format:      "",
 						},
 					},
-					"rabbitTransportUrl": {
+					"rabbitTransportURL": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RabbitMQ transport URL String",
 							Type:        []string{"string"},
@@ -213,14 +214,14 @@ func schema_pkg_apis_neutron_v1_NeutronSriovAgentSpec(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"label", "neutronSriovImage", "rabbitTransportUrl"},
+				Required: []string{"label", "neutronSriovImage", "rabbitTransportURL"},
 			},
 		},
 		Dependencies: []string{},
 	}
 }
 
-func schema_pkg_apis_neutron_v1_NeutronSriovAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schemaPkgAPIsNeutronV1NeutronSriovAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{

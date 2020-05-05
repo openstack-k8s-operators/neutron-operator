@@ -39,13 +39,13 @@ spec:
             openvswitchImage:
               description: Image is the Docker image to run for the daemon
               type: string
-            rabbitTransportUrl:
+            rabbitTransportURL:
               description: RabbitMQ transport URL String
               type: string
           required:
           - label
           - openvswitchImage
-          - rabbitTransportUrl
+          - rabbitTransportURL
           type: object
         status:
           properties:

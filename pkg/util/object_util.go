@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 )
 
-// create a deep object hash and return it as a safe encoded string
+// ObjectHash creates a deep object hash and return it as a safe encoded string
 func ObjectHash(i interface{}) (string, error) {
         // Convert the hashSource to a byte slice so that it can be hashed
         hashBytes, err := json.Marshal(i)

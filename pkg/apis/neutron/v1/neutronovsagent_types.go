@@ -12,7 +12,7 @@ type NeutronOvsAgentSpec struct {
         // Image is the Docker image to run for the daemon
         OpenvswitchImage string `json:"openvswitchImage"`
         // RabbitMQ transport URL String
-        RabbitTransportUrl string `json:"rabbitTransportUrl"`
+        RabbitTransportURL string `json:"rabbitTransportURL"`
         // Debug
         Debug string `json:"debug,omitempty"`
 }
