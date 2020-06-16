@@ -23,6 +23,8 @@ Create CRDs
 
     oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
+    oc create -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
+    oc create -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml 
 
 Build the image, using your custom registry you have write access to
 
@@ -37,10 +39,16 @@ Replace `image:` in deploy/operator.yaml with your custom registry
 
 #### Install the operator
 
-Create CRDs
+Create CRDs. For ovs:
 
     oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
+    oc create -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
+    oc create -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml 
+
+Create namespace
+
+    oc create -f deploy/namespace.yaml
 
 Create role, binding service_account
 
@@ -158,12 +166,16 @@ Note: right now it just pulls the image, uses the same neutron.conf as the ovs a
 
     oc delete -f deploy/crds/neutron_v1_neutronovsagent_cr.yaml
     oc delete -f deploy/crds/neutron_v1_neutronsriovagent_cr.yaml
+    oc delete -f deploy/crds/neutron.openstack.org_v1_ovsnodeosp_cr.yaml
+    oc delete -f deploy/crds/neutron.openstack.org_v1_ovncontroller_cr.yaml 
     oc delete -f deploy/operator.yaml
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
     oc delete -f deploy/service_account.yaml
     oc delete -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc delete -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
+    oc delete -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
+    oc delete -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml 
 
 ## Formatting
 

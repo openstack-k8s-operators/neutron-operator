@@ -3,9 +3,10 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: neutron-operator
+  namespace: openstack
 rules:
 - apiGroups:
-  - ""
+  - "*"
   resources:
   - pods
   - services
@@ -31,7 +32,13 @@ rules:
   - replicasets
   - statefulsets
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -51,6 +58,32 @@ rules:
   - neutron.openstack.org
   resources:
   - '*'
+  - ovncontrollers
+  - ovsnodeosps
+  - neutronovsagents
   - neutronsriovagents
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - neutron-operator
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - list
+  - get
+  - watch
+  - create
