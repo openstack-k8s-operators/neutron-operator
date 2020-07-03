@@ -32,7 +32,7 @@ spec:
             description: OVSNodeOspSpec defines the desired state of OVSNodeOsp
             properties:
               nic:
-                description: ovn encap ip
+                description: NIC for ovn encap ip
                 type: string
               ovnSbRemote:
                 description: ovn south db ip
