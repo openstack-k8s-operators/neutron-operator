@@ -17,7 +17,7 @@ type OVSNodeOspSpec struct {
 	OvsLogLevel string `json:"ovsLogLevel"`
 	// ovn south db ip
 	OvnSbRemote string `json:"ovnSbRemote"`
-	// ovn encap ip
+	// NIC for ovn encap ip
 	Nic string `json:"nic"`
 }
 
