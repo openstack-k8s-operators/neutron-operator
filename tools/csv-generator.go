@@ -208,6 +208,20 @@ Install and configure OpenStack Neutron containers.
 						DisplayName: "Neutron Sriov Agent",
 						Description: "NeutronSriovAgent is the Schema for the neutronsriovagents API",
 					},
+					{
+						Name:        "ovncontrollers.neutron.openstack.org",
+						Version:     "v1",
+						Kind:        "OVNController",
+						DisplayName: "OVN Controller",
+						Description: "OVNController is the Schema for the ovncontrollers API",
+					},
+					{
+						Name:        "ovsnodeosps.neutron.openstack.org",
+						Version:     "v1",
+						Kind:        "OVSNodeOsp",
+						DisplayName: "OVS Node OSP",
+						Description: "OVSNodeOsp is the Schema for the ovsnodeosps API",
+					},
 				},
 			},
 		},
@@ -297,6 +311,8 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 				"*",
 				"neutronovsagents",
 				"neutronsriovagents",
+				"ovsnodeosps",
+				"ovncontrollers",
 			},
 			Verbs: []string{
 				"*",
@@ -420,6 +436,37 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"neutron-operator",
 			},
 			Verbs: []string{
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
+				"security.openshift.io",
+			},
+			Resources: []string{
+				"securitycontextconstraints",
+			},
+			Verbs: []string{
+				"create",
+				"get",
+				"list",
+				"watch",
+				"update",
+				"patch",
+			},
+		},
+		{
+			APIGroups: []string{
+				"security.openshift.io",
+			},
+			Resources: []string{
+				"securitycontextconstraints",
+			},
+			ResourceNames: []string{
+				"neutron-operator",
+			},
+			Verbs: []string{
+				"delete",
 				"update",
 			},
 		},
