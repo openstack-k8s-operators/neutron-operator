@@ -10,3 +10,16 @@ roleRef:
   kind: Role
   name: neutron-operator
   apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: neutron
+  namespace: openstack
+subjects:
+- kind: ServiceAccount
+  name: neutron
+roleRef:
+  kind: Role
+  name: neutron
+  apiGroup: rbac.authorization.k8s.io

@@ -5,7 +5,7 @@ metadata:
   namespace: openstack
 spec:
   ovsNodeOspImage: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:7d6ba1bcc4f403733e44cd2a008dafe1887501f7a3c74084566a4f4d1e46250d
-  serviceAccount: neutron-operator
+  serviceAccount: neutron
   roleName: worker-osp
   ovnSbRemote: 192.168.25.100
   ovsLogLevel: info
