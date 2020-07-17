@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: SecurityContextConstraints
 metadata:
-  name: neutron-operator
+  name: neutron
 allowPrivilegedContainer: true
 allowPrivilegeEscalation: true
 allowHostDirVolumePlugin: true
@@ -28,7 +28,7 @@ seccompProfiles:
 supplementalGroups:
   type: RunAsAny
 users:
-  - system:serviceaccount:openstack:neutron-operator
+  - system:serviceaccount:openstack:neutron
 groups: []
 volumes:
   - '*'

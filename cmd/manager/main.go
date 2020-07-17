@@ -152,9 +152,9 @@ func main() {
 	addMetrics(ctx, cfg)
 
 	log.Info("Creating SCC for neutron-operator.")
-	err = ensureSCCExists(mgr.GetClient(), namespace, "neutron-operator")
+	err = ensureSCCExists(mgr.GetClient(), namespace, "neutron")
 	if err != nil {
-		log.Error(err, "Failed to create SCC for neutron-operator.")
+		log.Error(err, "Failed to create SCC for neutron.")
 		os.Exit(1)
 	}
 
@@ -237,7 +237,7 @@ func serveCRMetrics(cfg *rest.Config, operatorNs string) error {
 	return nil
 }
 
-const sccName = "neutron-operator"
+const sccName = "neutron"
 
 // EnsureSCCExists ensures the security context constraint for neutron-operator exists
 func ensureSCCExists(c client.Client, saNamespace, saName string) error {

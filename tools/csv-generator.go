@@ -88,6 +88,7 @@ Install and configure OpenStack Neutron containers.
 
 	clusterRules := getOperatorClusterRules()
 	rules := getOperatorRules()
+	serviceRules := getServiceRules()
 
 	strategySpec := csvv1.StrategyDetailsDeployment{
 		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{
@@ -100,6 +101,10 @@ Install and configure OpenStack Neutron containers.
 			{
 				ServiceAccountName: "neutron-operator",
 				Rules:              *rules,
+			},
+			{
+				ServiceAccountName: "neutron",
+				Rules:              *serviceRules,
 			},
 		},
 		DeploymentSpecs: []csvv1.StrategyDeploymentSpec{
@@ -321,6 +326,22 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 	}
 }
 
+func getServiceRules() *[]rbacv1.PolicyRule {
+	return &[]rbacv1.PolicyRule{
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"pods",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+	}
+}
+
 func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 	return &[]rbacv1.PolicyRule{
 		{
@@ -433,7 +454,7 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"deployments/finalizers",
 			},
 			ResourceNames: []string{
-				"neutron-operator",
+				"neutron",
 			},
 			Verbs: []string{
 				"update",
@@ -463,11 +484,12 @@ func getOperatorClusterRules() *[]rbacv1.PolicyRule {
 				"securitycontextconstraints",
 			},
 			ResourceNames: []string{
-				"neutron-operator",
+				"neutron",
 			},
 			Verbs: []string{
 				"delete",
 				"update",
+				"use",
 			},
 		},
 		{

@@ -73,7 +73,7 @@ rules:
 - apiGroups:
   - security.openshift.io
   resourceNames:
-  - neutron-operator
+  - neutron
   resources:
   - securitycontextconstraints
   verbs:
@@ -87,3 +87,23 @@ rules:
   - get
   - watch
   - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: neutron
+  namespace: openstack
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
