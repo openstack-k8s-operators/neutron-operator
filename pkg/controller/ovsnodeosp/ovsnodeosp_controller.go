@@ -8,7 +8,7 @@ import (
 
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/common"
 
-	"github.com/openstack-k8s-operators/neutron-operator/pkg/util"
+	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1"
