@@ -1,0 +1,11 @@
+apiVersion: neutron.openstack.org/v1
+kind: OVNMetadataAgent
+metadata:
+  name: example-ovnmetadataagent
+spec:
+  ovsNodeOspImage: docker.io/tripleotrain/rhel-binary-neutron-metadata-agent-ovn:current-tripleo
+  serviceAccount: neutron-operator
+  roleName: worker-osp
+  nic: enp6s0
+  commonConfigMap: common-config
+  ospSecrets: osp-secrets

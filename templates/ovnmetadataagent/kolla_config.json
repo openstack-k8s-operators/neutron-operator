@@ -1,0 +1,35 @@
+{
+  "command": "/usr/bin/networking-ovn-metadata-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/networking-ovn/networking-ovn-metadata-agent.ini --config-dir /etc/neutron/conf.d/networking-ovn-metadata-agent --log-file=/var/log/neutron/ovn-metadata-agent.log",
+  "config_files": [
+    {
+      "dest": "/",
+      "merge": true,
+      "preserve_properties": true,
+      "source": "/var/lib/kolla/config_files/src/*"
+    }
+  ],
+  "permissions": [
+    {
+      "owner": "neutron:neutron",
+      "path": "/var/log/neutron",
+      "recurse": true
+    },
+    {
+      "owner": "neutron:neutron",
+      "path": "/var/lib/neutron",
+      "recurse": true
+    },
+    {
+      "optional": true,
+      "owner": "neutron:neutron",
+      "path": "/etc/pki/tls/certs/ovn_metadata.crt",
+      "perm": "0644"
+    },
+    {
+      "optional": true,
+      "owner": "neutron:neutron",
+      "path": "/etc/pki/tls/private/ovn_metadata.key",
+      "perm": "0644"
+    }
+  ]
+}
