@@ -12,6 +12,15 @@
 
 all: csv-generator
 
+build-image:
+	./build_image.sh
+
+cleanup-operator:
+	./cleanup.sh
+
+create-crds:
+	./create_crds.sh
+
 csv-generator:
 	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o build/_output/csv-generator tools/csv-generator.go
 
