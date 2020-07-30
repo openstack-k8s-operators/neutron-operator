@@ -14,127 +14,12 @@ import (
 // GetOpenAPIDefinitions func
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgent":         schemaPkgAPIsNeutronV1NeutronOvsAgent(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec":     schemaPkgAPIsNeutronV1NeutronOvsAgentSpec(ref),
-		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus":   schemaPkgAPIsNeutronV1NeutronOvsAgentStatus(ref),
 		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgent":       schemaPkgAPIsNeutronV1NeutronSriovAgent(ref),
 		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentSpec":   schemaPkgAPIsNeutronV1NeutronSriovAgentSpec(ref),
 		"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronSriovAgentStatus": schemaPkgAPIsNeutronV1NeutronSriovAgentStatus(ref),
 	}
 }
 
-func schemaPkgAPIsNeutronV1NeutronOvsAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NeutronOvsAgent is the Schema for the neutronovsagents API",
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentSpec", "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1.NeutronOvsAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schemaPkgAPIsNeutronV1NeutronOvsAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NeutronOvsAgentSpec defines the desired state of NeutronOvsAgent",
-				Properties: map[string]spec.Schema{
-					"label": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Label is the value of the 'daemon=' label to set on a node that should run the daemon",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"openvswitchImage": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Image is the Docker image to run for the daemon",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"rabbitTransportURL": {
-						SchemaProps: spec.SchemaProps{
-							Description: "RabbitMQ transport URL String",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"debug": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Debug",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"label", "openvswitchImage", "rabbitTransportURL"},
-			},
-		},
-		Dependencies: []string{},
-	}
-}
-
-func schemaPkgAPIsNeutronV1NeutronOvsAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NeutronOvsAgentStatus defines the observed state of NeutronOvsAgent",
-				Properties: map[string]spec.Schema{
-					"count": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Count is the number of nodes the daemon is deployed to",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"daemonsetHash": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Daemonset hash used to detect changes",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"count", "daemonsetHash"},
-			},
-		},
-		Dependencies: []string{},
-	}
-}
 
 func schemaPkgAPIsNeutronV1NeutronSriovAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{

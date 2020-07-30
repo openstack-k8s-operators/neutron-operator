@@ -1,5 +1,4 @@
 #!/bin/bash
-oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
 oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
 oc create -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
 oc create -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml
