@@ -193,13 +193,6 @@ Install and configure OpenStack Neutron containers.
 
 				Owned: []csvv1.CRDDescription{
 					{
-						Name:        "neutronovsagents.neutron.openstack.org",
-						Version:     "v1",
-						Kind:        "NeutronOvsAgent",
-						DisplayName: "Neutron OVS Agent",
-						Description: "NeutronOvsAgent is the Schema for the neutronovsagents API",
-					},
-					{
 						Name:        "neutronsriovagents.neutron.openstack.org",
 						Version:     "v1",
 						Kind:        "NeutronSriovAgent",
@@ -307,7 +300,6 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"*",
-				"neutronovsagents",
 				"neutronsriovagents",
 				"ovsnodeosps",
 				"ovncontrollers",

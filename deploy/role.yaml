@@ -60,7 +60,6 @@ rules:
   - '*'
   - ovncontrollers
   - ovsnodeosps
-  - neutronovsagents
   - neutronsriovagents
   verbs:
   - create

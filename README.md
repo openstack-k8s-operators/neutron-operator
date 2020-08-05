@@ -21,7 +21,6 @@ This is optional, a prebuild operator from quay.io/openstack-k8s-operators/neutr
 
 Create CRDs
 
-    oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
     oc create -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
     oc create -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml 
@@ -41,7 +40,6 @@ Replace `image:` in deploy/operator.yaml with your custom registry
 
 Create CRDs. For ovs:
 
-    oc create -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc create -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
     oc create -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
     oc create -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml 
@@ -66,20 +64,6 @@ Install the operator
 Create custom resource for a compute node which specifies the container images and the label.
 
 Note: use OpenStack train rhel-8 container images!
-
-Update `deploy/crds/neutron_v1_neutronovsagent_cr.yaml` with the details of the `openvswitchImage` image and OpenStack environment details.
-
-    apiVersion: neutron.openstack.org/v1
-    kind: NeutronOvsAgent
-    metadata:
-      name: neutron-ovsagent
-    spec:
-      # Rabbit transport url
-      rabbitTransportURL: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
-      # Debug
-      debug: "True"
-      openvswitchImage: docker.io/tripleotrain/rhel-binary-neutron-openvswitch-agent:current-tripleo
-      label: compute
 
 
 Update `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml` with the details of the `openvswitchImage` image and OpenStack environment details.
@@ -122,39 +106,6 @@ Note: if a later update is needed do e.g.
 
 !! Make sure we have the OSP needed network configs on the worker nodes. The workers need to be able to reach the internalapi and tenant network !!
 
-Apply `deploy/crds/neutron_v1_neutronovsagent_cr.yaml`
-
-    oc apply -f deploy/crds/neutron_v1_neutronovsagent_cr.yaml
-
-    oc get pods
-    NAME                               READY   STATUS    RESTARTS   AGE
-    neutron-operator-5df665ff-79swh    1/1     Running   0          3m35s
-    neutron-ovsagent-2t8hs             1/1     Running   0          97s
-    neutron-ovsagent-s72r8             1/1     Running   0          97s
-    ...
-
-    oc get ds
-    NAME               DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR    AGE
-    neutron-ovsagent   2         2         2       2            2           daemon=compute   116s
-    ...
-
-
-Verify that the ovs-agent successfully registered in neutron:
-
-    (overcloud) $ openstack network agent list -c ID -c 'Agent Type' -c Host -c State
-    +--------------------------------------+--------------------+---------------------------+-------+
-    | ID                                   | Agent Type         | Host                      | State |
-    +--------------------------------------+--------------------+---------------------------+-------+
-    | 64c0bb15-1d76-4490-a44f-897dc0f12842 | Open vSwitch agent | worker-0                  | UP    |
-    | 69e646d2-9e80-439b-89fc-7a7aa92eb3ad | Open vSwitch agent | worker-1                  | UP    |
-    | 9739dba6-f14a-45cc-9f25-cc27f757588d | Open vSwitch agent | controller-0.redhat.local | UP    |
-    | 984a65b1-ba5c-4999-88eb-8d155644b419 | L3 agent           | controller-0.redhat.local | UP    |
-    | b0c55ea9-e06e-43d5-b43c-b1f5e81faa92 | Metadata agent     | controller-0.redhat.local | UP    |
-    | b8d6478b-bc07-4292-9932-09277a30f8b8 | Open vSwitch agent | compute-1.redhat.local    | UP    |
-    | c7ff7e42-020e-4699-9fe4-55e749c9cb4f | Open vSwitch agent | compute-0.redhat.local    | UP    |
-    | d6a7ce33-e1b0-412a-99ef-0f2a0fc247fb | DHCP agent         | controller-0.redhat.local | UP    |
-    +--------------------------------------+--------------------+---------------------------+-------+
-
 Optional apply the `deploy/crds/neutron_v1_neutronsriovagent_cr.yaml`
 
     oc apply -f deploy/crds/neutron_v1_neutronsriovagent_cr.yaml
@@ -164,7 +115,6 @@ Note: right now it just pulls the image, uses the same neutron.conf as the ovs a
 
 ## Cleanup
 
-    oc delete -f deploy/crds/neutron_v1_neutronovsagent_cr.yaml
     oc delete -f deploy/crds/neutron_v1_neutronsriovagent_cr.yaml
     oc delete -f deploy/crds/neutron.openstack.org_v1_ovsnodeosp_cr.yaml
     oc delete -f deploy/crds/neutron.openstack.org_v1_ovncontroller_cr.yaml 
@@ -172,7 +122,6 @@ Note: right now it just pulls the image, uses the same neutron.conf as the ovs a
     oc delete -f deploy/role.yaml
     oc delete -f deploy/role_binding.yaml
     oc delete -f deploy/service_account.yaml
-    oc delete -f deploy/crds/neutron_v1_neutronovsagent_crd.yaml
     oc delete -f deploy/crds/neutron_v1_neutronsriovagent_crd.yaml
     oc delete -f deploy/crds/neutron.openstack.org_ovsnodeosps_crd.yaml
     oc delete -f deploy/crds/neutron.openstack.org_ovncontrollers_crd.yaml 

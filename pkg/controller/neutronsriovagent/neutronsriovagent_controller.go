@@ -244,13 +244,6 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
 			Namespace: cr.Namespace,
-			//OwnerReferences: []metav1.OwnerReference{
-			//      *metav1.NewControllerRef(cr, schema.GroupVersionKind{
-			//              Group:   v1beta1.SchemeGroupVersion.Group,
-			//              Version: v1beta1.SchemeGroupVersion.Version,
-			//              Kind:    "GenericDaemon",
-			//      }),
-			//},
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -322,18 +315,6 @@ func newDaemonset(cr *neutronv1.NeutronSriovAgent, cmName string, configHash str
 	neutronSriovAgentContainerSpec := corev1.Container{
 		Name:  "neutron-sriov-agent",
 		Image: cr.Spec.NeutronSriovImage,
-		//ReadinessProbe: &corev1.Probe{
-		//        Handler: corev1.Handler{
-		//                Exec: &corev1.ExecAction{
-		//                        Command: []string{
-		//                                "/openstack/healthcheck",
-		//                        },
-		//                },
-		//        },
-		//        InitialDelaySeconds: 30,
-		//        PeriodSeconds:       30,
-		//        TimeoutSeconds:      1,
-		//},
 		Command: []string{
 			"/bin/sleep", "86400",
 		},
