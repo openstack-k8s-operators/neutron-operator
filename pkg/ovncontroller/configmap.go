@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
-	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1"
+	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +32,6 @@ func ScriptsConfigMap(cr *neutronv1.OVNController, cmName string) *corev1.Config
 // TemplatesConfigMap - custom ovs neutron config map
 func TemplatesConfigMap(cr *neutronv1.OVNController, cmName string) *corev1.ConfigMap {
 
-	// (TODO)(ksambor) move neutron.conf here and use it in ovsnode.sh
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
