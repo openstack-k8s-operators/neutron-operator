@@ -1,0 +1,11 @@
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronSriovAgent
+metadata:
+  name: neutron-sriov-agent
+spec:
+  # Rabbit transport url
+  rabbitTransportURL: rabbit://guest:eJNAlgHTTN8A6mclF6q6dBdL1@controller-0.internalapi.redhat.local:5672/?ssl=0
+  # Debug
+  debug: "True"
+  neutronSriovImage: docker.io/tripleotrain/rhel-binary-neutron-sriov-agent:current-tripleo
+  label: compute

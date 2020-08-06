@@ -1,0 +1,20 @@
+# permissions for end users to view neutronsriovagents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neutronsriovagent-viewer-role
+rules:
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - neutronsriovagents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - neutronsriovagents/status
+  verbs:
+  - get
