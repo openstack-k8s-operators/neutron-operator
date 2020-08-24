@@ -20,14 +20,15 @@ ovs-appctl vlog/set "file:${OVS_LOG_LEVEL}"
 
 sleep 5
 export OVN_NODE_IP=`ip -4 -o addr show "${NIC}" | awk '{print $4}' | cut -d"/" -f1`
+
 ovs-vsctl --may-exist add-br br-ex -- set Bridge br-ex fail-mode=secure
-ovs-vsctl --may-exist add-br br-isolated -- set Bridge br-isolated fail-mode=secure
-ovs-vsctl set open . external-ids:ovn-bridge=br-int
-ovs-vsctl set open . external-ids:ovn-remote=${OVN_SB_REMOTE}
-ovs-vsctl set open . external-ids:ovn-encap-type=geneve
-ovs-vsctl set open . external-ids:ovn-encap-ip="${OVN_NODE_IP}"
-ovs-vsctl set open . external_ids:hostname="${K8S_NODE}"
-cp /etc/cni/net.d/200-loopback.conf /var/run/multus/cni/net.d/
+
+ovs-vsctl set open . external-ids:ovn-bridge-${HOSTNAME}-osp=br-int-${HOSTNAME}
+ovs-vsctl set open . external-ids:ovn-remote-${HOSTNAME}-osp=${OVN_SB_REMOTE}
+ovs-vsctl set open . external-ids:ovn-encap-type-${HOSTNAME}-osp=geneve
+ovs-vsctl set open . external-ids:ovn-encap-ip-${HOSTNAME}-osp="${OVN_NODE_IP}"
+ovs-vsctl set open . external_ids:hostname="${HOSTNAME}"
+
 tail -F --pid=$(cat /var/run/openvswitch/ovs-vswitchd.pid) /var/log/openvswitch/ovs-vswitchd.log &
 tail -F --pid=$(cat /var/run/openvswitch/ovsdb-server.pid) /var/log/openvswitch/ovsdb-server.log &
 wait

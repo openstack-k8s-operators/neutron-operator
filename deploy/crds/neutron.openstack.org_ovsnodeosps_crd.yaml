@@ -34,9 +34,6 @@ spec:
             nic:
               description: NIC for ovn encap ip
               type: string
-            ovnSbRemote:
-              description: ovn south db ip
-              type: string
             ovsLogLevel:
               description: log level
               type: string
@@ -51,7 +48,6 @@ spec:
               type: string
           required:
           - nic
-          - ovnSbRemote
           - ovsLogLevel
           - ovsNodeOspImage
           - roleName
