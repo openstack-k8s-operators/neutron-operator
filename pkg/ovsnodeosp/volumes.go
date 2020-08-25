@@ -49,22 +49,6 @@ func GetVolumes(cmName string) []corev1.Volume {
 			},
 		},
 		{
-			Name: "cni",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/cni",
-				},
-			},
-		},
-		{
-			Name: "multus-cni",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/multus/cni",
-				},
-			},
-		},
-		{
 			Name: cmName + "-scripts",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -103,14 +87,6 @@ func GetVolumeMounts(cmName string) []corev1.VolumeMount {
 		{
 			Name:      "var-lib-openvswitch",
 			MountPath: "/var/lib/openvswitch",
-		},
-		{
-			Name:      "cni",
-			MountPath: "/etc/cni",
-		},
-		{
-			Name:      "multus-cni",
-			MountPath: "/var/run/multus/cni",
 		},
 		{
 			Name:      cmName + "-scripts",

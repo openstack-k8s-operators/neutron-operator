@@ -296,8 +296,15 @@ func newDaemonset(cr *neutronv1.OVSNodeOsp, cmName string, templatesConfigHash s
 				Value: cr.Spec.Nic,
 			},
 			{
-				Name:  "OVN_SB_REMOTE",
-				Value: cr.Spec.OvnSbRemote,
+				Name: "OVN_SB_REMOTE",
+				ValueFrom:   &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "ovn-connection",
+						},
+						Key: "SBConnection",
+					},
+				},
 			},
 			{
 				Name:  "K8S_NODE",

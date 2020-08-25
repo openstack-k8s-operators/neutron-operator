@@ -13,6 +13,7 @@ else
     # ovn-appctl is not present. Use openvswitch run dir path.
     OVNCTL_DIR=openvswitch
 fi
-exec ovn-controller unix:/var/run/openvswitch/db.sock -vfile:off \
+
+exec ovn-controller -n ${HOSTNAME}-osp unix:/var/run/openvswitch/db.sock -vfile:off \
   --no-chdir --pidfile=/var/run/${OVNCTL_DIR}/ovn-controller.pid \
   -vconsole:"${OVN_LOG_LEVEL}"

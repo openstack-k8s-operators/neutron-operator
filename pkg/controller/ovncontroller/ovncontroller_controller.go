@@ -276,6 +276,14 @@ func newDaemonset(cr *neutronv1.OVNController, cmName string, templatesConfigHas
 				Name:  "K8S_NODE",
 				Value: cmName,
 			},
+			{
+				Name: "HOSTNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "spec.nodeName",
+					},
+				},
+			},
 		},
 		VolumeMounts: []corev1.VolumeMount{},
 	}

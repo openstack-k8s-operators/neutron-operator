@@ -4,7 +4,8 @@ metadata:
   name: ovncontroller
   namespace: openstack
 spec:
-  ovnControllerImage: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:7d6ba1bcc4f403733e44cd2a008dafe1887501f7a3c74084566a4f4d1e46250d
+  ovnControllerImage: quay.io/ltomasbo/ovn-controller:multibridge
+  #ovnControllerImage: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:7d6ba1bcc4f403733e44cd2a008dafe1887501f7a3c74084566a4f4d1e46250d
   serviceAccount: neutron
   roleName: worker-osp
   ovnLogLevel: info
