@@ -23,7 +23,7 @@ export OVN_NODE_IP=`ip -4 -o addr show "${NIC}" | awk '{print $4}' | cut -d"/" -
 
 ovs-vsctl --may-exist add-br br-ex -- set Bridge br-ex fail-mode=secure
 
-ovs-vsctl set open . external-ids:ovn-bridge-${HOSTNAME}-osp=br-int-${HOSTNAME}
+ovs-vsctl set open . external-ids:ovn-bridge-${HOSTNAME}-osp=br-int-osp
 ovs-vsctl set open . external-ids:ovn-remote-${HOSTNAME}-osp=${OVN_SB_REMOTE}
 ovs-vsctl set open . external-ids:ovn-encap-type-${HOSTNAME}-osp=geneve
 ovs-vsctl set open . external-ids:ovn-encap-ip-${HOSTNAME}-osp="${OVN_NODE_IP}"
