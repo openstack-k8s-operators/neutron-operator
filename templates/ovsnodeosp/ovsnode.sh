@@ -19,15 +19,32 @@ ovs-appctl vlog/set "file:${OVS_LOG_LEVEL}"
 /usr/share/openvswitch/scripts/ovs-ctl --protocol=udp --dport=6081 enable-protocol
 
 sleep 5
-export OVN_NODE_IP=`ip -4 -o addr show "${NIC}" | awk '{print $4}' | cut -d"/" -f1`
-
-ovs-vsctl --may-exist add-br br-ex -- set Bridge br-ex fail-mode=secure
+export OVN_NODE_IP_MASK=`ip -4 -o addr show "${NIC}" | awk 'BEGIN{FS="inet "}{print $2}' | cut -d" " -f1`
+export OVN_NODE_IP=`ip -4 -o addr show "${NIC}" | awk 'BEGIN{FS="inet "}{print $2}' | cut -d" " -f1 | cut -d"/" -f1`
+export OVN_NODE_MAC=`ip -o link show "${NIC}" | awk 'BEGIN{FS="link/ether "}{print $2}' | cut -d " " -f1`
 
 ovs-vsctl set open . external-ids:ovn-bridge-${HOSTNAME}-osp=br-int-osp
 ovs-vsctl set open . external-ids:ovn-remote-${HOSTNAME}-osp=${OVN_SB_REMOTE}
 ovs-vsctl set open . external-ids:ovn-encap-type-${HOSTNAME}-osp=geneve
 ovs-vsctl set open . external-ids:ovn-encap-ip-${HOSTNAME}-osp="${OVN_NODE_IP}"
-ovs-vsctl set open . external_ids:hostname="${HOSTNAME}"
+ovs-vsctl set open . external_ids:hostname-${HOSTNAME}-osp="${HOSTNAME}"
+
+if ${GATEWAY}; then
+    # mark it as gateway
+    ovs-vsctl set open . external_ids:ovn-cms-options-${HOSTNAME}-osp=enable-chassis-as-gw
+    ovs-vsctl set open . external-ids:ovn-bridge-mappings-${HOSTNAME}-osp=${BRIDGE_MAPPINGS}
+
+    # enable br-ex
+    export OVN_OSP_BRIDGE=`echo ${BRIDGE_MAPPINGS} | cut -d":" -f2`
+    ovs-vsctl --may-exist add-br ${OVN_OSP_BRIDGE}
+    ip link set address ${OVN_NODE_MAC} dev ${OVN_OSP_BRIDGE}
+    ovs-vsctl --may-exist add-port ${OVN_OSP_BRIDGE} ${NIC}
+    ip link set ${OVN_OSP_BRIDGE} down
+    ip addr add ${OVN_NODE_IP_MASK} dev ${OVN_OSP_BRIDGE}
+    ip link set ${OVN_OSP_BRIDGE} up
+    ip link set ${NIC} down
+    ip link set ${NIC} up
+fi
 
 tail -F --pid=$(cat /var/run/openvswitch/ovs-vswitchd.pid) /var/log/openvswitch/ovs-vswitchd.log &
 tail -F --pid=$(cat /var/run/openvswitch/ovsdb-server.pid) /var/log/openvswitch/ovsdb-server.log &
