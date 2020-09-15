@@ -44,6 +44,7 @@ type NeutronSriovAgentStatus struct {
 // +kubebuilder:subresource:status
 
 // NeutronSriovAgent is the Schema for the neutronsriovagents API
+// +operator-sdk:csv:customresourcedefinitions:displayName="Neutron Sriov Agent",resources={{NeutronSriovAgent,v1,neutronsriovagents.neutron.openstack.org}}
 type NeutronSriovAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -20,9 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // OVSNodeOspSpec defines the desired state of OVSNodeOsp
 type OVSNodeOspSpec struct {
 	// container image to run for the daemon
@@ -49,6 +46,7 @@ type OVSNodeOspStatus struct {
 // +kubebuilder:subresource:status
 
 // OVSNodeOsp is the Schema for the ovsnodeosps API
+// +operator-sdk:csv:customresourcedefinitions:displayName="OVS Node OSP",resources={{OVSNodeOsp,v1beta1,ovsnodeosps.neutron.openstack.org}}
 type OVSNodeOsp struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

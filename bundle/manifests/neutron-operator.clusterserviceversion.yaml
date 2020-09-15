@@ -1,0 +1,44 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: neutron-operator.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: Creates and maintains Neutron Compute daemonsets
+  displayName: Neutron Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: []
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: true
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - Neutron Operator
+  - OpenStack
+  - Neutron
+  - Compute
+  links:
+  - name: Neutron Operator
+    url: https://github.com/openstack-k8s-operators/neutron-operator/blob/master/README.md
+  maturity: alpha
+  provider:
+    name: OpenStack K8s Operators Neutron Operator project
+    url: https://github.com/openstack-k8s-operators/neutron-operator
+  version: 0.0.1

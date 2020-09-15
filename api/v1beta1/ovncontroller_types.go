@@ -45,6 +45,7 @@ type OVNControllerStatus struct {
 
 // OVNController is the Schema for the ovncontrollers API
 // +kubebuilder:resource:path=ovncontrollers,scope=Namespaced
+// +operator-sdk:csv:customresourcedefinitions:displayName="OVN Controller",resources={{OVNController,v1beta1,ovncontrollers.neutron.openstack.org}}
 type OVNController struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
