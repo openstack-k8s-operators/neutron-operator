@@ -1,0 +1,24 @@
+# permissions for end users to edit ovsnodeosps.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ovsnodeosp-editor-role
+rules:
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - ovsnodeosps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - ovsnodeosps/status
+  verbs:
+  - get

@@ -2,7 +2,7 @@ package neutronsriovagent
 
 import (
 	util "github.com/openstack-k8s-operators/lib-common/pkg/util"
-	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/pkg/apis/neutron/v1"
+	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

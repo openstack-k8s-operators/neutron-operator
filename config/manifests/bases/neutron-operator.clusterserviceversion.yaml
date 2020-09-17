@@ -1,0 +1,72 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: neutron-operator.vX.Y.Z
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: NeutronSriovAgent is the Schema for the neutronsriovagents API
+      displayName: Neutron Sriov Agent
+      kind: NeutronSriovAgent
+      name: neutronsriovagents.neutron.openstack.org
+      resources:
+      - kind: NeutronSriovAgent
+        name: neutronsriovagents.neutron.openstack.org
+        version: v1
+      version: v1beta1
+    - description: OVSNodeOsp is the Schema for the ovsnodeosps API
+      displayName: OVS Node OSP
+      kind: OVSNodeOsp
+      name: ovsnodeosps.neutron.openstack.org
+      resources:
+      - kind: OVSNodeOsp
+        name: ovsnodeosps.neutron.openstack.org
+        version: v1beta1
+      version: v1beta1
+    - description: OVNController is the Schema for the ovncontrollers API
+      displayName: OVN Controller
+      kind: OVNController
+      name: ovncontrollers.neutron.openstack.org
+      resources:
+      - kind: OVNController
+        name: ovncontrollers.neutron.openstack.org
+        version: v1beta1
+      version: v1beta1
+  description: Creates and maintains Neutron Compute daemonsets
+  displayName: Neutron Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: true
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - Neutron Operator
+  - OpenStack
+  - Neutron
+  - Compute
+  links:
+  - name: Neutron Operator
+    url: https://github.com/openstack-k8s-operators/neutron-operator/blob/master/README.md
+  maturity: alpha
+  provider:
+    name: OpenStack K8s Operators Neutron Operator project
+    url: https://github.com/openstack-k8s-operators/neutron-operator
+  version: 0.0.0

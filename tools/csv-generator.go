@@ -194,21 +194,21 @@ Install and configure OpenStack Neutron containers.
 				Owned: []csvv1.CRDDescription{
 					{
 						Name:        "neutronsriovagents.neutron.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "NeutronSriovAgent",
 						DisplayName: "Neutron Sriov Agent",
 						Description: "NeutronSriovAgent is the Schema for the neutronsriovagents API",
 					},
 					{
 						Name:        "ovncontrollers.neutron.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "OVNController",
 						DisplayName: "OVN Controller",
 						Description: "OVNController is the Schema for the ovncontrollers API",
 					},
 					{
 						Name:        "ovsnodeosps.neutron.openstack.org",
-						Version:     "v1",
+						Version:     "v1beta1",
 						Kind:        "OVSNodeOsp",
 						DisplayName: "OVS Node OSP",
 						Description: "OVSNodeOsp is the Schema for the ovsnodeosps API",
