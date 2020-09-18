@@ -9,3 +9,5 @@ spec:
   roleName: worker-osp
   ovsLogLevel: info
   nic: enp2s0
+  gateway: true
+  bridgeMappings: "datacentre:br-ex"

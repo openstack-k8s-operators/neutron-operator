@@ -17,6 +17,10 @@ type OVSNodeOspSpec struct {
 	OvsLogLevel string `json:"ovsLogLevel"`
 	// NIC for ovn encap ip
 	Nic string `json:"nic"`
+    // Make the nodes a Network Gateways Node
+	Gateway bool `json:"gateway,omitempty"`
+	// Bridge Mappings
+	BridgeMappings string `json:"bridgeMappings,omitempty"`
 }
 
 // OVSNodeOspStatus defines the observed state of OVSNodeOsp

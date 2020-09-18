@@ -296,6 +296,14 @@ func newDaemonset(cr *neutronv1.OVSNodeOsp, cmName string, templatesConfigHash s
 				Value: cr.Spec.Nic,
 			},
 			{
+				Name:  "GATEWAY",
+				Value: fmt.Sprintf("%t", cr.Spec.Gateway),
+			},
+			{
+				Name:  "BRIDGE_MAPPINGS",
+				Value: cr.Spec.BridgeMappings,
+			},
+			{
 				Name: "OVN_SB_REMOTE",
 				ValueFrom:   &corev1.EnvVarSource{
 					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{

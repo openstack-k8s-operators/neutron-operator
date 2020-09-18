@@ -31,6 +31,12 @@ spec:
         spec:
           description: OVSNodeOspSpec defines the desired state of OVSNodeOsp
           properties:
+            bridgeMappings:
+              description: Bridge Mappings
+              type: string
+            gateway:
+              description: Make the nodes a Network Gateways Node
+              type: boolean
             nic:
               description: NIC for ovn encap ip
               type: string
