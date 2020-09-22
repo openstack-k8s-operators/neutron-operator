@@ -1,0 +1,5 @@
+## This file is auto-generated, do not modify ##
+resources:
+- neutron_v1beta1_ovncontroller.yaml
+- neutron_v1beta1_neutronsriovagent.yaml
+- neutron_v1beta1_ovsnodeosp.yaml
