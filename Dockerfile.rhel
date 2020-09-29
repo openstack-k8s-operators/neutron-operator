@@ -27,7 +27,7 @@ RUN cp -r templates ${DEST_ROOT}/templates
 RUN mkdir -p ${DEST_ROOT}/bundle
 RUN cp config/crd/bases/neutron.openstack.org_neutronsriovagents.yaml ${DEST_ROOT}/bundle/neutron.openstack.org_neutronsriovagents.yaml
 RUN cp config/crd/bases/neutron.openstack.org_ovncontrollers.yaml ${DEST_ROOT}/bundle/neutron.openstack.org_ovncontrollers.yaml
-RUN cp config/crd/bases/neutron.openstack.org_ovsnodeosp.yaml ${DEST_ROOT}/bundle/neutron.openstack.org_ovsnodeosp.yaml
+RUN cp config/crd/bases/neutron.openstack.org_ovsnodeosps.yaml ${DEST_ROOT}/bundle/neutron.openstack.org_ovsnodeosps.yaml
 
 # strip top 2 lines (this resolves parsing in opm which handles this badly)
 RUN sed -i -e 1,2d ${DEST_ROOT}/bundle/*
