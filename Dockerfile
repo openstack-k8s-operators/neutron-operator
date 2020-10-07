@@ -35,8 +35,8 @@ FROM ${OPERATOR_BASE_IMAGE}
 ARG DEST_ROOT=/dest-root
 
 LABEL   com.redhat.component="neutron-operator-container" \
-        name="neutron-operator" \
-        version="1.0" \
+        name="cn-osp/neutron-operator" \
+        version="0.0.3" \
         summary="Neutron Operator" \
         io.k8s.name="neutron-operator" \
         io.k8s.description="This image includes the neutron-operator"
