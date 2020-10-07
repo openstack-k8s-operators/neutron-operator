@@ -2,6 +2,7 @@
 VERSION ?= 0.0.1
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
+ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -27,7 +28,8 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./... -coverprofile cover.out
+	mkdir -p ${ENVTEST_ASSETS_DIR}
+	source ./setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
