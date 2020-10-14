@@ -1,0 +1,24 @@
+# permissions for end users to edit neutronapis.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neutronapi-editor-role
+rules:
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - neutronapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - neutronapis/status
+  verbs:
+  - get

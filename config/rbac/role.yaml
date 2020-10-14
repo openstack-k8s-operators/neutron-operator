@@ -59,6 +59,26 @@ rules:
 - apiGroups:
   - neutron.openstack.org
   resources:
+  - neutronapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - neutron.openstack.org
+  resources:
+  - neutronapis/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - neutron.openstack.org
+  resources:
   - neutronsriovagents
   verbs:
   - create
