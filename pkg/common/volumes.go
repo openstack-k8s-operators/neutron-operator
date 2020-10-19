@@ -27,3 +27,30 @@ func GetVolumeMounts() []corev1.VolumeMount {
 		},
 	}
 }
+
+// GetInitVolumeMounts - Nova Control Plane init task VolumeMounts
+func GetInitVolumeMounts() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      "scripts",
+			MountPath: "/usr/local/bin/container-scripts",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data",
+			MountPath: "/var/lib/config-data/default",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data-custom",
+			MountPath: "/var/lib/config-data/custom",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/config-data/merged",
+			ReadOnly:  false,
+		},
+	}
+
+}

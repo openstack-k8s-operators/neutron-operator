@@ -213,6 +213,13 @@ Install and configure OpenStack Neutron containers.
 						DisplayName: "OVS Node OSP",
 						Description: "OVSNodeOsp is the Schema for the ovsnodeosps API",
 					},
+					{
+						Name:        "neutronapis.neutron.openstack.org",
+						Version:     "v1beta1",
+						Kind:        "NeutronAPI",
+						DisplayName: "Neutron Server",
+						Description: "NeutronAPI is the Schema for the neutron servers API",
+					},
 				},
 			},
 		},
@@ -296,6 +303,32 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{
+				"batch",
+			},
+			Resources: []string{
+				"jobs",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"route.openshift.io",
+			},
+			Resources: []string{
+				"routes",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+				"create",
+				"patch",
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
 				"neutron.openstack.org",
 			},
 			Resources: []string{
@@ -303,9 +336,36 @@ func getOperatorRules() *[]rbacv1.PolicyRule {
 				"neutronsriovagents",
 				"ovsnodeosps",
 				"ovncontrollers",
+				"neutronapis",
 			},
 			Verbs: []string{
 				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"keystone.openstack.org",
+			},
+			Resources: []string{
+				"keystoneservices",
+			},
+			Verbs: []string{
+				"list",
+				"create",
+				"update",
+				"watch",
+			},
+		},
+		{
+			APIGroups: []string{
+				"database.openstack.org",
+			},
+			Resources: []string{
+				"mariadbdatabases",
+			},
+			Verbs: []string{
+				"get",
+				"create",
 			},
 		},
 	}
