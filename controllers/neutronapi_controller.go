@@ -94,7 +94,7 @@ func (r *NeutronAPIReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	// check for required secrets
 	hashes := []neutronv1beta1.Hash{}
-	_, hash, err := common.GetSecret(r.Client, instance.Spec.NeutronSecret, instance.Namespace)
+	neutronSecret, hash, err := common.GetSecret(r.Client, instance.Spec.NeutronSecret, instance.Namespace)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
@@ -281,6 +281,8 @@ func (r *NeutronAPIReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, neutronKeystoneService, func() error {
+		neutronKeystoneService.Spec.Username = "neutron"
+		neutronKeystoneService.Spec.Password = string(neutronSecret.Data["NeutronKeystoneAuthPassword"])
 		neutronKeystoneService.Spec.ServiceType = "network"
 		neutronKeystoneService.Spec.ServiceName = "neutron"
 		neutronKeystoneService.Spec.ServiceDescription = "Openstack Networking"
