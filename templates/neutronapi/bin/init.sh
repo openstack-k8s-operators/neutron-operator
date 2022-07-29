@@ -1,6 +1,6 @@
 #!/bin//bash
 #
-# Copyright 2020 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -19,12 +19,12 @@ set -ex
 # copies the result to the ephemeral /var/lib/config-data/merged volume.
 #
 # Secrets are obtained from ENV variables.
-export Database=${ApiDatabase:-"neutron"}
+export Database=${Database:-"neutron"}
 export DatabaseHost=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export NeutronKeystoneAuthPassword=${NeutronKeystoneAuthPassword:?"Please specify a NeutronKeystoneAuthPassword variable."}
-export NovaKeystoneAuthPassword=${NovaKeystoneAuthPassword:?"Please specify a NovaKeystoneAuthPassword variable."}
+export NeutronPassword=${NeutronPassword:?"Please specify a NeutronPassword variable."}
+export NovaPassword=${NovaPassword:?"Please specify a NovaPassword variable."}
 export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword variable."}
-export TransportURL=${TransportURL:?"Please specify a TransportURL variable."}
+# export TransportURL=${TransportURL:?"Please specify a TransportURL variable."}
 
 function merge_config_dir {
   echo merge config dir $1
@@ -47,17 +47,13 @@ function merge_config_dir {
 # Copy default service config from container image as base
 cp -a /etc/neutron/neutron.conf /var/lib/config-data/merged/neutron.conf
 
-# Merge all templates from config-data and config-data-custom CMs
-for dir in /var/lib/config-data/default /var/lib/config-data/custom
-do
-  # merge config files if the config mount exists
-  if [[ -d ${dir} ]]; then
-    merge_config_dir ${dir}
-  fi
-done
+# merge config files if the config mount exists
+if [[ -d /var/lib/config-data/default ]]; then
+  merge_config_dir /var/lib/config-data/default
+fi
 
 # set secrets
-crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportURL
+# crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportURL
 crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://$Database:$DatabasePassword@$DatabaseHost/$Database
-crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $NeutronKeystoneAuthPassword
-crudini --set /var/lib/config-data/merged/neutron.conf nova password $NovaKeystoneAuthPassword
+crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $NeutronPassword
+crudini --set /var/lib/config-data/merged/neutron.conf nova password $NovaPassword

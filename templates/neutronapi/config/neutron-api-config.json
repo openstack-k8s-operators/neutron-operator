@@ -1,9 +1,15 @@
 {
-  "command": "/usr/bin/neutron-server --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf",
+  "command": "/usr/bin/neutron-server --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d",
   "config_files": [
     {
       "source": "/var/lib/config-data/merged/neutron.conf",
       "dest": "/etc/neutron/neutron.conf",
+      "owner": "root:neutron",
+      "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/merged/custom.conf",
+      "dest": "/etc/neutron/neutron.conf.d/custom.conf",
       "owner": "root:neutron",
       "perm": "0640"
     },
