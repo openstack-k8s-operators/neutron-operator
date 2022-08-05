@@ -1,20 +1,19 @@
 domain: openstack.org
-layout: go.kubebuilder.io/v2
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
 projectName: neutron-operator
 repo: github.com/openstack-k8s-operators/neutron-operator
 resources:
-- group: neutron
-  kind: OVNController
-  version: v1beta1
-- group: neutron
-  kind: NeutronSriovAgent
-  version: v1beta1
-- group: neutron
-  kind: OVSNodeOsp
-  version: v1beta1
-- group: neutron
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openstack.org
+  group: neutron
   kind: NeutronAPI
+  path: github.com/openstack-k8s-operators/neutron-operator/api/v1beta1
   version: v1beta1
-version: 3-alpha
-plugins:
-  go.operator-sdk.io/v2-alpha: {}
+version: "3"

@@ -16,11 +16,6 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config-data-custom",
-			MountPath: "/var/lib/config-data/custom",
-			ReadOnly:  true,
-		},
-		{
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
@@ -71,16 +66,6 @@ func GetAPIVolumes(name string) []corev1.Volume {
 					DefaultMode: &config0640AccessMode,
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: name + "-config-data",
-					},
-				},
-			},
-		},
-		{
-			Name: "config-data-custom",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name + "-config-data-custom",
 					},
 				},
 			},
