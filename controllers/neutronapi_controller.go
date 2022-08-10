@@ -31,13 +31,21 @@ import (
 
 	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
-	common "github.com/openstack-k8s-operators/lib-common/pkg/common"
-	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
-	database "github.com/openstack-k8s-operators/lib-common/pkg/database"
-	helper "github.com/openstack-k8s-operators/lib-common/pkg/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/deployment"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/helper"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/job"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/labels"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
+	"github.com/openstack-k8s-operators/lib-common/modules/database"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
-	neutronapi "github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
+	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -102,7 +110,12 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// initialize status
 	//
 	if instance.Status.Conditions == nil {
-		instance.Status.Conditions = condition.List{}
+		instance.Status.Conditions = condition.Conditions{}
+		instance.Status.Conditions.Init(nil)
+		// Register overall status immediately to have an early feedback e.g. in the cli
+		if err := r.Status().Update(ctx, instance); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
@@ -124,15 +137,20 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Always patch the instance status when exiting this function so we can persist any changes.
 	defer func() {
+		// update the overall status condition if service is ready
+		if instance.IsReady() {
+			instance.Status.Conditions.MarkTrue(condition.ReadyCondition, condition.ReadyMessage)
+		}
+
 		if err := helper.SetAfter(instance); err != nil {
-			common.LogErrorForObject(helper, err, "Set after and calc patch/diff", instance)
+			util.LogErrorForObject(helper, err, "Set after and calc patch/diff", instance)
 		}
 
 		if changed := helper.GetChanges()["status"]; changed {
 			patch := client.MergeFrom(helper.GetBeforeObject())
 
 			if err := r.Status().Patch(ctx, instance, patch); err != nil && !k8s_errors.IsNotFound(err) {
-				common.LogErrorForObject(helper, err, "Update status", instance)
+				util.LogErrorForObject(helper, err, "Update status", instance)
 			}
 		}
 	}()
@@ -213,32 +231,49 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		},
 	)
 	// create or patch the DB
-	cond, ctrlResult, err := db.CreateOrPatchDB(
+	ctrlResult, err := db.CreateOrPatchDB(
 		ctx,
 		helper,
 	)
-	instance.Status.Conditions.UpdateCurrentCondition(cond)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
 		return ctrl.Result{}, err
 	}
-
 	if (ctrlResult != ctrl.Result{}) {
-		r.Log.Info(cond.Message)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
 		return ctrlResult, nil
 	}
 	// wait for the DB to be setup
-	cond, ctrlResult, err = db.WaitForDBCreated(ctx, helper)
-	instance.Status.Conditions.UpdateCurrentCondition(cond)
+	ctrlResult, err = db.WaitForDBCreated(ctx, helper)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
 		return ctrlResult, err
 	}
-
 	if (ctrlResult != ctrl.Result{}) {
-		r.Log.Info(cond.Message)
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
 		return ctrlResult, nil
 	}
-	// update Status.DatabaseHostname, used to config the service
+	// update Status.DatabaseHostname, used to bootstrap/config the service
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
+	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
 	// create neutron DB - end
 
 	//
@@ -247,7 +282,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 
 	dbSyncHash := instance.Status.Hash[neutronv1beta1.DbSyncHash]
 	jobDef := neutronapi.DbSyncJob(instance, serviceLabels)
-	dbSyncjob := common.NewJob(
+	dbSyncjob := job.NewJob(
 		jobDef,
 		neutronv1beta1.DbSyncHash,
 		instance.Spec.PreserveJobs,
@@ -259,17 +294,20 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		helper,
 	)
 	if (ctrlResult != ctrl.Result{}) {
-
-		c := condition.NewCondition(
-			condition.TypeDBSync,
-			corev1.ConditionTrue,
-			database.ReasonDBSync,
-			"NeutronAPI database sync")
-		instance.Status.Conditions.UpdateCurrentCondition(c)
-
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBSyncReadyRunningMessage))
 		return ctrlResult, nil
 	}
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBSyncReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBSyncReadyErrorMessage,
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 	if dbSyncjob.HasChanged() {
@@ -279,30 +317,49 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		}
 		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[neutronv1beta1.DbSyncHash]))
 	}
+	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
 	// run Neutron db sync - end
 
 	//
 	// expose the service (create service, route and return the created endpoint URLs)
 	//
-	var ports = map[common.Endpoint]int32{
-		common.EndpointAdmin:    neutronapi.NeutronAdminPort,
-		common.EndpointPublic:   neutronapi.NeutronPublicPort,
-		common.EndpointInternal: neutronapi.NeutronInternalPort,
+	var keystonePorts = map[endpoint.Endpoint]endpoint.Data{
+		endpoint.EndpointAdmin: {
+			Port: neutronapi.NeutronAdminPort,
+		},
+		endpoint.EndpointPublic: {
+			Port: neutronapi.NeutronPublicPort,
+		},
+		endpoint.EndpointInternal: {
+			Port: neutronapi.NeutronInternalPort,
+		},
 	}
 
-	apiEndpoints, ctrlResult, err := common.ExposeEndpoints(
+	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
 		helper,
 		neutronapi.ServiceName,
 		serviceLabels,
-		ports,
+		keystonePorts,
 	)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ExposeServiceReadyErrorMessage,
+			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ExposeServiceReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.ExposeServiceReadyRunningMessage))
 		return ctrlResult, nil
 	}
+	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
 
 	//
 	// Update instance status with service endpoint url from route host information
@@ -332,12 +389,15 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 
 	if err != nil {
+		// FIXME: handle conditions properly
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
+		// FIXME: handle conditions properly
 		return ctrlResult, nil
 	}
 
 	instance.Status.ServiceID = ksSvc.GetServiceID()
+
 	r.Log.Info("Reconciled Service init successfully")
 	return ctrl.Result{}, nil
 }
@@ -373,26 +433,40 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrl.Result{}, err
 	}
 	// ConfigMap
-	configMapVars := make(map[string]common.EnvSetter)
+	configMapVars := make(map[string]env.Setter)
 
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
 	//
-	ospSecret, hash, err := common.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
+	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OpenStack secret %s not found", instance.Spec.Secret)
 		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
 		return ctrl.Result{}, err
 	}
-	configMapVars[ospSecret.Name] = common.EnvValue(hash)
+	configMapVars[ospSecret.Name] = env.SetValue(hash)
+
+	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 
 	// check for required ovn-connection configMap
-	ovnConnection, hash, err := common.GetConfigMapAndHashWithName(ctx, helper, instance.Spec.OVNConnectionConfigMap, instance.Namespace)
+	ovnConnection, hash, err := configmap.GetConfigMapAndHashWithName(ctx, helper, instance.Spec.OVNConnectionConfigMap, instance.Namespace)
 	if err != nil {
+		// TODO: add condition setting
 		return ctrl.Result{RequeueAfter: time.Second * 10}, err
 	}
-	configMapVars[ovnConnection.Name] = common.EnvValue(hash)
+	configMapVars[ovnConnection.Name] = env.SetValue(hash)
 
 	// run check OpenStack secret - end
 
@@ -408,6 +482,12 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 	err = r.generateServiceConfigMaps(ctx, helper, instance, ovnConnection, &configMapVars)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
@@ -417,9 +497,17 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 	inputHash, err := r.createHashOfInputHashes(ctx, instance, configMapVars)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 	// Create ConfigMaps and Secrets - end
+
+	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
 	//
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
@@ -454,25 +542,35 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	// Define a new Deployment object
-	depl := common.NewDeployment(
+	depl := deployment.NewDeployment(
 		neutronapi.Deployment(instance, inputHash, serviceLabels),
 		5,
 	)
 
 	ctrlResult, err = depl.CreateOrPatch(ctx, helper)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DeploymentReadyErrorMessage,
+			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DeploymentReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DeploymentReadyRunningMessage))
 		return ctrlResult, nil
 	}
-	// create Deployment - end
 
-	c := condition.NewCondition(
-		condition.TypeCreated,
-		corev1.ConditionTrue,
-		condition.ReasonComplete,
-		"NeutronAPI created")
-	instance.Status.Conditions.UpdateCurrentCondition(c)
+	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+
+	if instance.Status.ReadyCount > 0 {
+		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+	}
+	// create Deployment - end
 
 	r.Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
@@ -487,10 +585,10 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 	ovnConnection *corev1.ConfigMap,
-	envVars *map[string]common.EnvSetter,
+	envVars *map[string]env.Setter,
 ) error {
 	// Create/update configmaps from templates
-	cmLabels := common.GetLabels(instance, common.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
+	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
 
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
@@ -505,7 +603,7 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	if err != nil {
 		return err
 	}
-	authURL, err := keystoneAPI.GetEndpoint(common.EndpointPublic)
+	authURL, err := keystoneAPI.GetEndpoint(endpoint.EndpointPublic)
 	if err != nil {
 		return err
 	}
@@ -516,12 +614,12 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	templateParameters["NBConnection"] = ovnConnection.Data["NBConnection"]
 	templateParameters["SBConnection"] = ovnConnection.Data["SBConnection"]
 
-	cms := []common.Template{
+	cms := []util.Template{
 		// ScriptsConfigMap
 		{
 			Name:         fmt.Sprintf("%s-scripts", instance.Name),
 			Namespace:    instance.Namespace,
-			Type:         common.TemplateTypeScripts,
+			Type:         util.TemplateTypeScripts,
 			InstanceType: instance.Kind,
 			Labels:       cmLabels,
 		},
@@ -529,14 +627,14 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 		{
 			Name:          fmt.Sprintf("%s-config-data", instance.Name),
 			Namespace:     instance.Namespace,
-			Type:          common.TemplateTypeConfig,
+			Type:          util.TemplateTypeConfig,
 			InstanceType:  instance.Kind,
 			CustomData:    customData,
 			Labels:        cmLabels,
 			ConfigOptions: templateParameters,
 		},
 	}
-	err = common.EnsureConfigMaps(ctx, h, instance, cms, envVars)
+	err = configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 	if err != nil {
 		return nil
 	}
@@ -550,14 +648,14 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 func (r *NeutronAPIReconciler) createHashOfInputHashes(
 	ctx context.Context,
 	instance *neutronv1beta1.NeutronAPI,
-	envVars map[string]common.EnvSetter,
+	envVars map[string]env.Setter,
 ) (string, error) {
-	mergedMapVars := common.MergeEnvs([]corev1.EnvVar{}, envVars)
-	hash, err := common.ObjectHash(mergedMapVars)
+	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
+	hash, err := util.ObjectHash(mergedMapVars)
 	if err != nil {
 		return hash, err
 	}
-	if hashMap, changed := common.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
+	if hashMap, changed := util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
 		if err := r.Client.Status().Update(ctx, instance); err != nil {
 			return hash, err

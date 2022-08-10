@@ -22,7 +22,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/openstack-k8s-operators/lib-common/pkg/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -166,7 +166,7 @@ func (in *NeutronAPIStatus) DeepCopyInto(out *NeutronAPIStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(condition.List, len(*in))
+		*out = make(condition.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
