@@ -19,8 +19,8 @@ package v1beta1
 import (
 	"fmt"
 
-	common "github.com/openstack-k8s-operators/lib-common/pkg/common"
-	condition "github.com/openstack-k8s-operators/lib-common/pkg/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,7 +160,7 @@ type NeutronAPIStatus struct {
 	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
 
 	// Conditions
-	Conditions condition.List `json:"conditions,omitempty" optional:"true"`
+	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
 	// Neutron Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
@@ -172,7 +172,7 @@ type NeutronAPIStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[0].status",description="Status"
-// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[0].reason",description="Reason"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.conditions[0].message",description="Message"
 
 // NeutronAPI is the Schema for the neutronapis API
 type NeutronAPI struct {
@@ -197,7 +197,7 @@ func init() {
 }
 
 // GetEndpoint - returns OpenStack endpoint url for type
-func (instance NeutronAPI) GetEndpoint(endpointType common.Endpoint) (string, error) {
+func (instance NeutronAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, error) {
 	if url, found := instance.Status.APIEndpoints[string(endpointType)]; found {
 		return url, nil
 	}
@@ -206,5 +206,9 @@ func (instance NeutronAPI) GetEndpoint(endpointType common.Endpoint) (string, er
 
 // IsReady - returns true if service is ready to server requests
 func (instance NeutronAPI) IsReady() bool {
-	return instance.Status.ReadyCount >= 1
+	// Ready when:
+	// the service is registered in keystone
+	// AND
+	// there is at least a single pod to serve the neutron API service
+	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
 }
