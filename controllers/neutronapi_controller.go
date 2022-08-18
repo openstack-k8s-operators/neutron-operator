@@ -111,7 +111,20 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	//
 	if instance.Status.Conditions == nil {
 		instance.Status.Conditions = condition.Conditions{}
-		instance.Status.Conditions.Init(nil)
+		// initialize conditions used later as Status=Unknown
+		cl := condition.CreateList(
+			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
+			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
+			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
+			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
+			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+			// right now we have no dedicated KeystoneServiceReadyInitMessage
+			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+		)
+
+		instance.Status.Conditions.Init(&cl)
+
 		// Register overall status immediately to have an early feedback e.g. in the cli
 		if err := r.Status().Update(ctx, instance); err != nil {
 			return ctrl.Result{}, err
@@ -389,10 +402,17 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 
 	if err != nil {
-		// FIXME: handle conditions properly
 		return ctrlResult, err
-	} else if (ctrlResult != ctrl.Result{}) {
-		// FIXME: handle conditions properly
+	}
+
+	// mirror the Status, Reason, Severity and Message of the latest keystoneservice condition
+	// into a local condition with the type condition.KeystoneServiceReadyCondition
+	c := ksSvc.GetConditions().Mirror(condition.KeystoneServiceReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	if (ctrlResult != ctrl.Result{}) {
 		return ctrlResult, nil
 	}
 
@@ -436,7 +456,8 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	configMapVars := make(map[string]env.Setter)
 
 	//
-	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map
+	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map,
+	// and also check for required OVNConnection config map
 	//
 	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
@@ -458,17 +479,29 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
 
-	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
-
 	// check for required ovn-connection configMap
 	ovnConnection, hash, err := configmap.GetConfigMapAndHashWithName(ctx, helper, instance.Spec.OVNConnectionConfigMap, instance.Namespace)
 	if err != nil {
-		// TODO: add condition setting
-		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
+			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OvnConnection config map %s not found", instance.Spec.Secret)
+		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
 	}
 	configMapVars[ovnConnection.Name] = env.SetValue(hash)
 
-	// run check OpenStack secret - end
+	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
+	// run check OpenStack secret and OVNConnection config map - end
 
 	//
 	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
