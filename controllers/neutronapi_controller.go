@@ -488,7 +488,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 				condition.RequestedReason,
 				condition.SeverityInfo,
 				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OvnConnection config map %s not found", instance.Spec.Secret)
+			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OvnConnection config map %s not found", instance.Spec.OVNConnectionConfigMap)
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
