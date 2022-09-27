@@ -29,8 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
-	keystone "github.com/openstack-k8s-operators/keystone-operator/pkg/external"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/configmap"
@@ -87,6 +86,7 @@ func (r *NeutronAPIReconciler) GetScheme() *runtime.Scheme {
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile - neutron api
 func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -188,31 +188,40 @@ func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&routev1.Route{}).
-		Owns(&keystonev1beta1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneService{}).
+		Owns(&keystonev1.KeystoneEndpoint{}).
 		Complete(r)
 }
 
 func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service delete")
 
-	//
-	// delete KeystoneService
-	//
-	ksSvcSpec := keystonev1beta1.KeystoneServiceSpec{
-		ServiceType:        neutronapi.ServiceType,
-		ServiceName:        neutronapi.ServiceName,
-		ServiceDescription: "Openstack Networking",
-		Enabled:            true,
-		APIEndpoints:       instance.Status.APIEndpoints,
-		ServiceUser:        instance.Spec.ServiceUser,
-		Secret:             instance.Spec.Secret,
-		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
-	}
-	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, map[string]string{}, 10)
-
-	err := ksSvc.Delete(ctx, helper)
-	if err != nil {
+	// Remove the finalizer from our KeystoneEndpoint CR
+	keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, neutronapi.ServiceName, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
+	}
+
+	if err == nil {
+		controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer())
+		if err = helper.GetClient().Update(ctx, keystoneEndpoint); err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
+	}
+
+	// Remove the finalizer from our KeystoneService CR
+	keystoneService, err := keystonev1.GetKeystoneServiceWithName(ctx, helper, neutronapi.ServiceName, instance.Namespace)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	if err == nil {
+		controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer())
+		if err = helper.GetClient().Update(ctx, keystoneService); err != nil && !k8s_errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 	}
 
 	// Service is deleted so remove the finalizer.
@@ -388,17 +397,16 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	// update status with endpoint information
 	r.Log.Info("Reconciling neutron KeystoneService")
 
-	ksSvcSpec := keystonev1beta1.KeystoneServiceSpec{
+	ksSvcSpec := keystonev1.KeystoneServiceSpec{
 		ServiceType:        neutronapi.ServiceType,
 		ServiceName:        neutronapi.ServiceName,
 		ServiceDescription: "Openstack Networking",
 		Enabled:            true,
-		APIEndpoints:       instance.Status.APIEndpoints,
 		ServiceUser:        instance.Spec.ServiceUser,
 		Secret:             instance.Spec.Secret,
 		PasswordSelector:   instance.Spec.PasswordSelectors.Service,
 	}
-	ksSvc := keystone.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
+	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, 10)
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
 
 	if err != nil {
@@ -417,6 +425,34 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 
 	instance.Status.ServiceID = ksSvc.GetServiceID()
+
+	//
+	// register endpoints
+	//
+	ksEndptSpec := keystonev1.KeystoneEndpointSpec{
+		ServiceName: neutronapi.ServiceName,
+		Endpoints:   instance.Status.APIEndpoints,
+	}
+	ksEndpt := keystonev1.NewKeystoneEndpoint(
+		neutronapi.ServiceName,
+		instance.Namespace,
+		ksEndptSpec,
+		serviceLabels,
+		10)
+	ctrlResult, err = ksEndpt.CreateOrPatch(ctx, helper)
+	if err != nil {
+		return ctrlResult, err
+	}
+	// mirror the Status, Reason, Severity and Message of the latest keystoneendpoint condition
+	// into a local condition with the type condition.KeystoneEndpointReadyCondition
+	c = ksEndpt.GetConditions().Mirror(condition.KeystoneEndpointReadyCondition)
+	if c != nil {
+		instance.Status.Conditions.Set(c)
+	}
+
+	if (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, nil
+	}
 
 	r.Log.Info("Reconciled Service init successfully")
 	return ctrl.Result{}, nil
@@ -632,7 +668,7 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 		customData[key] = data
 	}
 
-	keystoneAPI, err := keystone.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
+	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
 		return err
 	}
