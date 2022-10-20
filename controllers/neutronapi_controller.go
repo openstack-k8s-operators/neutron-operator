@@ -481,13 +481,15 @@ func (r *NeutronAPIReconciler) reconcileUpgrade(ctx context.Context, instance *n
 func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service")
 
-	// If the service object doesn't have our finalizer, add it.
-	controllerutil.AddFinalizer(instance, helper.GetFinalizer())
-	// Register the finalizer immediately to avoid orphaning resources on delete
-	//if err := patchHelper.Patch(ctx, openStackCluster); err != nil {
-	if err := r.Update(ctx, instance); err != nil {
+	if !controllerutil.ContainsFinalizer(instance, helper.GetFinalizer()) {
+		// If the service object doesn't have our finalizer, add it.
+		controllerutil.AddFinalizer(instance, helper.GetFinalizer())
+		// Register the finalizer immediately to avoid orphaning resources on delete
+		err := r.Update(ctx, instance)
+
 		return ctrl.Result{}, err
 	}
+
 	// ConfigMap
 	configMapVars := make(map[string]env.Setter)
 
