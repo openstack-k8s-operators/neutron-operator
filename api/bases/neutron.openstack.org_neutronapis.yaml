@@ -97,10 +97,6 @@ spec:
                 description: NodeSelector to target subset of worker nodes running
                   this service
                 type: object
-              ovnConnectionConfigMap:
-                description: ovn-connection configmap which holds NBConnection and
-                  SBConnection string
-                type: string
               passwordSelectors:
                 description: PasswordSelectors - Selectors to identify the DB and
                   AdminUser password from the Secret

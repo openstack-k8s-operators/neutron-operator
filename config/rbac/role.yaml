@@ -136,6 +136,14 @@ rules:
   - patch
   - update
 - apiGroups:
+  - ovn.openstack.org
+  resources:
+  - ovndbcluster
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - route.openshift.io
   resources:
   - routes
