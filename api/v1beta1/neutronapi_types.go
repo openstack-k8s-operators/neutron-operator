@@ -75,7 +75,8 @@ type NeutronAPISpec struct {
 	Secret string `json:"secret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// PasswordSelectors - Selectors to identify the DB and AdminUser password from the Secret
+	// +kubebuilder:default={database: NeutronDatabasePassword, service: NeutronPassword, novaservice: NovaPassword}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser and NoveService User password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -125,11 +126,11 @@ type PasswordSelector struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="NeutronPassword"
 	// Database - Selector to get the neutron service password from the Secret
-	Service string `json:"admin,omitempty"`
+	Service string `json:"service,omitempty"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="NovaPassword"
 	// Database - Selector to get the nova service password from the Secret
-	NovaService string `json:"novaadmin,omitempty"`
+	NovaService string `json:"novaservice,omitempty"`
 }
 
 // NeutronAPIDebug defines the observed state of NeutronAPIDebug
