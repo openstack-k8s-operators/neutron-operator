@@ -102,23 +102,27 @@ spec:
                   SBConnection string
                 type: string
               passwordSelectors:
+                default:
+                  database: NeutronDatabasePassword
+                  novaservice: NovaPassword
+                  service: NeutronPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  AdminUser password from the Secret
+                  ServiceUser and NoveService User password from the Secret
                 properties:
-                  admin:
-                    default: NeutronPassword
-                    description: Database - Selector to get the neutron service password
-                      from the Secret
-                    type: string
                   database:
                     default: NeutronDatabasePassword
                     description: 'Database - Selector to get the neutron database
                       user password from the Secret TODO: not used, need change in
                       mariadb-operator'
                     type: string
-                  novaadmin:
+                  novaservice:
                     default: NovaPassword
                     description: Database - Selector to get the nova service password
+                      from the Secret
+                    type: string
+                  service:
+                    default: NeutronPassword
+                    description: Database - Selector to get the neutron service password
                       from the Secret
                     type: string
                 type: object
