@@ -177,7 +177,9 @@ spec:
                   to register in neutron
                 type: string
             required:
+            - databaseInstance
             - rabbitMqClusterName
+            - secret
             type: object
           status:
             description: NeutronAPIStatus defines the observed state of NeutronAPI

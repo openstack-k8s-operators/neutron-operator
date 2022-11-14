@@ -53,7 +53,7 @@ type NeutronAPISpec struct {
 	// MariaDB instance name
 	// Right now required by the maridb-operator to get the credentials from the instance to create the DB
 	// Might not be required in future
-	DatabaseInstance string `json:"databaseInstance,omitempty"`
+	DatabaseInstance string `json:"databaseInstance"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=neutron
@@ -80,7 +80,7 @@ type NeutronAPISpec struct {
 
 	// +kubebuilder:validation:Required
 	// Secret containing OpenStack password information for neutron NeutronPassword NovaPassword
-	Secret string `json:"secret,omitempty"`
+	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default={database: NeutronDatabasePassword, service: NeutronPassword, novaservice: NovaPassword}
