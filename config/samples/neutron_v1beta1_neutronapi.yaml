@@ -17,4 +17,3 @@ spec:
   containerImage: quay.io/tripleowallabycentos9/openstack-neutron-server:current-tripleo
   replicas: 1
   secret: neutron-secret
-  ovnConnectionConfigMap: ovn-connection

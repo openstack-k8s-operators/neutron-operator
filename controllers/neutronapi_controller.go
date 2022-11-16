@@ -45,6 +45,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
+	ovnclient "github.com/openstack-k8s-operators/ovn-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -87,6 +88,7 @@ func (r *NeutronAPIReconciler) GetScheme() *runtime.Scheme {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=ovn.openstack.org,resources=ovndbcluster,verbs=get;list;watch;
 
 // Reconcile - neutron api
 func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -495,7 +497,6 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map,
-	// and also check for required OVNConnection config map
 	//
 	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
@@ -517,29 +518,8 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 	configMapVars[ospSecret.Name] = env.SetValue(hash)
 
-	// check for required ovn-connection configMap
-	ovnConnection, hash, err := configmap.GetConfigMapAndHashWithName(ctx, helper, instance.Spec.OVNConnectionConfigMap, instance.Namespace)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("OvnConnection config map %s not found", instance.Spec.OVNConnectionConfigMap)
-		}
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.InputReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.InputReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-	configMapVars[ovnConnection.Name] = env.SetValue(hash)
-
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
-	// run check OpenStack secret and OVNConnection config map - end
+	// run check OpenStack secret - end
 
 	//
 	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
@@ -551,7 +531,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	// - %-config configmap holding minimal neutron config required to get the service up, user can add additional files to be added to the service
 	// - parameters which has passwords gets added from the OpenStack secret via the init container
 	//
-	err = r.generateServiceConfigMaps(ctx, helper, instance, ovnConnection, &configMapVars)
+	err = r.generateServiceConfigMaps(ctx, helper, instance, &configMapVars)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -655,11 +635,15 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
-	ovnConnection *corev1.ConfigMap,
 	envVars *map[string]env.Setter,
 ) error {
 	// Create/update configmaps from templates
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
+
+	dbmap, err := ovnclient.GetDBEndpoints(ctx, h, instance.Namespace, map[string]string{})
+	if err != nil {
+		return err
+	}
 
 	// customData hold any customization for the service.
 	// custom.conf is going to /etc/<service>/<service>.conf.d
@@ -682,8 +666,8 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystonePublicURL"] = authURL
 
-	templateParameters["NBConnection"] = ovnConnection.Data["NBConnection"]
-	templateParameters["SBConnection"] = ovnConnection.Data["SBConnection"]
+	templateParameters["NBConnection"] = dbmap["NB"]
+	templateParameters["SBConnection"] = dbmap["SB"]
 
 	cms := []util.Template{
 		// ScriptsConfigMap

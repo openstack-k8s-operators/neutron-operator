@@ -22,7 +22,6 @@ spec:
   containerImage: quay.io/tripleowallabycentos9/openstack-neutron-server:current-tripleo
   databaseInstance: openstack
   secret: neutron-secret
-  ovnConnectionConfigMap: ovn-connection
 ```
 
 # Design

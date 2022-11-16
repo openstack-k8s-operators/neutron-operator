@@ -5,15 +5,15 @@ go 1.18
 require (
 	github.com/go-logr/logr v1.2.3
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.20.0
+	github.com/onsi/gomega v1.20.1
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220927090553-6b3218c776f7
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20220923094431-9fca0c85a9dc
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221026124010-73aea021d52a
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220923094431-9fca0c85a9dc
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220927092716-25669bcdb523
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-20220819181239-ba20af4b88f9
-	k8s.io/api v0.25.0
-	k8s.io/apimachinery v0.25.0
+	k8s.io/api v0.25.3
+	k8s.io/apimachinery v0.25.3
 	k8s.io/client-go v0.25.0
 	sigs.k8s.io/controller-runtime v0.13.0
 )
@@ -55,6 +55,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20220915080953-f73a201a1da6 // indirect
+	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221104055612-c6a1c9f90b72 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect

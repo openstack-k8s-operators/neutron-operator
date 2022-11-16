@@ -110,10 +110,6 @@ type NeutronAPISpec struct {
 	// Resources - Compute Resources required by this service (Limits/Requests).
 	// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// +kubebuilder:validation:Required
-	// ovn-connection configmap which holds NBConnection and SBConnection string
-	OVNConnectionConfigMap string `json:"ovnConnectionConfigMap,omitempty"`
 }
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
