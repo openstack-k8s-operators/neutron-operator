@@ -138,7 +138,7 @@ rules:
 - apiGroups:
   - ovn.openstack.org
   resources:
-  - ovndbcluster
+  - ovndbclusters
   verbs:
   - get
   - list

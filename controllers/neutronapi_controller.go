@@ -88,7 +88,7 @@ func (r *NeutronAPIReconciler) GetScheme() *runtime.Scheme {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
-// +kubebuilder:rbac:groups=ovn.openstack.org,resources=ovndbcluster,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=ovn.openstack.org,resources=ovndbclusters,verbs=get;list;watch;
 
 // Reconcile - neutron api
 func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
