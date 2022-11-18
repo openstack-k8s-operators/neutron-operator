@@ -11,6 +11,7 @@ type InitContainer struct {
 	Database             string
 	DatabaseHost         string
 	NeutronSecret        string
+	TransportURLSecret   string
 	DBPasswordSelector   string
 	NovaPasswordSelector string
 	UserPasswordSelector string
@@ -29,6 +30,65 @@ func GetInitContainer(init InitContainer) []corev1.Container {
 		securityContext.Privileged = &trueVar
 	}
 
+	envs := []corev1.EnvVar{
+		{
+			Name:  "DatabaseHost",
+			Value: init.DatabaseHost,
+		},
+		{
+			Name:  "Database",
+			Value: init.Database,
+		},
+		{
+			Name: "DatabasePassword",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.NeutronSecret,
+					},
+					Key: init.DBPasswordSelector,
+				},
+			},
+		},
+		{
+			Name: "NeutronPassword",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.NeutronSecret,
+					},
+					Key: init.UserPasswordSelector,
+				},
+			},
+		},
+		{
+			Name: "NovaPassword",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.NeutronSecret,
+					},
+					Key: init.NovaPasswordSelector,
+				},
+			},
+		},
+	}
+
+	if init.TransportURLSecret != "" {
+		envTransport := corev1.EnvVar{
+			Name: "TransportURL",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: init.TransportURLSecret,
+					},
+					Key: "transport_url",
+				},
+			},
+		}
+		envs = append(envs, envTransport)
+	}
+
 	return []corev1.Container{
 		{
 			Name:            "init",
@@ -37,60 +97,7 @@ func GetInitContainer(init InitContainer) []corev1.Container {
 			Command: []string{
 				"/bin/bash", "-c", "/usr/local/bin/container-scripts/init.sh",
 			},
-			Env: []corev1.EnvVar{
-				//	{
-				//		Name: "TransportURL",
-				//		ValueFrom: &corev1.EnvVarSource{
-				//			SecretKeyRef: &corev1.SecretKeySelector{
-				//				LocalObjectReference: corev1.LocalObjectReference{
-				//					Name: init.NeutronSecret,
-				//				},
-				//				Key: "TransportUrl",
-				//			},
-				//		},
-				//	},
-				{
-					Name:  "DatabaseHost",
-					Value: init.DatabaseHost,
-				},
-				{
-					Name:  "Database",
-					Value: init.Database,
-				},
-				{
-					Name: "DatabasePassword",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: init.NeutronSecret,
-							},
-							Key: init.DBPasswordSelector,
-						},
-					},
-				},
-				{
-					Name: "NeutronPassword",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: init.NeutronSecret,
-							},
-							Key: init.UserPasswordSelector,
-						},
-					},
-				},
-				{
-					Name: "NovaPassword",
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: init.NeutronSecret,
-							},
-							Key: init.NovaPasswordSelector,
-						},
-					},
-				},
-			},
+			Env:          envs,
 			VolumeMounts: init.VolumeMounts,
 		},
 	}

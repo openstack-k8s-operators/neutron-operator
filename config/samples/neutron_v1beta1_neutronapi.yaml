@@ -10,6 +10,7 @@ spec:
     debug = true
   databaseInstance: openstack
   databaseUser: neutron
+  rabbitMqClusterName: rabbitmq
   debug:
     dbSync: false
     service: false

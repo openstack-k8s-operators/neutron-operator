@@ -24,7 +24,7 @@ export DatabaseHost=${DatabaseHost:?"Please specify a DatabaseHost variable."}
 export NeutronPassword=${NeutronPassword:?"Please specify a NeutronPassword variable."}
 export NovaPassword=${NovaPassword:?"Please specify a NovaPassword variable."}
 export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword variable."}
-# export TransportURL=${TransportURL:?"Please specify a TransportURL variable."}
+export TransportUrl=${TransportURL:-""}
 
 function merge_config_dir {
   echo merge config dir $1
@@ -53,7 +53,9 @@ if [[ -d /var/lib/config-data/default ]]; then
 fi
 
 # set secrets
-# crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportURL
+if [ -n "$TransportUrl" ]; then
+  crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportUrl
+fi
 crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://$Database:$DatabasePassword@$DatabaseHost/$Database
 crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $NeutronPassword
 crudini --set /var/lib/config-data/merged/neutron.conf nova password $NovaPassword

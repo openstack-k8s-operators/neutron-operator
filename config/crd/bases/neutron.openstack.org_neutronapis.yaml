@@ -128,6 +128,11 @@ spec:
                 description: PreserveJobs - do not delete jobs after they finished
                   e.g. to check logs
                 type: boolean
+              rabbitMqClusterName:
+                default: rabbitmq
+                description: RabbitMQ instance name Needed to request a transportURL
+                  that is created and used in Neutron
+                type: string
               replicas:
                 default: 1
                 description: Replicas of neutron API to run
@@ -171,6 +176,8 @@ spec:
                 description: ServiceUser - optional username used for this service
                   to register in neutron
                 type: string
+            required:
+            - rabbitMqClusterName
             type: object
           status:
             description: NeutronAPIStatus defines the observed state of NeutronAPI
@@ -237,6 +244,9 @@ spec:
                 type: integer
               serviceID:
                 description: ServiceID - the ID of the registered service in keystone
+                type: string
+              transportURLSecret:
+                description: TransportURLSecret - Secret containing RabbitMQ transportURL
                 type: string
             type: object
         type: object
