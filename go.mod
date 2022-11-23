@@ -15,7 +15,7 @@ require (
 	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221104055612-c6a1c9f90b72
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
-	k8s.io/client-go v0.25.0
+	k8s.io/client-go v0.25.4
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
