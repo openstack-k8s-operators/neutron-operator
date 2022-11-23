@@ -39,7 +39,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/neutron-operator/controllers"
-	ovnv1alpha1 "github.com/openstack-k8s-operators/ovn-operator/api/v1alpha1"
+	ovnv1alpha1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
