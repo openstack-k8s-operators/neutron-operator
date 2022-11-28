@@ -14,6 +14,6 @@ spec:
     dbSync: false
     service: false
   preserveJobs: false
-  containerImage: quay.io/tripleowallabycentos9/openstack-neutron-server:current-tripleo
+  containerImage: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
   replicas: 1
   secret: neutron-secret

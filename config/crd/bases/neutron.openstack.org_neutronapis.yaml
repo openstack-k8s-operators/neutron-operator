@@ -45,6 +45,7 @@ spec:
             description: NeutronAPISpec defines the desired state of NeutronAPI
             properties:
               containerImage:
+                default: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
                 type: string
               customServiceConfig:
                 default: '# add your customization here'
