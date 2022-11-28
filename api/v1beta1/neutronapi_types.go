@@ -61,6 +61,8 @@ type NeutronAPISpec struct {
 	// TODO: -> implement needs work in mariadb-operator, right now only neutron
 	DatabaseUser string `json:"databaseUser"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo"
 	ContainerImage string `json:"containerImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
