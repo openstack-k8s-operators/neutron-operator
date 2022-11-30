@@ -39,6 +39,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/neutron-operator/controllers"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 	ovnv1alpha1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
@@ -53,6 +54,7 @@ func init() {
 
 	utilruntime.Must(keystonev1beta1.AddToScheme(scheme))
 	utilruntime.Must(mariadbv1.AddToScheme(scheme))
+	utilruntime.Must(rabbitmqv1.AddToScheme(scheme))
 	utilruntime.Must(ovnv1alpha1.AddToScheme(scheme))
 
 	utilruntime.Must(neutronv1beta1.AddToScheme(scheme))

@@ -61,6 +61,12 @@ type NeutronAPISpec struct {
 	// TODO: -> implement needs work in mariadb-operator, right now only neutron
 	DatabaseUser string `json:"databaseUser"`
 
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=rabbitmq
+	// RabbitMQ instance name
+	// Needed to request a transportURL that is created and used in Neutron
+	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo"
 	ContainerImage string `json:"containerImage,omitempty"`
@@ -163,6 +169,9 @@ type NeutronAPIStatus struct {
 
 	// Neutron Database Hostname
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
+
+	// TransportURLSecret - Secret containing RabbitMQ transportURL
+	TransportURLSecret string `json:"transportURLSecret,omitempty"`
 
 	// ServiceID - the ID of the registered service in keystone
 	ServiceID string `json:"serviceID,omitempty"`

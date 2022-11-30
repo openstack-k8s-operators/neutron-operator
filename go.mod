@@ -10,8 +10,9 @@ require (
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20220927090553-6b3218c776f7
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20221026124010-73aea021d52a
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20220923094431-9fca0c85a9dc
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20220927092716-25669bcdb523
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221014164348-0a612ae8b391
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-20220819181239-ba20af4b88f9
+	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221117151703-eff71d81bcb7
 	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221123083203-3d9b7a0455a2
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
@@ -83,7 +84,7 @@ require (
 	k8s.io/component-base v0.25.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
-	k8s.io/utils v0.0.0-20220823124924-e9cbc92d1a73 // indirect
+	k8s.io/utils v0.0.0-20220922133306-665eaaec4324 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

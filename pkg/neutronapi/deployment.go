@@ -142,6 +142,7 @@ func Deployment(
 		DatabaseHost:         instance.Status.DatabaseHostname,
 		Database:             Database,
 		NeutronSecret:        instance.Spec.Secret,
+		TransportURLSecret:   instance.Status.TransportURLSecret,
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
 		NovaPasswordSelector: instance.Spec.PasswordSelectors.NovaService,

@@ -45,11 +45,13 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
+	rabbitmqv1 "github.com/openstack-k8s-operators/openstack-operator/apis/rabbitmq/v1beta1"
 	ovnclient "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NeutronAPIReconciler reconciles a NeutronAPI object
@@ -89,6 +91,7 @@ func (r *NeutronAPIReconciler) GetScheme() *runtime.Scheme {
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=ovn.openstack.org,resources=ovndbclusters,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=rabbitmq.openstack.org,resources=transporturls,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile - neutron api
 func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -118,6 +121,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
 			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
 			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+			condition.UnknownCondition(neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition, condition.InitReason, neutronv1beta1.NeutronRabbitMqTransportURLReadyInitMessage),
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
@@ -192,6 +196,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&routev1.Route{}).
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
+		Owns(&rabbitmqv1.TransportURL{}).
 		Complete(r)
 }
 
@@ -496,6 +501,68 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	configMapVars := make(map[string]env.Setter)
 
 	//
+	// create RabbitMQ transportURL CR and get the actual URL from the associated secret that is created
+	//
+
+	transportURL, op, err := r.transportURLCreateOrUpdate(instance)
+
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			neutronv1beta1.NeutronRabbitMqTransportURLReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	if op != controllerutil.OperationResultNone {
+		r.Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
+	}
+
+	instance.Status.TransportURLSecret = transportURL.Status.SecretName
+
+	if instance.Status.TransportURLSecret == "" {
+		r.Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
+
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			neutronv1beta1.NeutronRabbitMqTransportURLReadyRunningMessage))
+
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+	}
+
+	//
+	// check for required TransportURL secret holding transport URL string
+	//
+	transportURLSecret, hash, err := secret.GetSecret(ctx, helper, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
+			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("TransportURL secret %s not found", instance.Status.TransportURLSecret)
+		}
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.InputReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+	configMapVars[transportURLSecret.Name] = env.SetValue(hash)
+	// run check TransportURL secret - end
+
+	instance.Status.Conditions.MarkTrue(neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition, neutronv1beta1.NeutronRabbitMqTransportURLReadyMessage)
+
+	// end transportURL
+
+	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map,
 	//
 	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
@@ -625,6 +692,24 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	r.Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
+}
+
+func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(instance *neutronv1beta1.NeutronAPI) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-neutron-transport", instance.Name),
+			Namespace: instance.Namespace,
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, transportURL, func() error {
+		transportURL.Spec.RabbitmqClusterName = instance.Spec.RabbitMqClusterName
+
+		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
+		return err
+	})
+
+	return transportURL, op, err
 }
 
 //
