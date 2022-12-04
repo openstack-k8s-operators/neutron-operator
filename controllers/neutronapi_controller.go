@@ -203,6 +203,19 @@ func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service delete")
 
+	// remove db finalizer first
+	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
+	if !k8s_errors.IsNotFound(err) {
+		if err := db.DeleteFinalizer(ctx, helper); err != nil {
+			return ctrl.Result{}, err
+		}
+		util.LogForObject(helper, "Removed finalizer from our MariaDBDatabase", instance)
+	}
+
 	// Remove the finalizer from our KeystoneEndpoint CR
 	keystoneEndpoint, err := keystonev1.GetKeystoneEndpointWithName(ctx, helper, neutronapi.ServiceName, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
