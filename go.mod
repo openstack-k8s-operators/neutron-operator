@@ -14,6 +14,7 @@ require (
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
 	github.com/openstack-k8s-operators/openstack-operator/apis v0.0.0-20221117151703-eff71d81bcb7
 	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221123083203-3d9b7a0455a2
+	go.uber.org/zap v1.22.0
 	k8s.io/api v0.25.5
 	k8s.io/apimachinery v0.26.0
 	k8s.io/client-go v0.25.5
@@ -66,7 +67,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/oauth2 v0.2.0 // indirect
