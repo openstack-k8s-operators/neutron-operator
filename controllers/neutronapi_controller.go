@@ -28,6 +28,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
@@ -185,6 +187,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 // SetupWithManager -
 func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	crs := &neutronv1beta1.NeutronAPIList{}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&neutronv1beta1.NeutronAPI{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
@@ -197,6 +200,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&rabbitmqv1.TransportURL{}).
+		Watches(&source.Kind{Type: &ovnclient.OVNDBCluster{}}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNDBClusterNamespaceMapFunc(crs, mgr.GetClient(), r.Log))).
 		Complete(r)
 }
 
