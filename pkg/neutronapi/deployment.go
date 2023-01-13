@@ -13,9 +13,13 @@ limitations under the License.
 package neutronapi
 
 import (
+	"fmt"
+
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/annotations"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,7 +38,7 @@ func Deployment(
 	instance *neutronv1.NeutronAPI,
 	configHash string,
 	labels map[string]string,
-) *appsv1.Deployment {
+) (*appsv1.Deployment, error) {
 	runAsUser := int64(0)
 
 	livenessProbe := &corev1.Probe{
@@ -138,6 +142,14 @@ func Deployment(
 		deployment.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
 
+	// networks to attach to
+	nwAnnotation, err := annotations.GetNADAnnotation(instance.Namespace, instance.Spec.NetworkAttachmentDefinitions)
+	if err != nil {
+		return nil, fmt.Errorf("failed create network annotation from %s: %w",
+			instance.Spec.NetworkAttachmentDefinitions, err)
+	}
+	deployment.Spec.Template.Annotations = util.MergeStringMaps(deployment.Spec.Template.Annotations, nwAnnotation)
+
 	initContainerDetails := InitContainer{
 		ContainerImage:       instance.Spec.ContainerImage,
 		DatabaseHost:         instance.Status.DatabaseHostname,
@@ -151,5 +163,5 @@ func Deployment(
 	}
 	deployment.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)
 
-	return deployment
+	return deployment, nil
 }

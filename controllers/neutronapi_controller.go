@@ -322,7 +322,10 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	//
 
 	dbSyncHash := instance.Status.Hash[neutronv1beta1.DbSyncHash]
-	jobDef := neutronapi.DbSyncJob(instance, serviceLabels)
+	jobDef, err := neutronapi.DbSyncJob(instance, serviceLabels)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	dbSyncjob := job.NewJob(
 		jobDef,
 		neutronv1beta1.DbSyncHash,
@@ -664,8 +667,12 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	// Define a new Deployment object
+	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	depl := deployment.NewDeployment(
-		neutronapi.Deployment(instance, inputHash, serviceLabels),
+		deplDef,
 		5,
 	)
 
@@ -688,6 +695,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	instance.Status.Networks = instance.Spec.NetworkAttachmentDefinitions
 
 	if instance.Status.ReadyCount > 0 {
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)

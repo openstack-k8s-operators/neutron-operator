@@ -1,7 +1,11 @@
 package neutronapi
 
 import (
+	"fmt"
+
+	"github.com/openstack-k8s-operators/lib-common/modules/common/annotations"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,7 +16,7 @@ import (
 func DbSyncJob(
 	cr *neutronv1beta1.NeutronAPI,
 	labels map[string]string,
-) *batchv1.Job {
+) (*batchv1.Job, error) {
 
 	runAsUser := int64(0)
 	initVolumeMounts := GetInitVolumeMounts()
@@ -50,6 +54,15 @@ func DbSyncJob(
 			},
 		},
 	}
+
+	// networks to attach to
+	nwAnnotation, err := annotations.GetNADAnnotation(cr.Namespace, cr.Spec.NetworkAttachmentDefinitions)
+	if err != nil {
+		return nil, fmt.Errorf("failed create network annotation from %s: %w",
+			cr.Spec.NetworkAttachmentDefinitions, err)
+	}
+	job.Spec.Template.Annotations = util.MergeStringMaps(job.Spec.Template.Annotations, nwAnnotation)
+
 	initContainerDetails := InitContainer{
 		ContainerImage:       cr.Spec.ContainerImage,
 		DatabaseHost:         cr.Status.DatabaseHostname,
@@ -61,5 +74,5 @@ func DbSyncJob(
 		VolumeMounts:         initVolumeMounts,
 	}
 	job.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)
-	return job
+	return job, nil
 }
