@@ -111,7 +111,6 @@ spec:
               passwordSelectors:
                 default:
                   database: NeutronDatabasePassword
-                  novaservice: NovaPassword
                   service: NeutronPassword
                 description: PasswordSelectors - Selectors to identify the DB and
                   ServiceUser and NoveService User password from the Secret
@@ -121,11 +120,6 @@ spec:
                     description: 'Database - Selector to get the neutron database
                       user password from the Secret TODO: not used, need change in
                       mariadb-operator'
-                    type: string
-                  novaservice:
-                    default: NovaPassword
-                    description: Database - Selector to get the nova service password
-                      from the Secret
                     type: string
                   service:
                     default: NeutronPassword
@@ -199,7 +193,7 @@ spec:
                 type: object
               secret:
                 description: Secret containing OpenStack password information for
-                  neutron NeutronPassword NovaPassword
+                  NeutronDatabasePassword, NeutronPassword
                 type: string
               serviceUser:
                 default: neutron

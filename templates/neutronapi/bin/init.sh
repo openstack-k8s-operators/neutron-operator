@@ -21,8 +21,7 @@ set -ex
 # Secrets are obtained from ENV variables.
 export Database=${Database:-"neutron"}
 export DatabaseHost=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export NeutronPassword=${NeutronPassword:?"Please specify a NeutronPassword variable."}
-export NovaPassword=${NovaPassword:?"Please specify a NovaPassword variable."}
+export Password=${NeutronPassword:?"Please specify a NeutronPassword variable."}
 export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export TransportUrl=${TransportURL:-""}
 
@@ -56,5 +55,5 @@ if [ -n "$TransportUrl" ]; then
     crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportUrl
 fi
 crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://$Database:$DatabasePassword@$DatabaseHost/$Database
-crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $NeutronPassword
-crudini --set /var/lib/config-data/merged/neutron.conf nova password $NovaPassword
+crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $Password
+crudini --set /var/lib/config-data/merged/neutron.conf nova password $Password

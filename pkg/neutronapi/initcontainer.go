@@ -13,7 +13,6 @@ type InitContainer struct {
 	NeutronSecret        string
 	TransportURLSecret   string
 	DBPasswordSelector   string
-	NovaPasswordSelector string
 	UserPasswordSelector string
 	VolumeMounts         []corev1.VolumeMount
 }
@@ -58,17 +57,6 @@ func GetInitContainer(init InitContainer) []corev1.Container {
 						Name: init.NeutronSecret,
 					},
 					Key: init.UserPasswordSelector,
-				},
-			},
-		},
-		{
-			Name: "NovaPassword",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: init.NeutronSecret,
-					},
-					Key: init.NovaPasswordSelector,
 				},
 			},
 		},

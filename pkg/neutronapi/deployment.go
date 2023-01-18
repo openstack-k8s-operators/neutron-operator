@@ -158,7 +158,6 @@ func Deployment(
 		TransportURLSecret:   instance.Status.TransportURLSecret,
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		NovaPasswordSelector: instance.Spec.PasswordSelectors.NovaService,
 		VolumeMounts:         GetInitVolumeMounts(),
 	}
 	deployment.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)

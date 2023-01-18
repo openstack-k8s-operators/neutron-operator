@@ -70,7 +70,6 @@ func DbSyncJob(
 		NeutronSecret:        cr.Spec.Secret,
 		DBPasswordSelector:   cr.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: cr.Spec.PasswordSelectors.Service,
-		NovaPasswordSelector: cr.Spec.PasswordSelectors.NovaService,
 		VolumeMounts:         initVolumeMounts,
 	}
 	job.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)
