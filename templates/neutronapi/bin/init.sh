@@ -19,11 +19,11 @@ set -ex
 # copies the result to the ephemeral /var/lib/config-data/merged volume.
 #
 # Secrets are obtained from ENV variables.
-export Database=${Database:-"neutron"}
-export DatabaseHost=${DatabaseHost:?"Please specify a DatabaseHost variable."}
-export Password=${NeutronPassword:?"Please specify a NeutronPassword variable."}
-export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword variable."}
-export TransportUrl=${TransportURL:-""}
+export DB=${Database:-"neutron"}
+export PASSWORD=${NeutronPassword:?"Please specify a NeutronPassword variable."}
+export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
+export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
+export TRANSPORTURL=${TransportURL:-""}
 
 function merge_config_dir {
     echo merge config dir $1
@@ -51,9 +51,9 @@ if [[ -d /var/lib/config-data/default ]]; then
 fi
 
 # set secrets
-if [ -n "$TransportUrl" ]; then
-    crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportUrl
+if [ -n "$TRANSPORTURL" ]; then
+    crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TRANSPORTURL
 fi
-crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://$Database:$DatabasePassword@$DatabaseHost/$Database
-crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $Password
-crudini --set /var/lib/config-data/merged/neutron.conf nova password $Password
+crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://${DB}:${DBPASSWORD}@${DBHOST}/${DB}
+crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $PASSWORD
+crudini --set /var/lib/config-data/merged/neutron.conf nova password $PASSWORD
