@@ -135,8 +135,8 @@ func (in *NeutronAPISpec) DeepCopyInto(out *NeutronAPISpec) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
-	if in.NetworkAttachmentDefinitions != nil {
-		in, out := &in.NetworkAttachmentDefinitions, &out.NetworkAttachmentDefinitions
+	if in.NetworkAttachments != nil {
+		in, out := &in.NetworkAttachments, &out.NetworkAttachments
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -176,10 +176,20 @@ func (in *NeutronAPIStatus) DeepCopyInto(out *NeutronAPIStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Networks != nil {
-		in, out := &in.Networks, &out.Networks
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+	if in.NetworkAttachments != nil {
+		in, out := &in.NetworkAttachments, &out.NetworkAttachments
+		*out = make(map[string][]string, len(*in))
+		for key, val := range *in {
+			var outVal []string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make([]string, len(*in))
+				copy(*out, *in)
+			}
+			(*out)[key] = outVal
+		}
 	}
 }
 
