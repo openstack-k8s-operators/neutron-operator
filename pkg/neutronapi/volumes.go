@@ -26,7 +26,8 @@ func GetInitVolumeMounts() []corev1.VolumeMount {
 
 // GetAPIVolumes -
 // TODO: merge to GetVolumes when other controllers also switched to current config
-//       mechanism.
+//
+//	mechanism.
 func GetAPIVolumes(name string) []corev1.Volume {
 	var scriptsVolumeDefaultMode int32 = 0755
 	var config0640AccessMode int32 = 0640

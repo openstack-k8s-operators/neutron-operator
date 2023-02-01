@@ -724,10 +724,8 @@ func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(instance *neutronv1bet
 	return transportURL, op, err
 }
 
-//
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration
 // TODO add DefaultConfigOverwrite
-//
 func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
@@ -798,12 +796,10 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	return nil
 }
 
-//
 // createHashOfInputHashes - creates a hash of hashes which gets added to the resources which requires a restart
 // if any of the input resources change, like configs, passwords, ...
 //
 // returns the hash, whether the hash changed (as a bool) and any error
-//
 func (r *NeutronAPIReconciler) createHashOfInputHashes(
 	ctx context.Context,
 	instance *neutronv1beta1.NeutronAPI,

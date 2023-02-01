@@ -1,4 +1,4 @@
-#!/bin//bash
+#!/bin/bash
 #
 # Copyright 2022 Red Hat Inc.
 #
@@ -27,21 +27,20 @@ export DatabasePassword=${DatabasePassword:?"Please specify a DatabasePassword v
 export TransportUrl=${TransportURL:-""}
 
 function merge_config_dir {
-  echo merge config dir $1
-  for conf in $(find $1 -type f)
-  do
-    conf_base=$(basename $conf)
+    echo merge config dir $1
+    for conf in $(find $1 -type f); do
+        conf_base=$(basename $conf)
 
-    # If CFG already exist in ../merged and is not a json file,
-    # Else, just copy the full file.
-    if [[ -f /var/lib/config-data/merged/${conf_base} && ${conf_base} != *.json ]]; then
-      echo merging ${conf} into /var/lib/config-data/merged/${conf_base}
-      crudini --merge /var/lib/config-data/merged/${conf_base} < ${conf}
-    else
-      echo copy ${conf} to /var/lib/config-data/merged/
-      cp -f ${conf} /var/lib/config-data/merged/
-    fi
-  done
+        # If CFG already exist in ../merged and is not a json file,
+        # Else, just copy the full file.
+        if [[ -f /var/lib/config-data/merged/${conf_base} && ${conf_base} != *.json ]]; then
+            echo merging ${conf} into /var/lib/config-data/merged/${conf_base}
+            crudini --merge /var/lib/config-data/merged/${conf_base} < ${conf}
+        else
+            echo copy ${conf} to /var/lib/config-data/merged/
+            cp -f ${conf} /var/lib/config-data/merged/
+        fi
+    done
 }
 
 # Copy default service config from container image as base
@@ -49,12 +48,12 @@ cp -a /etc/neutron/neutron.conf /var/lib/config-data/merged/neutron.conf
 
 # merge config files if the config mount exists
 if [[ -d /var/lib/config-data/default ]]; then
-  merge_config_dir /var/lib/config-data/default
+    merge_config_dir /var/lib/config-data/default
 fi
 
 # set secrets
 if [ -n "$TransportUrl" ]; then
-  crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportUrl
+    crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TransportUrl
 fi
 crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://$Database:$DatabasePassword@$DatabaseHost/$Database
 crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $NeutronPassword
