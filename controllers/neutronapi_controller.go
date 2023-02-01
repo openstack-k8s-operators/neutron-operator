@@ -373,9 +373,6 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	// expose the service (create service, route and return the created endpoint URLs)
 	//
 	var ports = map[endpoint.Endpoint]endpoint.Data{
-		endpoint.EndpointAdmin: {
-			Port: neutronapi.NeutronAdminPort,
-		},
 		endpoint.EndpointPublic: {
 			Port: neutronapi.NeutronPublicPort,
 		},

@@ -106,7 +106,6 @@ spec:
                       description: Endpoint, OpenStack endpoint this service maps
                         to
                       enum:
-                      - admin
                       - internal
                       - public
                       type: string

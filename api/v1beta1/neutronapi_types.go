@@ -131,7 +131,7 @@ type NeutronAPISpec struct {
 // MetalLBConfig to configure the MetalLB loadbalancer service
 type MetalLBConfig struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=admin;internal;public
+	// +kubebuilder:validation:Enum=internal;public
 	// Endpoint, OpenStack endpoint this service maps to
 	Endpoint endpoint.Endpoint `json:"endpoint"`
 
