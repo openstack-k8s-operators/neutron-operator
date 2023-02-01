@@ -372,7 +372,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	//
 	// expose the service (create service, route and return the created endpoint URLs)
 	//
-	var keystonePorts = map[endpoint.Endpoint]endpoint.Data{
+	var ports = map[endpoint.Endpoint]endpoint.Data{
 		endpoint.EndpointAdmin: {
 			Port: neutronapi.NeutronAdminPort,
 		},
@@ -384,12 +384,24 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		},
 	}
 
+	for _, metallbcfg := range instance.Spec.ExternalEndpoints {
+		portCfg := ports[metallbcfg.Endpoint]
+		portCfg.MetalLB = &endpoint.MetalLBData{
+			IPAddressPool:   metallbcfg.IPAddressPool,
+			SharedIP:        metallbcfg.SharedIP,
+			SharedIPKey:     metallbcfg.SharedIPKey,
+			LoadBalancerIPs: metallbcfg.LoadBalancerIPs,
+		}
+
+		ports[metallbcfg.Endpoint] = portCfg
+	}
+
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
 		helper,
 		neutronapi.ServiceName,
 		serviceLabels,
-		keystonePorts,
+		ports,
 		time.Duration(5)*time.Second,
 	)
 	if err != nil {
