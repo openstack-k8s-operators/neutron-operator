@@ -15,10 +15,10 @@ require (
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
 	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221221083334-f77d76772a0e
 	go.uber.org/zap v1.24.0
-	k8s.io/api v0.26.0
+	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
-	k8s.io/client-go v0.26.0
-	sigs.k8s.io/controller-runtime v0.14.1
+	k8s.io/client-go v0.26.1
+	sigs.k8s.io/controller-runtime v0.14.2
 )
 
 require (
@@ -70,8 +70,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.26.0 // indirect
-	k8s.io/component-base v0.26.0 // indirect
+	k8s.io/apiextensions-apiserver v0.26.1 // indirect
+	k8s.io/component-base v0.26.1 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221202012554-9a5fe2dc74e8 // indirect
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448 // indirect
