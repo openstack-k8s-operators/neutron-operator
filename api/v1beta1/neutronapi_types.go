@@ -79,12 +79,12 @@ type NeutronAPISpec struct {
 	Replicas int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for neutron NeutronPassword NovaPassword
+	// Secret containing OpenStack password information for NeutronDatabasePassword, NeutronPassword
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: NeutronDatabasePassword, service: NeutronPassword, novaservice: NovaPassword}
-	// PasswordSelectors - Selectors to identify the DB and ServiceUser and NoveService User password from the Secret
+	// +kubebuilder:default={database: NeutronDatabasePassword, service: NeutronPassword}
+	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -135,10 +135,6 @@ type PasswordSelector struct {
 	// +kubebuilder:default="NeutronPassword"
 	// Database - Selector to get the neutron service password from the Secret
 	Service string `json:"service,omitempty"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NovaPassword"
-	// Database - Selector to get the nova service password from the Secret
-	NovaService string `json:"novaservice,omitempty"`
 }
 
 // NeutronAPIDebug defines the observed state of NeutronAPIDebug

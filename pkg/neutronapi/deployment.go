@@ -153,12 +153,12 @@ func Deployment(
 	initContainerDetails := InitContainer{
 		ContainerImage:       instance.Spec.ContainerImage,
 		DatabaseHost:         instance.Status.DatabaseHostname,
+		DatabaseUser:         instance.Spec.DatabaseUser,
 		Database:             Database,
 		NeutronSecret:        instance.Spec.Secret,
 		TransportURLSecret:   instance.Status.TransportURLSecret,
 		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
 		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		NovaPasswordSelector: instance.Spec.PasswordSelectors.NovaService,
 		VolumeMounts:         GetInitVolumeMounts(),
 	}
 	deployment.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)
