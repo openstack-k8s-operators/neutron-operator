@@ -66,6 +66,7 @@ func DbSyncJob(
 	initContainerDetails := InitContainer{
 		ContainerImage:       cr.Spec.ContainerImage,
 		DatabaseHost:         cr.Status.DatabaseHostname,
+		DatabaseUser:         cr.Spec.DatabaseUser,
 		Database:             Database,
 		NeutronSecret:        cr.Spec.Secret,
 		DBPasswordSelector:   cr.Spec.PasswordSelectors.Database,

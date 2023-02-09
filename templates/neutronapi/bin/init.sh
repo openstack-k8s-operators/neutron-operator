@@ -22,6 +22,7 @@ set -ex
 export DB=${Database:-"neutron"}
 export PASSWORD=${NeutronPassword:?"Please specify a NeutronPassword variable."}
 export DBHOST=${DatabaseHost:?"Please specify a DatabaseHost variable."}
+export DBUSER=${DatabaseUser:?"Please specify a DatabaseUser variable."}
 export DBPASSWORD=${DatabasePassword:?"Please specify a DatabasePassword variable."}
 export TRANSPORTURL=${TransportURL:-""}
 
@@ -54,6 +55,6 @@ fi
 if [ -n "$TRANSPORTURL" ]; then
     crudini --set /var/lib/config-data/merged/neutron.conf DEFAULT transport_url $TRANSPORTURL
 fi
-crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://${DB}:${DBPASSWORD}@${DBHOST}/${DB}
+crudini --set /var/lib/config-data/merged/neutron.conf database connection mysql+pymysql://${DBUSER}:${DBPASSWORD}@${DBHOST}/${DB}
 crudini --set /var/lib/config-data/merged/neutron.conf keystone_authtoken password $PASSWORD
 crudini --set /var/lib/config-data/merged/neutron.conf nova password $PASSWORD

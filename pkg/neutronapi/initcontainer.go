@@ -10,6 +10,7 @@ type InitContainer struct {
 	ContainerImage       string
 	Database             string
 	DatabaseHost         string
+	DatabaseUser         string
 	NeutronSecret        string
 	TransportURLSecret   string
 	DBPasswordSelector   string
@@ -37,6 +38,10 @@ func GetInitContainer(init InitContainer) []corev1.Container {
 		{
 			Name:  "Database",
 			Value: init.Database,
+		},
+		{
+			Name:  "DatabaseUser",
+			Value: init.DatabaseUser,
 		},
 		{
 			Name: "DatabasePassword",

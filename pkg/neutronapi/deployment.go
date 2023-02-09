@@ -153,6 +153,7 @@ func Deployment(
 	initContainerDetails := InitContainer{
 		ContainerImage:       instance.Spec.ContainerImage,
 		DatabaseHost:         instance.Status.DatabaseHostname,
+		DatabaseUser:         instance.Spec.DatabaseUser,
 		Database:             Database,
 		NeutronSecret:        instance.Spec.Secret,
 		TransportURLSecret:   instance.Status.TransportURLSecret,
