@@ -12,12 +12,6 @@
       "dest": "/etc/neutron/neutron.conf.d/custom.conf",
       "owner": "root:neutron",
       "perm": "0640"
-    },
-    {
-      "source": "/var/lib/config-data/merged/logging.conf",
-      "dest": "/etc/neutron/logging.conf",
-      "owner": "root:neutron",
-      "perm": "0644"
     }
   ]
 }
