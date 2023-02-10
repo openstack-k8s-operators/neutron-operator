@@ -221,8 +221,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/onsi/ginkgo/v2 v2.6.1 h1:1xQPCjcqYw/J5LchOcp4/2q/jzJFjiAOc25chhnDw+Q=
-github.com/onsi/ginkgo/v2 v2.6.1/go.mod h1:yjiuMwPokqY1XauOgju45q3sJt6VzQ/Fict1LFVcsAo=
+github.com/onsi/ginkgo/v2 v2.7.0 h1:/XxtEV3I3Eif/HobnVx9YmJgk8ENdRsuUmM+fLCFNow=
+github.com/onsi/ginkgo/v2 v2.7.0/go.mod h1:yjiuMwPokqY1XauOgju45q3sJt6VzQ/Fict1LFVcsAo=
 github.com/onsi/gomega v1.24.2 h1:J/tulyYK6JwBldPViHJReihxxZ+22FHs0piGjQAvoUE=
 github.com/onsi/gomega v1.24.2/go.mod h1:gs3J10IS7Z7r7eXRoNJIrNqU4ToQukCJhFtKrWgHWnk=
 github.com/openshift/api v3.9.0+incompatible h1:fJ/KsefYuZAjmrr3+5U9yZIZbTOpVkDDLDLFresAeYs=
@@ -237,10 +237,12 @@ github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-2022120113
 github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20221201135101-4ec1006d9216/go.mod h1:rONM/XgvFs6putDIxRHNv9/CTGh2afAvJM5wRP2OywY=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230208113903-f7b52e2a2ccb h1:J4/Q3K0zkdUwtTRcXaxvoMK+ZgggxVtNjzEvqBu/siQ=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.0.0-20230208113903-f7b52e2a2ccb/go.mod h1:9tj29SmyP9izLIEKj5E44F7M7a82UwcPdIufc3MQpcY=
+github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230117065141-23eeb95d6729 h1:RgYtB771GiVoBX4ld/IaRIFTQ3B83sZKJPYG73XQLDs=
+github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230117065141-23eeb95d6729/go.mod h1:2RQGkwzHPwk5XYUgODeVpZpM7qFGH+nU/lvTNun2pzg=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221128124656-71e59ad7384d h1:VPCf4ZO4k3zyE9xscKx5Q8dQNxzaIJMVRHORjCWvDZY=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20221128124656-71e59ad7384d/go.mod h1:HiEKXmDSJ6Gl+pN7kK5CX1sgOjrxybux4Ob5pdUim1M=
-github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221221083334-f77d76772a0e h1:G5s0MasnPwIOogyPK5Ce4F+2mxvD/+sJQUaC20BDeJk=
-github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20221221083334-f77d76772a0e/go.mod h1:GUQ966Lr4rg+XnIYlYO+YX+rMg7OmNzYYvDk4uSIQVU=
+github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20230119070807-ae18fe5d848f h1:OI5yMzINpsINJKsNE1noHK2DGAeuE4fxKflmXiIboVs=
+github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20230119070807-ae18fe5d848f/go.mod h1:GUQ966Lr4rg+XnIYlYO+YX+rMg7OmNzYYvDk4uSIQVU=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
@@ -356,6 +358,8 @@ golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee/go.mod h1:QqPTAvyqsEbceGzB
 golang.org/x/mod v0.1.1-0.20191107180719-034126e5016b/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
 golang.org/x/mod v0.2.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
 golang.org/x/mod v0.3.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
+golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20181114220301-adae6a3d119a/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=

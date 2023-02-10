@@ -276,6 +276,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		ctx,
 		helper,
 	)
+
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,
@@ -337,6 +338,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		ctx,
 		helper,
 	)
+
 	if (ctrlResult != ctrl.Result{}) {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBSyncReadyCondition,
@@ -541,6 +543,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 	// check for required TransportURL secret holding transport URL string
 	//
+
 	transportURLSecret, hash, err := secret.GetSecret(ctx, helper, instance.Status.TransportURLSecret, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
@@ -560,6 +563,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrl.Result{}, err
 	}
 	configMapVars[transportURLSecret.Name] = env.SetValue(hash)
+
 	// run check TransportURL secret - end
 
 	instance.Status.Conditions.MarkTrue(neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition, neutronv1beta1.NeutronRabbitMqTransportURLReadyMessage)

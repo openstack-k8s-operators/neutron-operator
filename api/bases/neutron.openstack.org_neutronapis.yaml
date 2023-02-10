@@ -113,7 +113,7 @@ spec:
                   database: NeutronDatabasePassword
                   service: NeutronPassword
                 description: PasswordSelectors - Selectors to identify the DB and
-                  ServiceUser and NoveService User password from the Secret
+                  ServiceUser password from the Secret
                 properties:
                   database:
                     default: NeutronDatabasePassword
