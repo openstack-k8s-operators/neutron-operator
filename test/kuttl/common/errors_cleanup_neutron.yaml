@@ -1,0 +1,85 @@
+#
+# Check for:
+#
+# No NeutronAPI CR
+# No Deployment for NeutronAPI CR
+# No Pods in neutron Deployment
+# No Neutron Services
+# No Neutron Routes
+#
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  finalizers:
+  - NeutronAPI
+  name: neutron
+  namespace: openstack
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutron
+  namespace: openstack
+---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: anyuid
+  labels:
+    service: neutron
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    admin: "true"
+    service: neutron
+  name: neutron-admin
+  namespace: openstack
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    internal: "true"
+    service: neutron
+  name: neutron-internal
+  namespace: openstack
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    public: "true"
+    service: neutron
+  name: neutron-public
+  namespace: openstack
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: neutron-admin
+  labels:
+    admin: "true"
+    service: neutron
+  namespace: openstack
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: neutron-internal
+  labels:
+    internal: "true"
+    service: neutron
+  namespace: openstack
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: neutron-public
+  labels:
+    public: "true"
+    service: neutron
+  namespace: openstack
