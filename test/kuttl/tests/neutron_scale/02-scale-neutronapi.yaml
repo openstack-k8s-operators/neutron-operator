@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      oc patch neutronapi -n openstack neutron --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":3}]'

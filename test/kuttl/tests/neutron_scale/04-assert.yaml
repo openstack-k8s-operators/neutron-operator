@@ -1,0 +1,23 @@
+#
+# Check for:
+#
+# - NeutronAPI CR with no replicas
+# - Neutron Deployment with 0 Pods
+#
+
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  finalizers:
+  - NeutronAPI
+  name: neutron
+  namespace: openstack
+spec:
+  replicas: 0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutron
+spec:
+  replicas: 0
