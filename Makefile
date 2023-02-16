@@ -87,7 +87,7 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: gowork controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases && \
 	rm -rf api/bases && cp -a config/crd/bases api/
 
@@ -317,6 +317,7 @@ gowork: ## Generate go.work file to support our multi module repository
 	test -f go.work || go work init
 	go work use .
 	go work use ./api
+	go work sync
 
 .PHONY: operator-lint
 operator-lint: gowork ## Runs operator-lint
