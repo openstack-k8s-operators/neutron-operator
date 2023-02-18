@@ -275,7 +275,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	ctrlResult, err := db.CreateOrPatchDBByName(
 		ctx,
 		helper,
-		"openstack",
+		instance.Spec.DatabaseInstance,
 	)
 
 	if err != nil {
