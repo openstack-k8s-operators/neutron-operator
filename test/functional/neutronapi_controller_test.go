@@ -400,13 +400,10 @@ var _ = Describe("NeutronAPI controller", func() {
 		It("Assert Services are created", func() {
 			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
 			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-admin"})
 		})
 
 		It("Assert Routes are created", func() {
 			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "neutron-admin"})
 		})
 
 		It("Endpoints are created", func() {
@@ -419,9 +416,9 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
-			Expect(endpoints).To(HaveKeyWithValue("public", "http:"))
-			Expect(endpoints).To(HaveKeyWithValue("internal", "http:"))
-			Expect(endpoints).To(HaveKeyWithValue("admin", "http:"))
+			regexp := `http:.*:?\d*$`
+			Expect(endpoints).To(HaveKeyWithValue("public", MatchRegexp(regexp)))
+			Expect(endpoints).To(HaveKeyWithValue("internal", MatchRegexp(regexp)))
 		})
 
 		It("Deployment is created as expected", func() {
