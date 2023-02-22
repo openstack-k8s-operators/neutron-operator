@@ -1,16 +1,32 @@
-ci:
-  autofix_prs: false
-  skip:
-   - 'make-manifests'
-   - 'make-generate'
-   - 'go-vet'
-   - 'golangci-lint'
-   - 'go-lint'
-   - 'make-operator-lint'
-
 repos:
+
 - repo: local
   hooks:
+    - id: golangci-lint
+      name: golangci-lint
+      language: golang
+      types: [go]
+      entry: make
+      args: ["golangci-lint"]
+      pass_filenames: false
+    - id: gofmt
+      name: gofmt
+      language: system
+      entry: make
+      args: ["fmt"]
+      pass_filenames: false
+    - id: govet
+      name: govet
+      language: system
+      entry: make
+      args: ["vet"]
+      pass_filenames: false
+    - id: gotidy
+      name: gotidy
+      language: system
+      entry: make
+      args: ["tidy"]
+      pass_filenames: false
     - id: make-manifests
       name: make-manifests
       language: system
@@ -29,20 +45,6 @@ repos:
       entry: make
       args: ['operator-lint']
       pass_filenames: false
-
-- repo: https://github.com/dnephin/pre-commit-golang
-  rev: v0.5.1
-  hooks:
-    - id: go-fmt
-      exclude: ^vendor
-    - id: go-vet
-    - id: go-mod-tidy
-    - id: go-lint
-
-- repo: https://github.com/golangci/golangci-lint
-  rev: v1.50.1
-  hooks:
-    - id: golangci-lint
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.4.0
@@ -72,4 +74,13 @@ repos:
   rev: 2.1.1
   hooks:
     - id: bashate
-      entry: bashate --error . --ignore=E006,E040,E011,E020,E012
+      entry: bashate --error . --ignore=E006,E040,E020,E012
+      # Run bashate check for all bash scripts
+      # Ignores the following rules:
+      # E006: Line longer than 79 columns (as many scripts use jinja
+      #       templating, this is very difficult)
+      # E040: Syntax error determined using `bash -n` (as many scripts
+      #       use jinja templating, this will often fail and the syntax
+      #       error will be discovered in execution anyway)
+      # E020: Function declaration not in format ^function name {$
+      # E012: here doc didn't end before EOF
