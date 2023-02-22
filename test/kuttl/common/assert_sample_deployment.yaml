@@ -1,0 +1,297 @@
+#
+# Check for:
+#
+# - 1 NeutronAPI CR
+# - Deployment with 1 Pod for NeutronAPI CR
+# - Neutron-admin Service
+# - Neutron-internal Service
+# - Neutron-public Service
+# - Neutron-admin Route
+# - Neutron-internal Route
+# - Neutron-public Route
+
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  finalizers:
+  - NeutronAPI
+  name: neutron
+  namespace: openstack
+spec:
+  containerImage: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: neutron
+  debug:
+    bootstrap: false
+    dbSync: false
+    service: false
+  passwordSelectors:
+    database: NeutronDatabasePassword
+    service: NeutronPassword
+  preserveJobs: false
+  rabbitMqClusterName: rabbitmq
+  replicas: 1
+  secret: osp-secret
+  serviceUser: neutron
+status:
+  databaseHostname: openstack
+  transportURLSecret: rabbitmq-transport-url-neutron-neutron-transport
+  readyCount: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutron
+  namespace: openstack
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      service: neutron
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        service: neutron
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: service
+                  operator: In
+                  values:
+                  - neutron
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      containers:
+      - args:
+        - -c
+        - /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start
+        command:
+        - /bin/bash
+        image: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9696
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: neutron-api
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9696
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+      initContainers:
+      - command:
+        - /bin/bash
+        - -c
+        - /usr/local/bin/container-scripts/init.sh
+        env:
+        - name: DatabaseHost
+          value: openstack
+        - name: Database
+          value: neutron
+        - name: DatabaseUser
+          value: neutron
+        - name: DatabasePassword
+          valueFrom:
+            secretKeyRef:
+              key: NeutronDatabasePassword
+              name: osp-secret
+        - name: NeutronPassword
+          valueFrom:
+            secretKeyRef:
+              key: NeutronPassword
+              name: osp-secret
+        - name: TransportURL
+          valueFrom:
+            secretKeyRef:
+              key: transport_url
+              name: rabbitmq-transport-url-neutron-neutron-transport
+        image: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+        imagePullPolicy: IfNotPresent
+        name: init
+        resources: {}
+        securityContext:
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: neutron-operator-neutron
+      serviceAccountName: neutron-operator-neutron
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+---
+# the openshift annotations can't be checked through the deployment above
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    openshift.io/scc: privileged
+  labels:
+    service: neutron
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    admin: "true"
+    service: neutron
+  name: neutron-admin
+  namespace: openstack
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: neutron-admin
+    port: 9696
+    protocol: TCP
+    targetPort: 9696
+  selector:
+    service: neutron
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    internal: "true"
+    service: neutron
+  name: neutron-internal
+  namespace: openstack
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: neutron-internal
+    port: 9696
+    protocol: TCP
+    targetPort: 9696
+  selector:
+    service: neutron
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    public: "true"
+    service: neutron
+  name: neutron-public
+  namespace: openstack
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: neutron-public
+    port: 9696
+    protocol: TCP
+    targetPort: 9696
+  selector:
+    service: neutron
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: neutron-admin
+  labels:
+    admin: "true"
+    service: neutron
+  namespace: openstack
+spec:
+  port:
+    targetPort: neutron-admin
+  to:
+    kind: Service
+    name: neutron-admin
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: neutron-internal
+  labels:
+    internal: "true"
+    service: neutron
+  namespace: openstack
+spec:
+  port:
+    targetPort: neutron-internal
+  to:
+    kind: Service
+    name: neutron-internal
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: neutron-public
+  labels:
+    public: "true"
+    service: neutron
+  namespace: openstack
+spec:
+  port:
+    targetPort: neutron-public
+  to:
+    kind: Service
+    name: neutron-public
+---
+# the actual addresses of the apiEndpoints are platform specific, so we can't rely on 
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the three endpoints are defined and their addresses follow the default pattern
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+namespaced: true
+commands:
+  - script: |
+      template='{{.status.apiEndpoint.admin}}{{":"}}{{.status.apiEndpoint.internal}}{{":"}}{{.status.apiEndpoint.public}}{{"\n"}}'                                                        
+      regex="http:\/\/neutron-admin-openstack\.apps.*:http:\/\/neutron-internal-openstack\.apps.*:http:\/\/neutron-public-openstack\.apps.*"
+      apiEndpoints=$(oc get -n openstack NeutronAPI neutron -o go-template="$template") 
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [[ -z "$matches" ]]; then
+        exit 0
+      else
+        exit 1
+      fi

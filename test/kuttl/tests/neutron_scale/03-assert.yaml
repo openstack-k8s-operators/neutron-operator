@@ -1,0 +1,28 @@
+#
+# Check for:
+#
+# - 1 NeutronAPI CR
+# - 1 Pods for NeutronAPI CR
+#
+
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  finalizers:
+  - NeutronAPI
+  name: neutron
+  namespace: openstack
+spec:
+  replicas: 1
+status:
+  readyCount: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutron
+  namespace: openstack
+spec:
+  replicas: 1
+status:
+  availableReplicas: 1
