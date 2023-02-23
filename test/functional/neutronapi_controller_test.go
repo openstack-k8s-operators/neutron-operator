@@ -326,7 +326,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				DeleteDBService,
 				CreateDBService(
 					namespace,
-					"openstack",
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
 						Ports: []corev1.ServicePort{{Port: 3306}},
 					},
@@ -340,7 +340,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			NeutronAPI := GetNeutronAPI(neutronAPIName)
-			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal("hostname-for-openstack"))
+			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal("hostname-for-" + NeutronAPI.Spec.DatabaseInstance))
 			th.ExpectCondition(
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
@@ -373,7 +373,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				DeleteDBService,
 				CreateDBService(
 					namespace,
-					"openstack",
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
 						Ports: []corev1.ServicePort{{Port: 3306}},
 					},

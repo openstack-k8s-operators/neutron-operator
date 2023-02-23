@@ -280,9 +280,10 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		},
 	)
 	// create or patch the DB
-	ctrlResult, err := db.CreateOrPatchDB(
+	ctrlResult, err := db.CreateOrPatchDBByName(
 		ctx,
 		helper,
+		instance.Spec.DatabaseInstance,
 	)
 
 	if err != nil {
@@ -303,7 +304,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 	// wait for the DB to be setup
-	ctrlResult, err = db.WaitForDBCreated(ctx, helper)
+	ctrlResult, err = db.WaitForDBCreatedWithTimeout(ctx, helper, time.Second*5)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,
