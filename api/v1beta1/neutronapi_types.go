@@ -21,6 +21,7 @@ import (
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
+	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,6 +127,11 @@ type NeutronAPISpec struct {
 	// +kubebuilder:validation:Optional
 	// ExternalEndpoints, expose a VIP using a pre-created IPAddressPool
 	ExternalEndpoints []MetalLBConfig `json:"externalEndpoints,omitempty"`
+
+	// ExtraMounts containing conf files
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default={}
+	ExtraMounts []NeutronExtraVolMounts `json:"extraMounts,omitempty"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
@@ -256,4 +262,28 @@ func (instance NeutronAPI) IsReady() bool {
 	// AND
 	// there is at least a single pod to serve the neutron API service
 	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
+}
+
+// NeutronExtraVolMounts exposes additional parameters processed by the neutron-operator
+// and defines the common VolMounts structure provided by the main storage module
+type NeutronExtraVolMounts struct {
+	// +kubebuilder:validation:Optional
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
+	Region string `json:"region,omitempty"`
+	// +kubebuilder:validation:Required
+	VolMounts []storage.VolMounts `json:"extraVol"`
+}
+
+// Propagate is a function used to filter VolMounts according to the specified
+// PropagationType array
+func (c *NeutronExtraVolMounts) Propagate(svc []storage.PropagationType) []storage.VolMounts {
+
+	var vl []storage.VolMounts
+
+	for _, gv := range c.VolMounts {
+		vl = append(vl, gv.Propagate(svc)...)
+	}
+
+	return vl
 }
