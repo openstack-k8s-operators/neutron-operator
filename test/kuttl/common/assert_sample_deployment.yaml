@@ -3,11 +3,8 @@
 #
 # - 1 NeutronAPI CR
 # - Deployment with 1 Pod for NeutronAPI CR
-# - Neutron-admin Service
 # - Neutron-internal Service
 # - Neutron-public Service
-# - Neutron-admin Route
-# - Neutron-internal Route
 # - Neutron-public Route
 
 apiVersion: neutron.openstack.org/v1beta1
@@ -168,29 +165,6 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    admin: "true"
-    service: neutron
-  name: neutron-admin
-  namespace: openstack
-spec:
-  internalTrafficPolicy: Cluster
-  ipFamilies:
-    - IPv4
-  ipFamilyPolicy: SingleStack
-  ports:
-  - name: neutron-admin
-    port: 9696
-    protocol: TCP
-    targetPort: 9696
-  selector:
-    service: neutron
-  sessionAffinity: None
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
     internal: "true"
     service: neutron
   name: neutron-internal
@@ -236,36 +210,6 @@ spec:
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: neutron-admin
-  labels:
-    admin: "true"
-    service: neutron
-  namespace: openstack
-spec:
-  port:
-    targetPort: neutron-admin
-  to:
-    kind: Service
-    name: neutron-admin
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: neutron-internal
-  labels:
-    internal: "true"
-    service: neutron
-  namespace: openstack
-spec:
-  port:
-    targetPort: neutron-internal
-  to:
-    kind: Service
-    name: neutron-internal
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
   name: neutron-public
   labels:
     public: "true"
@@ -280,14 +224,14 @@ spec:
 ---
 # the actual addresses of the apiEndpoints are platform specific, so we can't rely on
 # kuttl asserts to check them. This short script gathers the addresses and checks that
-# the three endpoints are defined and their addresses follow the default pattern
+# the two endpoints are defined and their addresses follow the default pattern
 apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 namespaced: true
 commands:
   - script: |
-      template='{{.status.apiEndpoint.admin}}{{":"}}{{.status.apiEndpoint.internal}}{{":"}}{{.status.apiEndpoint.public}}{{"\n"}}'
-      regex="http:\/\/neutron-admin-openstack\.apps.*:http:\/\/neutron-internal-openstack\.apps.*:http:\/\/neutron-public-openstack\.apps.*"
+      template='{{.status.apiEndpoint.internal}}{{":"}}{{.status.apiEndpoint.public}}{{"\n"}}'
+      regex="http:\/\/neutron-internal.openstack.*:http:\/\/neutron-public.openstack.*"
       apiEndpoints=$(oc get -n openstack NeutronAPI neutron -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
       if [[ -z "$matches" ]]; then
