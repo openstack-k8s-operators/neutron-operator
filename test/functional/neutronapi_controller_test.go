@@ -291,7 +291,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			for _, db := range dbs {
 				ovndb := GetOVNDBCluster(db)
 				Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
-					ContainSubstring("ovn_%s_connection = %s", strings.ToLower(string(ovndb.Spec.DBType)), ovndb.Status.DBAddress))
+					ContainSubstring("ovn_%s_connection = %s", strings.ToLower(string(ovndb.Spec.DBType)), ovndb.Status.InternalDBAddress))
 			}
 
 			th.ExpectCondition(
