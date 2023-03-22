@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -40,9 +41,10 @@ import (
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1beta1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	ovnv1alpha1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
+
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/neutron-operator/controllers"
-	ovnv1alpha1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -125,6 +127,22 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "NeutronAPI")
 		os.Exit(1)
 	}
+
+	// Acquire environmental defaults and initialize NeutronAPI defaults with them
+	neutronAPIDefaults := neutronv1beta1.NeutronAPIDefaults{
+		ContainerImageURL: os.Getenv("NEUTRON_API_IMAGE_URL_DEFAULT"),
+	}
+
+	neutronv1beta1.SetupNeutronAPIDefaults(neutronAPIDefaults)
+
+	// Setup webhooks if requested
+	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {
+		if err = (&neutronv1beta1.NeutronAPI{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "NeutronAPI")
+			os.Exit(1)
+		}
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
