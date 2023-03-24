@@ -832,8 +832,8 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 
-	templateParameters["NBConnection"] = dbmap["NB"]
-	templateParameters["SBConnection"] = dbmap["SB"]
+	templateParameters["NBConnection"] = dbmap["internal-NB"]
+	templateParameters["SBConnection"] = dbmap["internal-SB"]
 
 	cms := []util.Template{
 		// ScriptsConfigMap

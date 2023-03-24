@@ -334,7 +334,7 @@ func CreateOVNDBClusters(namespace string) []types.NamespacedName {
 		// the Status field needs to be written via a separate client
 		ovndbcluster = GetOVNDBCluster(name)
 		ovndbcluster.Status = ovnv1.OVNDBClusterStatus{
-			DBAddress: dbaddr,
+			InternalDBAddress: dbaddr,
 		}
 		Expect(k8sClient.Status().Update(ctx, ovndbcluster.DeepCopy())).Should(Succeed())
 		dbs = append(dbs, name)
