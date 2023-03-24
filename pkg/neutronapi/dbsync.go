@@ -36,7 +36,7 @@ func DbSyncJob(
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy:      "OnFailure",
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: ServiceAccountName,
 					Containers: []corev1.Container{
 						{
