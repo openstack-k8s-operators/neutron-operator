@@ -159,6 +159,73 @@ either by DNS or via /etc/hosts:
 +--------------+-----------+----------------------------------------------------------------+
 ```
 
+## Provide additional volumes to Neutron
+
+The NeutronAPI spec can be used to configure Neutron to have multiple volumes
+attached to the deployed Pods. The operator will be able to define a set of
+`extraVolumes` using the standard k8s spec (they can be `Secrets`, `ConfigMaps`
+or even regular `PVCs`) and propagate the volumes to the Pods deployed by the
+neutron-operator.
+
+## Example: Neutron Spec with a secret
+
+Create a `Secret` which contains the following data:
+
+```
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: partner1
+  namespace: openstack
+stringData:
+  partner1-credentials: |
+    supersecret-credential = ******
+    supersecret-credential = ******
+    supersecret-credential = ******
+  partner1-custom-config: |
+    <data>
+```
+
+Create a `NeutronAPI` CR that defines `extraMounts` in the spec and reference
+the secret which has been created:
+
+```
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+  namespace: openstack
+spec:
+  serviceUser: neutron
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: neutron
+  rabbitMqClusterName: rabbitmq
+  debug:
+    dbSync: false
+    service: false
+  preserveJobs: false
+  containerImage: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+  replicas: 1
+  secret: neutron-secret
+  extraMounts:
+    - extraVolType: Partner1
+      volumes:
+      - name: partner1
+        secret:
+          secretName: partner1-config
+      mounts:
+      - name: partner1
+        mountPath: "/var/lib/neutron/third_party/partner1"
+        readOnly: true
+```
+
+The data defined in `/var/lib/neutron/third_party/partner1` will be mounted
+to the resulting neutronAPI pod.
+
 # Design
 *TBD*
 
