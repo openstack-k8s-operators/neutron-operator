@@ -129,7 +129,6 @@ type NeutronAPISpec struct {
 
 	// ExtraMounts containing conf files
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={}
 	ExtraMounts []NeutronExtraVolMounts `json:"extraMounts,omitempty"`
 }
 
