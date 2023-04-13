@@ -2,5 +2,5 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
   - script: |
-      PWD=$INSTALL_YAMLS
-      make -C $INSTALL_YAMLS neutron_deploy_cleanup
+      oc kustomize deploy | oc delete -n openstack -f -
+      rm deploy/neutron_v1beta1_neutronapi.yaml

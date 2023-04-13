@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ./neutron_v1beta1_neutronapi.yaml
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/secret
+      value: osp-secret
+  target:
+    kind: NeutronAPI
