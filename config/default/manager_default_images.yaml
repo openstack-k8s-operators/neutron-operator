@@ -12,4 +12,4 @@ spec:
       - name: manager
         env:
         - name: NEUTRON_API_IMAGE_URL_DEFAULT
-          value: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+          value: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
