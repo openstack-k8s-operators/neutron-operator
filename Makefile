@@ -128,6 +128,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: export ENABLE_WEBHOOKS?=false
+run: export OPERATOR_TEMPLATES=./templates/
 run: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/clean_local_webhook.sh
 	go run ./main.go
