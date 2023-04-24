@@ -2,7 +2,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   labels:
-    control-plane: neutron-controller-manager
+    control-plane: controller-manager
+    openstack.org/operator-name: neutron
   name: system
 ---
 apiVersion: apps/v1
@@ -11,22 +12,20 @@ metadata:
   name: controller-manager
   namespace: system
   labels:
-    control-plane: neutron-controller-manager
-    app.kubernetes.io/name: neutron-operator
-    app.kubernetes.io/component: neutron
+    control-plane: controller-manager
+    openstack.org/operator-name: neutron
 spec:
   selector:
     matchLabels:
-      control-plane: neutron-controller-manager
+      openstack.org/operator-name: neutron
   replicas: 1
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: neutron-controller-manager
-        app.kubernetes.io/name: neutron-operator
-        app.kubernetes.io/component: neutron
+        control-plane: controller-manager
+        openstack.org/operator-name: neutron
     spec:
       securityContext:
         runAsNonRoot: true
