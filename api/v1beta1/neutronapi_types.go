@@ -285,3 +285,18 @@ func (c *NeutronExtraVolMounts) Propagate(svc []storage.PropagationType) []stora
 
 	return vl
 }
+
+// RbacConditionsSet - set the conditions for the rbac object
+func (instance NeutronAPI) RbacConditionsSet(c *condition.Condition) {
+	instance.Status.Conditions.Set(c)
+}
+
+// RbacNamespace - return the namespace
+func (instance NeutronAPI) RbacNamespace() string {
+	return instance.Namespace
+}
+
+// RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
+func (instance NeutronAPI) RbacResourceName() string {
+	return "neutron-" + instance.Name
+}

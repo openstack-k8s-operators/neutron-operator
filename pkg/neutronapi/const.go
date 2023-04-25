@@ -13,8 +13,6 @@ const (
 	KollaConfigAPI = "/var/lib/config-data/merged/neutron-api-config.json"
 	// KollaConfigDbSync -
 	KollaConfigDbSync = "/var/lib/config-data/merged/db-sync-config.json"
-	// ServiceAccountName -
-	ServiceAccountName = "neutron-operator-neutron"
 	// Database -
 	Database = "neutron"
 

@@ -143,8 +143,8 @@ spec:
         terminationMessagePolicy: File
       schedulerName: default-scheduler
       securityContext: {}
-      serviceAccount: neutron-operator-neutron
-      serviceAccountName: neutron-operator-neutron
+      serviceAccount: neutron-neutron
+      serviceAccountName: neutron-neutron
       terminationGracePeriodSeconds: 30
 status:
   availableReplicas: 1
