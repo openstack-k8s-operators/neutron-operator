@@ -19,7 +19,7 @@ kind: NeutronAPI
 metadata:
   name: neutron
 spec:
-  containerImage: quay.io/tripleowallabycentos9/openstack-neutron-server:current-tripleo
+  containerImage: quay.io/tripleowallabycentos9/openstack-neutron-server:current-podified
   databaseInstance: openstack
   secret: neutron-secret
 ```
@@ -208,7 +208,7 @@ spec:
     dbSync: false
     service: false
   preserveJobs: false
-  containerImage: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+  containerImage: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
   replicas: 1
   secret: neutron-secret
   extraMounts:

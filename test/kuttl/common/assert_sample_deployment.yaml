@@ -15,7 +15,7 @@ metadata:
   name: neutron
   namespace: openstack
 spec:
-  containerImage: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+  containerImage: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
   customServiceConfig: |
     [DEFAULT]
     debug = true
@@ -78,7 +78,7 @@ spec:
         - /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start
         command:
         - /bin/bash
-        image: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+        image: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -133,7 +133,7 @@ spec:
             secretKeyRef:
               key: transport_url
               name: rabbitmq-transport-url-neutron-neutron-transport
-        image: quay.io/tripleozedcentos9/openstack-neutron-server:current-tripleo
+        image: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
         imagePullPolicy: IfNotPresent
         name: init
         resources: {}
