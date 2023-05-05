@@ -246,8 +246,8 @@ var _ = Describe("NeutronAPI controller", func() {
 
 		It("should create a ConfigMap for neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
-			keystoneAPI := CreateKeystoneAPI(namespace)
-			DeferCleanup(DeleteKeystoneAPI, keystoneAPI)
+			keystoneAPI := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPI)
 
 			configataCM := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
@@ -258,7 +258,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				return *th.GetConfigMap(configataCM)
 			}, timeout, interval).ShouldNot(BeNil())
 
-			keystone := GetKeystoneAPI(keystoneAPI)
+			keystone := th.GetKeystoneAPI(keystoneAPI)
 			Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystone.Status.APIEndpoints["internal"]))
 
@@ -278,8 +278,8 @@ var _ = Describe("NeutronAPI controller", func() {
 		It("should create a ConfigMap for neutron.conf with the ovn connection config option set based on the OVNDBCluster", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
-			keystoneAPI := CreateKeystoneAPI(namespace)
-			DeferCleanup(DeleteKeystoneAPI, keystoneAPI)
+			keystoneAPI := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPI)
 			configataCM := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
 				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
@@ -323,8 +323,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
@@ -334,10 +334,10 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
 		})
 		It("Should set DBReady Condition and set DatabaseHostname Status when DB is Created", func() {
-			SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			th.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			NeutronAPI := GetNeutronAPI(neutronAPIName)
 			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal("hostname-for-" + NeutronAPI.Spec.DatabaseInstance))
@@ -370,8 +370,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(
-				DeleteDBService,
-				CreateDBService(
+				th.DeleteDBService,
+				th.CreateDBService(
 					namespace,
 					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
@@ -381,11 +381,11 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
-			DeferCleanup(DeleteKeystoneAPI, CreateKeystoneAPI(namespace))
-			SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			DeferCleanup(th.DeleteKeystoneAPI, th.CreateKeystoneAPI(namespace))
+			th.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
-			SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
-			SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			th.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			th.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 		})
 		It("Should set ExposeServiceReadyCondition Condition", func() {
 
@@ -398,12 +398,12 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 
 		It("Assert Services are created", func() {
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
-			AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
+			th.AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
+			th.AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
 		})
 
 		It("Assert Routes are created", func() {
-			AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
+			th.AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
 		})
 
 		It("Endpoints are created", func() {
@@ -414,7 +414,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				condition.KeystoneEndpointReadyCondition,
 				corev1.ConditionTrue,
 			)
-			keystoneEndpoint := GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			keystoneEndpoint := th.GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			endpoints := keystoneEndpoint.Spec.Endpoints
 			regexp := `http:.*:?\d*$`
 			Expect(endpoints).To(HaveKeyWithValue("public", MatchRegexp(regexp)))
@@ -461,8 +461,8 @@ var _ = Describe("NeutronAPI controller", func() {
 
 		It("removes the Config MAP", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
-			keystoneAPI := CreateKeystoneAPI(namespace)
-			DeferCleanup(DeleteKeystoneAPI, keystoneAPI)
+			keystoneAPI := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPI)
 			configataCM := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
 				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
