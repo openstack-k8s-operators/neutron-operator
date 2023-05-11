@@ -11,7 +11,7 @@ require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230420195930-f71e24e80596
 	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230412125711-203185e59d89
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230504165001-4c6ee14a5b49
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230510145530-3c8e9179fb6e
 	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230504165001-4c6ee14a5b49
 	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230504165001-4c6ee14a5b49
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230504165001-4c6ee14a5b49
