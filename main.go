@@ -128,12 +128,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Acquire environmental defaults and initialize NeutronAPI defaults with them
-	neutronAPIDefaults := neutronv1beta1.NeutronAPIDefaults{
-		ContainerImageURL: os.Getenv("NEUTRON_API_IMAGE_URL_DEFAULT"),
-	}
-
-	neutronv1beta1.SetupNeutronAPIDefaults(neutronAPIDefaults)
+	// Acquire environmental defaults and initialize operator defaults with them
+	neutronv1beta1.SetupDefaults()
 
 	// Setup webhooks if requested
 	if strings.ToLower(os.Getenv("ENABLE_WEBHOOKS")) != "false" {

@@ -21,6 +21,7 @@ import (
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 
 	corev1 "k8s.io/api/core/v1"
@@ -33,6 +34,11 @@ const (
 
 	// DeploymentHash hash used to detect changes
 	DeploymentHash = "deployment"
+
+	// Container image fall-back defaults
+
+	// NeutronAPIContainerImage is the fall-back container image for NeutronAPI
+	NeutronAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified"
 )
 
 // Hash - struct to add hashes to status
@@ -299,4 +305,14 @@ func (instance NeutronAPI) RbacNamespace() string {
 // RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
 func (instance NeutronAPI) RbacResourceName() string {
 	return "neutron-" + instance.Name
+}
+
+// SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)
+func SetupDefaults() {
+	// Acquire environmental defaults and initialize Neutron defaults with them
+	neutronDefaults := NeutronAPIDefaults{
+		ContainerImageURL: util.GetEnvVar("NEUTRON_API_IMAGE_URL_DEFAULT", NeutronAPIContainerImage),
+	}
+
+	SetupNeutronAPIDefaults(neutronDefaults)
 }
