@@ -178,8 +178,9 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
-			// right now we have no dedicated KeystoneServiceReadyInitMessage
+			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
 			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+			condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""),
 			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
 			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
