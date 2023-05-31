@@ -262,10 +262,8 @@ func (instance NeutronAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, 
 // IsReady - returns true if service is ready to server requests
 func (instance NeutronAPI) IsReady() bool {
 	// Ready when:
-	// the service is registered in keystone
-	// AND
-	// there is at least a single pod to serve the neutron API service
-	return instance.Status.ServiceID != "" && instance.Status.ReadyCount >= 1
+	// NeutronAPI is reconciled succcessfully
+	return instance.Status.Conditions.IsTrue(condition.ReadyCondition)
 }
 
 // NeutronExtraVolMounts exposes additional parameters processed by the neutron-operator
