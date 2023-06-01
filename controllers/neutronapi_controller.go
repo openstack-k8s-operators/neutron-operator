@@ -195,9 +195,6 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
-	}
 	if instance.Status.NetworkAttachments == nil {
 		instance.Status.NetworkAttachments = map[string][]string{}
 	}
@@ -440,16 +437,6 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
-
-	//
-	// Update instance status with service endpoint url from route host information
-	//
-	// TODO: need to support https default here
-	if instance.Status.APIEndpoints == nil {
-		instance.Status.APIEndpoints = map[string]string{}
-	}
-	instance.Status.APIEndpoints = apiEndpoints
-
 	// expose service - end
 
 	// update status with endpoint information
@@ -482,14 +469,12 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 
-	instance.Status.ServiceID = ksSvc.GetServiceID()
-
 	//
 	// register endpoints
 	//
 	ksEndptSpec := keystonev1.KeystoneEndpointSpec{
 		ServiceName: neutronapi.ServiceName,
-		Endpoints:   instance.Status.APIEndpoints,
+		Endpoints:   apiEndpoints,
 	}
 	ksEndpt := keystonev1.NewKeystoneEndpoint(
 		neutronapi.ServiceName,

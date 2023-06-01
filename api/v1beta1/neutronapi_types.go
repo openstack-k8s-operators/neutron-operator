@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"fmt"
-
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/endpoint"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -204,9 +202,6 @@ type NeutronAPIStatus struct {
 	// Map of hashes to track e.g. job status
 	Hash map[string]string `json:"hash,omitempty"`
 
-	// API endpoint
-	APIEndpoints map[string]string `json:"apiEndpoint,omitempty"`
-
 	// Conditions
 	Conditions condition.Conditions `json:"conditions,omitempty" optional:"true"`
 
@@ -215,9 +210,6 @@ type NeutronAPIStatus struct {
 
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
 	TransportURLSecret string `json:"transportURLSecret,omitempty"`
-
-	// ServiceID - the ID of the registered service in keystone
-	ServiceID string `json:"serviceID,omitempty"`
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
@@ -249,14 +241,6 @@ type NeutronAPIList struct {
 
 func init() {
 	SchemeBuilder.Register(&NeutronAPI{}, &NeutronAPIList{})
-}
-
-// GetEndpoint - returns OpenStack endpoint url for type
-func (instance NeutronAPI) GetEndpoint(endpointType endpoint.Endpoint) (string, error) {
-	if url, found := instance.Status.APIEndpoints[string(endpointType)]; found {
-		return url, nil
-	}
-	return "", fmt.Errorf("%s endpoint not found", string(endpointType))
 }
 
 // IsReady - returns true if service is ready to server requests
