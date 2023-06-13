@@ -81,9 +81,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(NeutronAPI.Status.Hash).To(BeEmpty())
 			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal(""))
 			Expect(NeutronAPI.Status.TransportURLSecret).To(Equal(""))
-			Expect(NeutronAPI.Status.APIEndpoints).To(BeEmpty())
 			Expect(NeutronAPI.Status.ReadyCount).To(Equal(int32(0)))
-			Expect(NeutronAPI.Status.ServiceID).To(Equal(""))
 		})
 
 		It("should have Unknown Conditions initialized as transporturl not created", func() {
