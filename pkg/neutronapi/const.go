@@ -17,6 +17,10 @@ const (
 	// NeutronInternalPort -
 	NeutronInternalPort int32 = 9696
 
+	// neutron:neutron
+	NeutronUid int64 = 42435
+	NeutronGid int64 = 42435
+
 	// NeutronExtraVolTypeUndefined can be used to label an extraMount which
 	// is not associated with a specific backend
 	NeutronExtraVolTypeUndefined storage.ExtraVolType = "Undefined"

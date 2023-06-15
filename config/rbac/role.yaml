@@ -228,7 +228,7 @@ rules:
   - security.openshift.io
   resourceNames:
   - anyuid
-  - privileged
+  - hostmount-anyuid
   resources:
   - securitycontextconstraints
   verbs:

@@ -90,7 +90,7 @@ type NeutronAPIReconciler struct {
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update
 // service account permissions that are needed to grant permission to the above
-// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid;privileged,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid;hostmount-anyuid,resources=securitycontextconstraints,verbs=use
 // +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch
 
 // Reconcile - neutron api
@@ -276,6 +276,8 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 	serviceAnnotations map[string]string,
+	ospSecret *corev1.Secret,
+	configMapVars map[string]env.Setter,
 ) (ctrl.Result, error) {
 	r.Log.Info("Reconciling Service init")
 
@@ -336,6 +338,51 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
 	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
 	// create neutron DB - end
+
+	// TODO(ihar) split this function between "create database" and "dbsync" phases
+
+	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
+	//
+
+	//
+	// create Configmap required for neutron input
+	// - %-scripts configmap holding scripts to e.g. bootstrap the service
+	// - %-config configmap holding minimal neutron config required to get the service up, user can add additional files to be added to the service
+	// - parameters which has passwords gets added from the OpenStack secret via the init container
+	//
+	err = r.generateServiceConfigMaps(ctx, helper, instance, ospSecret, &configMapVars)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	}
+
+	//
+	// create hash over all the different input resources to identify if any those changed
+	// and a restart/recreate is required.
+	//
+	//inputHash, hashChanged, err := r.createHashOfInputHashes(ctx, instance, configMapVars)
+	_, hashChanged, err := r.createHashOfInputHashes(ctx, instance, configMapVars)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.ServiceConfigReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.ServiceConfigReadyErrorMessage,
+			err.Error()))
+		return ctrl.Result{}, err
+	} else if hashChanged {
+		// Hash changed and instance status should be updated (which will be done by main defer func),
+		// so we need to return and reconcile again
+		return ctrl.Result{}, nil
+	}
+	// Create ConfigMaps and Secrets - end
+
+	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
 	//
 	// run Neutron db sync
@@ -520,7 +567,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups:     []string{"security.openshift.io"},
-			ResourceNames: []string{"anyuid", "privileged"},
+			ResourceNames: []string{"anyuid", "hostmount-anyuid"},
 			Resources:     []string{"securitycontextconstraints"},
 			Verbs:         []string{"use"},
 		},
@@ -637,49 +684,6 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	//
-	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
-	//
-
-	//
-	// create Configmap required for neutron input
-	// - %-scripts configmap holding scripts to e.g. bootstrap the service
-	// - %-config configmap holding minimal neutron config required to get the service up, user can add additional files to be added to the service
-	// - parameters which has passwords gets added from the OpenStack secret via the init container
-	//
-	err = r.generateServiceConfigMaps(ctx, helper, instance, &configMapVars)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ServiceConfigReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ServiceConfigReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	}
-
-	//
-	// create hash over all the different input resources to identify if any those changed
-	// and a restart/recreate is required.
-	//
-	inputHash, hashChanged, err := r.createHashOfInputHashes(ctx, instance, configMapVars)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.ServiceConfigReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.ServiceConfigReadyErrorMessage,
-			err.Error()))
-		return ctrl.Result{}, err
-	} else if hashChanged {
-		// Hash changed and instance status should be updated (which will be done by main defer func),
-		// so we need to return and reconcile again
-		return ctrl.Result{}, nil
-	}
-	// Create ConfigMaps and Secrets - end
-
-	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
-
-	//
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
 	//
 
@@ -716,8 +720,8 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			instance.Spec.NetworkAttachments, err)
 	}
 
-	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels, serviceAnnotations)
+	// Handle service initA
+	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels, serviceAnnotations, ospSecret, configMapVars)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -740,8 +744,11 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrlResult, nil
 	}
 
+	// TODO(ihar) confirm that it doesn't start neutronapi before sync is complete
+	// TODO(ihar) that said... why do we need a separate job for this though? Can't every instance sync schema as needed? it should be safe to do that.
 	// Define a new Deployment object
-	deplDef := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations)
+	//deplDef := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations)
+	deplDef := neutronapi.Deployment(instance, "", serviceLabels, serviceAnnotations)
 	depl := deployment.NewDeployment(
 		deplDef,
 		time.Duration(5)*time.Second,
@@ -858,13 +865,29 @@ func (r *NeutronAPIReconciler) reconcileExternalMetadataAgentSecret(
 	return nil
 }
 
+func (r *NeutronAPIReconciler) getTransportURL(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+) (string, error) {
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return "", err
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		return "", fmt.Errorf("No transport_url key found in Transport Secret")
+	}
+	return string(transportURL), nil
+}
+
 func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 	envVars *map[string]env.Setter,
 ) error {
-	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	transportURL, err := r.getTransportURL(ctx, h, instance)
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getSriovAgentSecretName(instance))
 		if err != nil {
@@ -872,15 +895,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 		}
 		return nil
 	}
-	transportURL, ok := transportURLSecret.Data["transport_url"]
-	if !ok {
-		err = r.deleteExternalSecret(ctx, h, instance, getSriovAgentSecretName(instance))
-		if err != nil {
-			return fmt.Errorf("Failed to delete Neutron SR-IOV Agent external Secret: %w", err)
-		}
-		return nil
-	}
-	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, string(transportURL), envVars)
+	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, transportURL, envVars)
 	if err != nil {
 		return fmt.Errorf("Failed to ensure Neutron SR-IOV Agent external Secret: %w", err)
 	}
@@ -1007,6 +1022,7 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
+	ospSecret *corev1.Secret,
 	envVars *map[string]env.Setter,
 ) error {
 	// Create/update configmaps from templates
@@ -1034,6 +1050,7 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	// custom.conf is going to /etc/<service>/<service>.conf.d
 	// all other files get placed into /etc/<service> to allow overwrite of e.g. logging.conf or policy.json
 	// TODO: make sure custom.conf can not be overwritten
+	// TODO(ihar) make custom.conf actually load (perhaps from conf.d?)
 	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
@@ -1051,25 +1068,36 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	if err != nil {
 		return err
 	}
+
+	transportURL, err := r.getTransportURL(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
+	templateParameters["TransportURL"] = transportURL
 
+	// TODO(ihar): revisit values, make it wait for all values available
+	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
+	databasePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Database])
+	templateParameters["NovaPassword"] = servicePassword
+	templateParameters["ServicePassword"] = servicePassword
+
+	templateParameters["DbHost"] = instance.Status.DatabaseHostname
+	templateParameters["DbUser"] = instance.Spec.DatabaseUser
+	templateParameters["DbPassword"] = databasePassword
+	templateParameters["Db"] = neutronapi.Database
+
+	// TODO(ihar): is sb needed for neutron-server?
 	templateParameters["NBConnection"] = nbEndpoint
 	templateParameters["SBConnection"] = sbEndpoint
 
 	cms := []util.Template{
-		// ScriptsConfigMap
 		{
-			Name:         fmt.Sprintf("%s-scripts", instance.Name),
-			Namespace:    instance.Namespace,
-			Type:         util.TemplateTypeScripts,
-			InstanceType: instance.Kind,
-			Labels:       cmLabels,
-		},
-		// ConfigMap
-		{
+			// TODO(ihar) rename the config map maybe
 			Name:          fmt.Sprintf("%s-config-data", instance.Name),
 			Namespace:     instance.Namespace,
 			Type:          util.TemplateTypeConfig,
@@ -1079,6 +1107,7 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 			ConfigOptions: templateParameters,
 		},
 	}
+	// TODO(ihar) transform into secret since it now contains secret info
 	return configmap.EnsureConfigMaps(ctx, h, instance, cms, envVars)
 }
 

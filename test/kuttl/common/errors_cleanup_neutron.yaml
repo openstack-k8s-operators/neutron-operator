@@ -24,7 +24,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    openshift.io/scc: anyuid
+    openshift.io/scc: hostmount-anyuid
   labels:
     service: neutron
 ---
