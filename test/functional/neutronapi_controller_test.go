@@ -429,13 +429,13 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			)
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
-			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(5))
+			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(3))
 			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := deployment.Spec.Template.Spec.Containers[0]
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(container.VolumeMounts).To(HaveLen(4))
+			Expect(container.VolumeMounts).To(HaveLen(2))
 			Expect(container.Image).To(Equal("test-neutron-container-image"))
 
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
