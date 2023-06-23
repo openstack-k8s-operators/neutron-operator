@@ -43,22 +43,6 @@ func GetAPIVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts,
 
 	res := []corev1.Volume{
 		{
-			Name: "etc-machine-id",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/machine-id",
-				},
-			},
-		},
-		{
-			Name: "etc-localtime",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/localtime",
-				},
-			},
-		},
-		{
 			Name: "scripts",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -99,16 +83,6 @@ func GetAPIVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts,
 // GetAPIVolumeMounts - Neutron API VolumeMounts
 func GetAPIVolumeMounts(extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
 	res := []corev1.VolumeMount{
-		{
-			Name:      "etc-machine-id",
-			MountPath: "/etc/machine-id",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "etc-localtime",
-			MountPath: "/etc/localtime",
-			ReadOnly:  true,
-		},
 		{
 			Name:      "scripts",
 			MountPath: "/usr/local/bin/container-scripts",
