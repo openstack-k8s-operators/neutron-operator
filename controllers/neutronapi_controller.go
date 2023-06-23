@@ -412,12 +412,18 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		ports[metallbcfg.Endpoint] = portCfg
 	}
 
+	var routeAnnotations = map[string]string{}
+	if len(instance.Spec.Route.RouteAnnotations) != 0 {
+		routeAnnotations = instance.Spec.Route.RouteAnnotations
+	}
+
 	apiEndpoints, ctrlResult, err := endpoint.ExposeEndpoints(
 		ctx,
 		helper,
 		neutronapi.ServiceName,
 		serviceLabels,
 		ports,
+		routeAnnotations,
 		time.Duration(5)*time.Second,
 	)
 	if err != nil {

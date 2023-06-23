@@ -2092,6 +2092,17 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
+              route:
+                description: NeutronRoute holds all the necessary options for configuring
+                  the Neutron Route object.
+                properties:
+                  routeAnnotations:
+                    additionalProperties:
+                      type: string
+                    description: RouteAnnotations takes a map of Annotations that
+                      will be applied to the Neutron OpenShift Route.
+                    type: object
+                type: object
               secret:
                 description: Secret containing OpenStack password information for
                   NeutronDatabasePassword, NeutronPassword

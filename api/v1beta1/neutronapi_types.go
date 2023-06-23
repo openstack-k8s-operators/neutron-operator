@@ -134,6 +134,10 @@ type NeutronAPISpec struct {
 	// ExtraMounts containing conf files
 	// +kubebuilder:validation:Optional
 	ExtraMounts []NeutronExtraVolMounts `json:"extraMounts,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NeutronRoute holds all the necessary options for configuring the Neutron Route object.
+	Route NeutronRoute `json:"route,omitempty"`
 }
 
 // MetalLBConfig to configure the MetalLB loadbalancer service
@@ -192,6 +196,14 @@ type NeutronAPIDebug struct {
 	// +kubebuilder:default=false
 	// Service enable debug
 	Service bool `json:"service"`
+}
+
+// NeutronRoute is used to define all the information for the OpenShift route
+type NeutronRoute struct {
+	// +kubebuilder:validation:Optional
+	// RouteAnnotations takes a map of Annotations that will be applied to the
+	// Neutron OpenShift Route.
+	RouteAnnotations map[string]string `json:"routeAnnotations,omitempty"`
 }
 
 // NeutronAPIStatus defines the observed state of NeutronAPI
