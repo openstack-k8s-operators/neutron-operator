@@ -223,6 +223,9 @@ func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&keystonev1.KeystoneService{}).
 		Owns(&keystonev1.KeystoneEndpoint{}).
 		Owns(&rabbitmqv1.TransportURL{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Watches(&source.Kind{Type: &ovnclient.OVNDBCluster{}}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNDBClusterNamespaceMapFunc(crs, mgr.GetClient(), r.Log))).
 		Complete(r)
 }
