@@ -46,7 +46,7 @@ import (
 	"github.com/openstack-k8s-operators/neutron-operator/controllers"
 	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 
-	. "github.com/openstack-k8s-operators/lib-common/modules/test-operators/helpers"
+	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
