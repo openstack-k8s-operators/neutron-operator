@@ -273,6 +273,28 @@ var _ = Describe("NeutronAPI controller", func() {
 				corev1.ConditionFalse,
 			)
 		})
+
+		It("should create a ConfigMap for neutron.conf with api and rpc workers", func() {
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+			keystoneAPI := th.CreateKeystoneAPI(namespace)
+			DeferCleanup(th.DeleteKeystoneAPI, keystoneAPI)
+
+			configataCM := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
+			}
+
+			Eventually(func() corev1.ConfigMap {
+				return *th.GetConfigMap(configataCM)
+			}, timeout, interval).ShouldNot(BeNil())
+
+			Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
+				ContainSubstring("api_workers = 2"))
+			Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
+				ContainSubstring("rpc_workers = 1"))
+
+		})
+
 		It("should create a ConfigMap for neutron.conf with the ovn connection config option set based on the OVNDBCluster", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
@@ -291,7 +313,6 @@ var _ = Describe("NeutronAPI controller", func() {
 				Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
 					ContainSubstring("ovn_%s_connection = %s", strings.ToLower(string(ovndb.Spec.DBType)), ovndb.Status.InternalDBAddress))
 			}
-
 			th.ExpectCondition(
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
