@@ -16,5 +16,4 @@ spec:
     service: false
   preserveJobs: false
   containerImage: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
-  replicas: 1
   secret: neutron-secret

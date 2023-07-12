@@ -72,7 +72,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(NeutronAPI.Spec.DatabaseInstance).Should(Equal("test-neutron-db-instance"))
 			Expect(NeutronAPI.Spec.DatabaseUser).Should(Equal("neutron"))
 			Expect(NeutronAPI.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
-			Expect(NeutronAPI.Spec.Replicas).Should(Equal(int32(1)))
+			Expect(*(NeutronAPI.Spec.Replicas)).Should(Equal(int32(1)))
 			Expect(NeutronAPI.Spec.ServiceUser).Should(Equal("neutron"))
 		})
 
