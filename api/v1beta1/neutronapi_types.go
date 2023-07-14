@@ -39,14 +39,6 @@ const (
 	NeutronAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified"
 )
 
-// Hash - struct to add hashes to status
-type Hash struct {
-	// Name of hash referencing the parameter
-	Name string `json:"name,omitempty"`
-	// Hash
-	Hash string `json:"hash,omitempty"`
-}
-
 // NeutronAPISpec defines the desired state of NeutronAPI
 type NeutronAPISpec struct {
 	// +kubebuilder:validation:Optional
