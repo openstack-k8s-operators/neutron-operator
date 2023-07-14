@@ -9,15 +9,15 @@ require (
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230622153114-f053fe448b35
-	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230622141005-e9220a4b3dfe
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230711124224-54bd95cadcf3
-	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230619102827-49e72f626a11
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230619102827-49e72f626a11
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230711124224-54bd95cadcf3
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230622153114-756aead1d819
+	github.com/openstack-k8s-operators/infra-operator/apis v0.0.0-20230710115018-c110ec665f47
+	github.com/openstack-k8s-operators/keystone-operator/api v0.0.0-20230712131157-1c2b04a11102
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230712082535-db7193b646f2
+	github.com/openstack-k8s-operators/lib-common/modules/database v0.0.0-20230712082535-db7193b646f2
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230712082535-db7193b646f2
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.0.0-20230712082535-db7193b646f2
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.0.0-20230705055551-16455227d331
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-20221130112258-2d20ea7691aa
-	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20230622155525-b6764b1d53c7
+	github.com/openstack-k8s-operators/ovn-operator/api v0.0.0-20230714010040-5315fd349503
 	go.uber.org/zap v1.24.0
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
