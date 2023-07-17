@@ -5,8 +5,8 @@ go 1.19
 require (
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230712082535-db7193b646f2
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230712082535-db7193b646f2
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.0.0-20230714104628-12cc1e43cccd
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.0.0-20230714104628-12cc1e43cccd
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
