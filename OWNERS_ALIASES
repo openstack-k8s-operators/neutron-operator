@@ -6,6 +6,7 @@ aliases:
   - viroel
   network-approvers:
   - beagles
+  - booxter
   - karelyatin
   - slawqo
   openstack-approvers:
