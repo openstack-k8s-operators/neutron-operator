@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
-	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 )
 
 var _ = Describe("NeutronAPI controller", func() {
@@ -129,7 +128,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			th.ExpectCondition(
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
-				neutronv1.NeutronRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				corev1.ConditionFalse,
 			)
 
@@ -169,7 +168,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			th.ExpectCondition(
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
-				neutronv1.NeutronRabbitMqTransportURLReadyCondition,
+				condition.RabbitMqTransportURLReadyCondition,
 				corev1.ConditionTrue,
 			)
 		})
