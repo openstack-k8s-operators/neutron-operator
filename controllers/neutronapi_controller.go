@@ -174,7 +174,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
 			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
 			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
-			condition.UnknownCondition(neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition, condition.InitReason, neutronv1beta1.NeutronRabbitMqTransportURLReadyInitMessage),
+			condition.UnknownCondition(condition.RabbitMqTransportURLReadyCondition, condition.InitReason, condition.RabbitMqTransportURLReadyInitMessage),
 			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
 			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
 			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
@@ -559,10 +559,10 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition,
+			condition.RabbitMqTransportURLReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
-			neutronv1beta1.NeutronRabbitMqTransportURLReadyErrorMessage,
+			condition.RabbitMqTransportURLReadyErrorMessage,
 			err.Error()))
 		return ctrl.Result{}, err
 	}
@@ -577,10 +577,10 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		r.Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
 
 		instance.Status.Conditions.Set(condition.FalseCondition(
-			neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition,
+			condition.RabbitMqTransportURLReadyCondition,
 			condition.RequestedReason,
 			condition.SeverityInfo,
-			neutronv1beta1.NeutronRabbitMqTransportURLReadyRunningMessage))
+			condition.RabbitMqTransportURLReadyRunningMessage))
 
 		return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
 	}
@@ -611,7 +611,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	// run check TransportURL secret - end
 
-	instance.Status.Conditions.MarkTrue(neutronv1beta1.NeutronRabbitMqTransportURLReadyCondition, neutronv1beta1.NeutronRabbitMqTransportURLReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.RabbitMqTransportURLReadyCondition, condition.RabbitMqTransportURLReadyMessage)
 
 	// end transportURL
 
