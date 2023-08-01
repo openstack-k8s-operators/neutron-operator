@@ -67,21 +67,6 @@ type NeutronAPIReconciler struct {
 	Scheme  *runtime.Scheme
 }
 
-// GetClient -
-func (r *NeutronAPIReconciler) GetClient() client.Client {
-	return r.Client
-}
-
-// GetLogger -
-func (r *NeutronAPIReconciler) GetLogger() logr.Logger {
-	return r.Log
-}
-
-// GetScheme -
-func (r *NeutronAPIReconciler) GetScheme() *runtime.Scheme {
-	return r.Scheme
-}
-
 // +kubebuilder:rbac:groups=neutron.openstack.org,resources=neutronapis,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=neutron.openstack.org,resources=neutronapis/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=neutron.openstack.org,resources=neutronapis/finalizers,verbs=update
@@ -253,11 +238,13 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	}
 
 	if err == nil {
-		controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer())
-		if err = helper.GetClient().Update(ctx, keystoneEndpoint); err != nil && !k8s_errors.IsNotFound(err) {
-			return ctrl.Result{}, err
+		if controllerutil.RemoveFinalizer(keystoneEndpoint, helper.GetFinalizer()) {
+			err = r.Update(ctx, keystoneEndpoint)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
 		}
-		util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
 	}
 
 	// Remove the finalizer from our KeystoneService CR
@@ -267,11 +254,13 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	}
 
 	if err == nil {
-		controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer())
-		if err = helper.GetClient().Update(ctx, keystoneService); err != nil && !k8s_errors.IsNotFound(err) {
-			return ctrl.Result{}, err
+		if controllerutil.RemoveFinalizer(keystoneService, helper.GetFinalizer()) {
+			err = r.Update(ctx, keystoneService)
+			if err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 		}
-		util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
 	}
 
 	// Service is deleted so remove the finalizer.
