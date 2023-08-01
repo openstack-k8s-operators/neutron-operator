@@ -18,7 +18,6 @@ package functional_test
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -48,11 +47,6 @@ var _ = Describe("NeutronAPI controller", func() {
 		// We still request the delete of the Namespace to properly cleanup if
 		// we run the test in an existing cluster.
 		DeferCleanup(th.DeleteNamespace, namespace)
-		// lib-common uses OPERATOR_TEMPLATES env var to locate the "templates"
-		// directory of the operator. We need to set them otherwise lib-common
-		// will fail to generate the ConfigMap as it does not find common.sh
-		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
-		Expect(err).NotTo(HaveOccurred())
 
 		name := fmt.Sprintf("neutron-%s", uuid.New().String())
 		apiTransportURLName = types.NamespacedName{
