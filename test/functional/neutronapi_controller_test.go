@@ -420,10 +420,6 @@ var _ = Describe("NeutronAPI controller", func() {
 			th.AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
 		})
 
-		It("Assert Routes are created", func() {
-			th.AssertRouteExists(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
-		})
-
 		It("Endpoints are created", func() {
 
 			th.ExpectCondition(
