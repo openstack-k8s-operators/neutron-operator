@@ -113,7 +113,7 @@ func Deployment(
 								RunAsUser: &runAsUser,
 							},
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             GetAPIVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
+							VolumeMounts:             GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
 							Resources:                instance.Spec.Resources,
 							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,
@@ -124,7 +124,7 @@ func Deployment(
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Volumes = GetAPIVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
+	deployment.Spec.Template.Spec.Volumes = GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.

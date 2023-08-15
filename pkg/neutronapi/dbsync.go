@@ -19,8 +19,8 @@ func DbSyncJob(
 
 	runAsUser := int64(0)
 	initVolumeMounts := GetInitVolumeMounts(dbSyncExtraMounts, DbsyncPropagation)
-	volumeMounts := GetAPIVolumeMounts("db-sync", dbSyncExtraMounts, DbsyncPropagation)
-	volumes := GetAPIVolumes(cr.Name, dbSyncExtraMounts, DbsyncPropagation)
+	volumeMounts := GetVolumeMounts("db-sync", dbSyncExtraMounts, DbsyncPropagation)
+	volumes := GetVolumes(cr.Name, dbSyncExtraMounts, DbsyncPropagation)
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
