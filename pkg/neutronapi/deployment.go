@@ -81,7 +81,6 @@ func Deployment(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfigAPI)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
@@ -114,7 +113,7 @@ func Deployment(
 								RunAsUser: &runAsUser,
 							},
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             GetAPIVolumeMounts(instance.Spec.ExtraMounts, NeutronAPIPropagation),
+							VolumeMounts:             GetAPIVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
 							Resources:                instance.Spec.Resources,
 							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,

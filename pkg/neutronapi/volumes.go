@@ -81,7 +81,7 @@ func GetAPIVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts,
 }
 
 // GetAPIVolumeMounts - Neutron API VolumeMounts
-func GetAPIVolumeMounts(extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
+func GetAPIVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
 	res := []corev1.VolumeMount{
 		{
 			Name:      "scripts",
@@ -92,6 +92,12 @@ func GetAPIVolumeMounts(extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []s
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
+		},
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   serviceName + "-config.json",
+			ReadOnly:  true,
 		},
 	}
 
