@@ -7,5 +7,7 @@ patches:
     - op: replace
       path: /spec/secret
       value: osp-secret
+    - op: remove
+      path: /metadata/namespace
   target:
     kind: NeutronAPI

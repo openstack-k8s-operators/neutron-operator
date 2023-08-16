@@ -2,5 +2,5 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
   - script: |
-      oc kustomize deploy | oc delete -n openstack -f -
+      oc kustomize deploy | oc delete -n $NAMESPACE -f -
       rm deploy/neutron_v1beta1_neutronapi.yaml

@@ -3,4 +3,4 @@ kind: TestStep
 commands:
   - script: |
       cp ../../../../config/samples/neutron_v1beta1_neutronapi.yaml deploy
-      oc kustomize deploy | oc apply -n openstack -f -
+      oc kustomize deploy | oc apply -n $NAMESPACE -f -
