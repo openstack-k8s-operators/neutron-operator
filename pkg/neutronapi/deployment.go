@@ -81,7 +81,6 @@ func Deployment(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_FILE"] = env.SetValue(KollaConfigAPI)
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
@@ -114,7 +113,7 @@ func Deployment(
 								RunAsUser: &runAsUser,
 							},
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             GetAPIVolumeMounts(instance.Spec.ExtraMounts, NeutronAPIPropagation),
+							VolumeMounts:             GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
 							Resources:                instance.Spec.Resources,
 							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,
@@ -125,7 +124,7 @@ func Deployment(
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Volumes = GetAPIVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
+	deployment.Spec.Template.Spec.Volumes = GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.

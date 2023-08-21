@@ -33,11 +33,11 @@ func GetInitVolumeMounts(extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []
 	return vm
 }
 
-// GetAPIVolumes -
+// GetVolumes -
 // TODO: merge to GetVolumes when other controllers also switched to current config
 //
 //	mechanism.
-func GetAPIVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.Volume {
+func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.Volume {
 	var scriptsVolumeDefaultMode int32 = 0755
 	var config0640AccessMode int32 = 0640
 
@@ -80,8 +80,8 @@ func GetAPIVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts,
 
 }
 
-// GetAPIVolumeMounts - Neutron API VolumeMounts
-func GetAPIVolumeMounts(extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
+// GetVolumeMounts - Neutron API VolumeMounts
+func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
 	res := []corev1.VolumeMount{
 		{
 			Name:      "scripts",
@@ -92,6 +92,12 @@ func GetAPIVolumeMounts(extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []s
 			Name:      "config-data-merged",
 			MountPath: "/var/lib/config-data/merged",
 			ReadOnly:  false,
+		},
+		{
+			Name:      "config-data-merged",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   serviceName + "-config.json",
+			ReadOnly:  true,
 		},
 	}
 
