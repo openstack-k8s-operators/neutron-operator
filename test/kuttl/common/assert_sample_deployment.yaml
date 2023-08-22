@@ -14,7 +14,6 @@ metadata:
   - NeutronAPI
   name: neutron
 spec:
-  containerImage: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
   customServiceConfig: |
     [DEFAULT]
     debug = true
@@ -76,7 +75,6 @@ spec:
         - /usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start
         command:
         - /bin/bash
-        image: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -131,7 +129,6 @@ spec:
             secretKeyRef:
               key: transport_url
               name: rabbitmq-transport-url-neutron-neutron-transport
-        image: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
         imagePullPolicy: IfNotPresent
         name: init
         resources: {}
@@ -239,8 +236,30 @@ commands:
       regex="http:\/\/neutron-internal.$NAMESPACE.*:http:\/\/neutron-public.$NAMESPACE.*"
       apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint neutron -o go-template="$template")
       matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
-      if [[ -z "$matches" ]]; then
-        exit 0
-      else
+      if [[ -n "$matches" ]]; then
         exit 1
       fi
+
+      # when using image digests the containerImage URLs are SHA's so we verify them with a script
+      tupleTemplate='{{ range (index .spec.template.spec.containers 1).env }}{{ .name }}{{ "#" }}{{ .value}}{{"\n"}}{{ end }}'
+      imageTuples=$(oc get -n openstack-operators deployment neutron-operator-controller-manager -o go-template="$tupleTemplate")
+      # format of imageTuple is: RELATED_IMAGE_NEUTRON_<service>#<image URL with SHA> separated by newlines
+      for ITEM in $(echo $imageTuples); do
+        # it is an image
+        if echo $ITEM | grep 'RELATED_IMAGE' &> /dev/null; then
+          NAME=$(echo $ITEM | sed -e 's|^RELATED_IMAGE_NEUTRON_\([^_]*\)_.*|\1|')
+          IMG_FROM_ENV=$(echo $ITEM | sed -e 's|^.*#\(.*\)|\1|')
+          template='{{.spec.containerImage}}'
+          case $NAME in
+            API)
+              SERVICE_IMAGE=$(oc get -n $NAMESPACE neutronapi neutron -o go-template="$template")
+              ;;
+          esac
+          if [ "$SERVICE_IMAGE" != "$IMG_FROM_ENV" ]; then
+            echo "$NAME image does not equal $VALUE"
+            exit 1
+          fi
+        fi
+      done
+
+      exit 0
