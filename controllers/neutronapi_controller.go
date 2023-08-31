@@ -823,6 +823,10 @@ func getMetadataAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
 	return getExternalSecretName(instance, "ovn-metadata-agent")
 }
 
+func getSriovAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
+	return getExternalSecretName(instance, "sriov-agent")
+}
+
 func (r *NeutronAPIReconciler) reconcileExternalMetadataAgentSecret(
 	ctx context.Context,
 	h *helper.Helper,
@@ -854,6 +858,35 @@ func (r *NeutronAPIReconciler) reconcileExternalMetadataAgentSecret(
 	return nil
 }
 
+func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	envVars *map[string]env.Setter,
+) error {
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getSriovAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron SR-IOV Agent external Secret: %w", err)
+		}
+		return nil
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		err = r.deleteExternalSecret(ctx, h, instance, getSriovAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron SR-IOV Agent external Secret: %w", err)
+		}
+		return nil
+	}
+	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, string(transportURL), envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to ensure Neutron SR-IOV Agent external Secret: %w", err)
+	}
+	return nil
+}
+
 // TODO(ihar) - is there any hashing mechanism for EDP config? do we trigger deploy somehow?
 func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	ctx context.Context,
@@ -865,6 +898,10 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	err := r.reconcileExternalMetadataAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
 		return fmt.Errorf("Failed to reconcile Neutron Metadata Agent external Secret: %w", err)
+	}
+	err = r.reconcileExternalSriovAgentSecret(ctx, h, instance, envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to reconcile Neutron SR-IOV Agent external Secret: %w", err)
 	}
 	// NOTE(ihar): Add config reconciliation code for any other services here
 	r.Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
@@ -896,22 +933,17 @@ func (r *NeutronAPIReconciler) deleteExternalSecret(
 	return nil
 }
 
-func (r *NeutronAPIReconciler) ensureExternalMetadataAgentSecret(
+func (r *NeutronAPIReconciler) ensureExternalSecret(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
-	sbEndpoint string,
+	secretName string,
+	templates map[string]string,
+	templateParameters map[string]interface{},
 	envVars *map[string]env.Setter,
 ) error {
 	secretLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
 
-	templates := map[string]string{
-		neutronapi.NeutronOVNMetadataAgentSecretKey: "/ovn-metadata-agent.conf",
-	}
-	templateParameters := make(map[string]interface{})
-	templateParameters["SBConnection"] = sbEndpoint
-
-	secretName := getMetadataAgentSecretName(instance)
 	secrets := []util.Template{
 		{
 			Name:               secretName,
@@ -933,6 +965,40 @@ func (r *NeutronAPIReconciler) ensureExternalMetadataAgentSecret(
 	(*envVars)[secretName](a)
 	instance.Status.Hash[secretName] = a.Value
 	return nil
+}
+
+func (r *NeutronAPIReconciler) ensureExternalMetadataAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	sbEndpoint string,
+	envVars *map[string]env.Setter,
+) error {
+	templates := map[string]string{
+		neutronapi.NeutronOVNMetadataAgentSecretKey: "/ovn-metadata-agent.conf",
+	}
+	templateParameters := make(map[string]interface{})
+	templateParameters["SBConnection"] = sbEndpoint
+
+	secretName := getMetadataAgentSecretName(instance)
+	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+}
+
+func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	transportURL string,
+	envVars *map[string]env.Setter,
+) error {
+	templates := map[string]string{
+		neutronapi.NeutronSriovAgentSecretKey: "/sriov-agent.conf",
+	}
+	templateParameters := make(map[string]interface{})
+	templateParameters["transportURL"] = transportURL
+
+	secretName := getSriovAgentSecretName(instance)
+	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
 }
 
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration

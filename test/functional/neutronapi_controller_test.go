@@ -146,6 +146,9 @@ var _ = Describe("NeutronAPI controller", func() {
 					Name:      SecretName,
 					Namespace: namespace,
 				},
+				Data: map[string][]byte{
+					"transport_url": []byte("rabbit://user@svc:1234"),
+				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
@@ -173,6 +176,27 @@ var _ = Describe("NeutronAPI controller", func() {
 			Eventually(func() []corev1.ConfigMap {
 				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data")).Items
 			}, timeout, interval).Should(BeEmpty())
+		})
+
+		It("should create an external SR-IOV Agent Secret with expected transport_url set", func() {
+			externalSriovAgentSecret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-sriov-agent-neutron-config", neutronAPIName.Name),
+			}
+
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(externalSriovAgentSecret)
+			}, timeout, interval).ShouldNot(BeNil())
+
+			transportURL := "rabbit://user@svc:1234"
+
+			Expect(string(th.GetSecret(externalSriovAgentSecret).Data[neutronapi.NeutronSriovAgentSecretKey])).Should(
+				ContainSubstring("transport_url = %s", transportURL))
+
+			Eventually(func(g Gomega) {
+				NeutronAPI := GetNeutronAPI(neutronAPIName)
+				g.Expect(NeutronAPI.Status.Hash[externalSriovAgentSecret.Name]).NotTo(BeEmpty())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
