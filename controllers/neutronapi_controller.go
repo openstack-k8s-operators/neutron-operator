@@ -820,7 +820,20 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	// Create/update configmaps from templates
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
 
-	dbmap, err := ovnclient.GetDBEndpoints(ctx, h, instance.Namespace, map[string]string{})
+	nbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.NBDBType)
+	if err != nil {
+		return err
+	}
+	nbEndpoint, err := nbCluster.GetInternalEndpoint()
+	if err != nil {
+		return err
+	}
+
+	sbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.SBDBType)
+	if err != nil {
+		return err
+	}
+	sbEndpoint, err := sbCluster.GetInternalEndpoint()
 	if err != nil {
 		return err
 	}
@@ -851,8 +864,8 @@ func (r *NeutronAPIReconciler) generateServiceConfigMaps(
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
 
-	templateParameters["NBConnection"] = dbmap["internal-NB"]
-	templateParameters["SBConnection"] = dbmap["internal-SB"]
+	templateParameters["NBConnection"] = nbEndpoint
+	templateParameters["SBConnection"] = sbEndpoint
 
 	cms := []util.Template{
 		// ScriptsConfigMap
