@@ -630,6 +630,12 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 	// run check OpenStack secret - end
 
+	err = r.reconcileExternalSecrets(ctx, helper, instance, &configMapVars)
+	if err != nil {
+		r.Log.Error(err, "Failed to reconcile external Secrets")
+		return ctrl.Result{}, err
+	}
+
 	//
 	// Create ConfigMaps and Secrets required as input for the Service and calculate an overall hash of hashes
 	//
@@ -807,6 +813,126 @@ func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(instance *neutronv1bet
 	})
 
 	return transportURL, op, err
+}
+
+func getExternalSecretName(instance *neutronv1beta1.NeutronAPI, serviceName string) string {
+	return fmt.Sprintf("%s-%s-neutron-config", instance.Name, serviceName)
+}
+
+func getMetadataAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
+	return getExternalSecretName(instance, "ovn-metadata-agent")
+}
+
+func (r *NeutronAPIReconciler) reconcileExternalMetadataAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	envVars *map[string]env.Setter,
+) error {
+	sbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.SBDBType)
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getMetadataAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron Metadata Agent external Secret: %w", err)
+		}
+		return nil
+	}
+
+	sbEndpoint, err := sbCluster.GetExternalEndpoint()
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getMetadataAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron Metadata Agent external Secret: %w", err)
+		}
+		return nil
+	}
+
+	err = r.ensureExternalMetadataAgentSecret(ctx, h, instance, sbEndpoint, envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to ensure Neutron Metadata Agent external Secret: %w", err)
+	}
+	return nil
+}
+
+// TODO(ihar) - is there any hashing mechanism for EDP config? do we trigger deploy somehow?
+func (r *NeutronAPIReconciler) reconcileExternalSecrets(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	envVars *map[string]env.Setter,
+) error {
+	// Generate one Secret per external service
+	err := r.reconcileExternalMetadataAgentSecret(ctx, h, instance, envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to reconcile Neutron Metadata Agent external Secret: %w", err)
+	}
+	// NOTE(ihar): Add config reconciliation code for any other services here
+	r.Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
+	return nil
+}
+
+// TODO(ihar) this function could live in lib-common
+func (r *NeutronAPIReconciler) deleteExternalSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	secretName string,
+) error {
+	cm := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	err := h.GetClient().Delete(ctx, cm)
+	if err != nil && !k8s_errors.IsNotFound(err) {
+		return fmt.Errorf("Failed to delete external Secret %s: %w", secretName, err)
+	}
+
+	// Remove hash
+	delete(instance.Status.Hash, secretName)
+
+	return nil
+}
+
+func (r *NeutronAPIReconciler) ensureExternalMetadataAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	sbEndpoint string,
+	envVars *map[string]env.Setter,
+) error {
+	secretLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
+
+	templates := map[string]string{
+		neutronapi.NeutronOVNMetadataAgentSecretKey: "/ovn-metadata-agent.conf",
+	}
+	templateParameters := make(map[string]interface{})
+	templateParameters["SBConnection"] = sbEndpoint
+
+	secretName := getMetadataAgentSecretName(instance)
+	secrets := []util.Template{
+		{
+			Name:               secretName,
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeNone,
+			InstanceType:       instance.Kind,
+			Labels:             secretLabels,
+			ConfigOptions:      templateParameters,
+			AdditionalTemplate: templates,
+		},
+	}
+	err := secret.EnsureSecrets(ctx, h, instance, secrets, envVars)
+	if err != nil {
+		return err
+	}
+
+	// Save hash
+	a := &corev1.EnvVar{}
+	(*envVars)[secretName](a)
+	instance.Status.Hash[secretName] = a.Value
+	return nil
 }
 
 // generateServiceConfigMaps - create create configmaps which hold scripts and service configuration

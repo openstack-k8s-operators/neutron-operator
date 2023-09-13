@@ -37,6 +37,14 @@ const (
 	interval = timeout / 100
 )
 
+func SetExternalSBEndpoint(name types.NamespacedName, endpoint string) {
+	Eventually(func(g Gomega) {
+		cluster := GetOVNDBCluster(name)
+		cluster.Status.DBAddress = endpoint
+		g.Expect(k8sClient.Status().Update(ctx, cluster)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+}
+
 func SimulateTransportURLReady(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
 		transport := th.GetTransportURL(name)

@@ -25,6 +25,9 @@ const (
 	// Neutron is the global ServiceType that refers to all the components deployed
 	// by the neutron-operator
 	Neutron storage.PropagationType = "Neutron"
+
+	// Key in external Secret for Neutron OVN Metadata Agent with agent config
+	NeutronOVNMetadataAgentSecretKey = "10-neutron-metadata.conf"
 )
 
 // DbsyncPropagation keeps track of the DBSync Service Propagation Type
