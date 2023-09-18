@@ -827,6 +827,10 @@ func getSriovAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
 	return getExternalSecretName(instance, "sriov-agent")
 }
 
+func getDhcpAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
+	return getExternalSecretName(instance, "dhcp-agent")
+}
+
 func (r *NeutronAPIReconciler) reconcileExternalMetadataAgentSecret(
 	ctx context.Context,
 	h *helper.Helper,
@@ -887,6 +891,35 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	return nil
 }
 
+func (r *NeutronAPIReconciler) reconcileExternalDhcpAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	envVars *map[string]env.Setter,
+) error {
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getDhcpAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron DHCP Agent external Secret: %w", err)
+		}
+		return nil
+	}
+	transportURL, ok := transportURLSecret.Data["transport_url"]
+	if !ok {
+		err = r.deleteExternalSecret(ctx, h, instance, getDhcpAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron DHCP Agent external Secret: %w", err)
+		}
+		return nil
+	}
+	err = r.ensureExternalDhcpAgentSecret(ctx, h, instance, string(transportURL), envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to ensure Neutron DHCP Agent external Secret: %w", err)
+	}
+	return nil
+}
+
 // TODO(ihar) - is there any hashing mechanism for EDP config? do we trigger deploy somehow?
 func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	ctx context.Context,
@@ -902,6 +935,10 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	err = r.reconcileExternalSriovAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
 		return fmt.Errorf("Failed to reconcile Neutron SR-IOV Agent external Secret: %w", err)
+	}
+	err = r.reconcileExternalDhcpAgentSecret(ctx, h, instance, envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to reconcile Neutron DHCP Agent external Secret: %w", err)
 	}
 	// NOTE(ihar): Add config reconciliation code for any other services here
 	r.Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
@@ -998,6 +1035,23 @@ func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
 	templateParameters["transportURL"] = transportURL
 
 	secretName := getSriovAgentSecretName(instance)
+	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+}
+
+func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	transportURL string,
+	envVars *map[string]env.Setter,
+) error {
+	templates := map[string]string{
+		neutronapi.NeutronDhcpAgentSecretKey: "/dhcp-agent.conf",
+	}
+	templateParameters := make(map[string]interface{})
+	templateParameters["transportURL"] = transportURL
+
+	secretName := getDhcpAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
 }
 
