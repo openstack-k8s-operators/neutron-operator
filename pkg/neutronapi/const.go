@@ -31,6 +31,9 @@ const (
 
 	// Key in external Secret for Neutron SR-IOV Agent with agent config
 	NeutronSriovAgentSecretKey = "10-neutron-sriov.conf"
+
+	// Key in external Secret for Neutron DHCP Agent with agent config
+	NeutronDhcpAgentSecretKey = "10-neutron-dhcp.conf"
 )
 
 // DbsyncPropagation keeps track of the DBSync Service Propagation Type

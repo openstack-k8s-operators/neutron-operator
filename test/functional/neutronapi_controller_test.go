@@ -198,6 +198,27 @@ var _ = Describe("NeutronAPI controller", func() {
 				g.Expect(NeutronAPI.Status.Hash[externalSriovAgentSecret.Name]).NotTo(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
+
+		It("should create an external DHCP Agent Secret with expected transport_url set", func() {
+			externalDhcpAgentSecret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-dhcp-agent-neutron-config", neutronAPIName.Name),
+			}
+
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(externalDhcpAgentSecret)
+			}, timeout, interval).ShouldNot(BeNil())
+
+			transportURL := "rabbit://user@svc:1234"
+
+			Expect(string(th.GetSecret(externalDhcpAgentSecret).Data[neutronapi.NeutronDhcpAgentSecretKey])).Should(
+				ContainSubstring("transport_url = %s", transportURL))
+
+			Eventually(func(g Gomega) {
+				NeutronAPI := GetNeutronAPI(neutronAPIName)
+				g.Expect(NeutronAPI.Status.Hash[externalDhcpAgentSecret.Name]).NotTo(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 	When("OVNDBCluster instance is not available", func() {
