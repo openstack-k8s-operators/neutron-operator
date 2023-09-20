@@ -5,7 +5,6 @@
 # - Deployment with 1 Pod for NeutronAPI CR
 # - Neutron-internal Service
 # - Neutron-public Service
-# - Neutron-public Route
 
 apiVersion: neutron.openstack.org/v1beta1
 kind: NeutronAPI
@@ -160,7 +159,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    internal: "true"
+    endpoint: internal
     service: neutron
   name: neutron-internal
 spec:
@@ -182,7 +181,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    public: "true"
+    endpoint: public
     service: neutron
   name: neutron-public
 spec:
@@ -199,20 +198,6 @@ spec:
     service: neutron
   sessionAffinity: None
   type: ClusterIP
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: neutron-public
-  labels:
-    public: "true"
-    service: neutron
-spec:
-  port:
-    targetPort: neutron-public
-  to:
-    kind: Service
-    name: neutron-public
 ---
 apiVersion: keystone.openstack.org/v1beta1
 kind: KeystoneEndpoint
