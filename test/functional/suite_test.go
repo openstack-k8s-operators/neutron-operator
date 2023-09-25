@@ -45,7 +45,8 @@ import (
 	"github.com/openstack-k8s-operators/neutron-operator/controllers"
 	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 
-	. "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
+	keystone_test "github.com/openstack-k8s-operators/keystone-operator/api/test/helpers"
+	common_test "github.com/openstack-k8s-operators/lib-common/modules/test/helpers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -59,7 +60,8 @@ var (
 	ctx       context.Context
 	cancel    context.CancelFunc
 	logger    logr.Logger
-	th        *TestHelper
+	th        *common_test.TestHelper
+	keystone  *keystone_test.TestHelper
 )
 
 func TestAPIs(t *testing.T) {
@@ -131,7 +133,9 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-	th = NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	th = common_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
+	Expect(th).NotTo(BeNil())
+	keystone = keystone_test.NewTestHelper(ctx, k8sClient, timeout, interval, logger)
 	Expect(th).NotTo(BeNil())
 
 	// Start the controller-manager if goroutine
