@@ -3,10 +3,10 @@ module github.com/openstack-k8s-operators/neutron-operator/api
 go 1.19
 
 require (
-	github.com/onsi/ginkgo/v2 v2.12.0
+	github.com/onsi/ginkgo/v2 v2.12.1
 	github.com/onsi/gomega v1.27.10
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230919113507-d74c2f31d216
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.1.1-0.20230919113507-d74c2f31d216
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.1.1-0.20230925103424-7dcb605ea0bb
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.1.1-0.20230925103424-7dcb605ea0bb
 	k8s.io/api v0.26.9
 	k8s.io/apimachinery v0.26.9
 	k8s.io/client-go v0.26.9
