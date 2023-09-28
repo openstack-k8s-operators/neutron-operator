@@ -482,8 +482,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					namespace,
 					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
@@ -496,7 +496,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 		})
 		It("Should set DBReady Condition and set DatabaseHostname Status when DB is Created", func() {
-			th.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			NeutronAPI := GetNeutronAPI(neutronAPIName)
 			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal("hostname-for-" + NeutronAPI.Spec.DatabaseInstance))
@@ -529,8 +529,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(
-				th.DeleteDBService,
-				th.CreateDBService(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
 					namespace,
 					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
 					corev1.ServiceSpec{
@@ -541,7 +541,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
-			th.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
