@@ -138,7 +138,6 @@ var _ = Describe("NeutronAPI controller", func() {
 
 	When("the proper secret is provided and TransportURL Created", func() {
 		BeforeEach(func() {
-			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 
 			secret = &corev1.Secret{
@@ -151,15 +150,16 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 		})
-		It("should not be in a state of having the input ready", func() {
+		It("should be in a state of having the input ready", func() {
 
 			th.ExpectCondition(
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
 				condition.InputReadyCondition,
-				corev1.ConditionFalse,
+				corev1.ConditionTrue,
 			)
 		})
 
