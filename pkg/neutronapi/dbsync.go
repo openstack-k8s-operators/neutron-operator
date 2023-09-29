@@ -1,7 +1,6 @@
 package neutronapi
 
 import (
-	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,16 +13,11 @@ func DbSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-
 	dbSyncExtraMounts := []neutronv1beta1.NeutronExtraVolMounts{}
-
 	runAsUser := int64(0)
-	initVolumeMounts := GetInitVolumeMounts(dbSyncExtraMounts, DbsyncPropagation)
+
 	volumeMounts := GetVolumeMounts("db-sync", dbSyncExtraMounts, DbsyncPropagation)
 	volumes := GetVolumes(cr.Name, dbSyncExtraMounts, DbsyncPropagation)
-
-	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -39,12 +33,13 @@ func DbSyncJob(
 					ServiceAccountName: cr.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
-							Name:  cr.Name + "-db-sync",
-							Image: cr.Spec.ContainerImage,
+							Command: []string{"neutron-db-manage"},
+							Args:    []string{"upgrade", "heads"},
+							Name:    cr.Name + "-db-sync",
+							Image:   cr.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
-							Env:          env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts: volumeMounts,
 						},
 					},
@@ -53,17 +48,5 @@ func DbSyncJob(
 			},
 		},
 	}
-
-	initContainerDetails := InitContainer{
-		ContainerImage:       cr.Spec.ContainerImage,
-		DatabaseHost:         cr.Status.DatabaseHostname,
-		DatabaseUser:         cr.Spec.DatabaseUser,
-		Database:             Database,
-		NeutronSecret:        cr.Spec.Secret,
-		DBPasswordSelector:   cr.Spec.PasswordSelectors.Database,
-		UserPasswordSelector: cr.Spec.PasswordSelectors.Service,
-		VolumeMounts:         initVolumeMounts,
-	}
-	job.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)
 	return job
 }
