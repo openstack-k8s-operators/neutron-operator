@@ -27,7 +27,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
@@ -39,6 +41,8 @@ var _ = Describe("NeutronAPI controller", func() {
 	var secret *corev1.Secret
 	var apiTransportURLName types.NamespacedName
 	var neutronAPIName types.NamespacedName
+	var memcachedSpec memcachedv1.MemcachedSpec
+	var memcachedName types.NamespacedName
 
 	BeforeEach(func() {
 		// NOTE(gibi): We need to create a unique namespace for each test run
@@ -59,6 +63,13 @@ var _ = Describe("NeutronAPI controller", func() {
 		spec := GetDefaultNeutronAPISpec()
 		spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
 		neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+		memcachedSpec = memcachedv1.MemcachedSpec{
+			Replicas: pointer.Int32(3),
+		}
+		memcachedName = types.NamespacedName{
+			Name:      "memcached",
+			Namespace: namespace,
+		}
 		DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 	})
 
@@ -69,6 +80,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(NeutronAPI.Spec.DatabaseInstance).Should(Equal("test-neutron-db-instance"))
 			Expect(NeutronAPI.Spec.DatabaseUser).Should(Equal("neutron"))
 			Expect(NeutronAPI.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
+			Expect(NeutronAPI.Spec.MemcachedInstance).Should(Equal("memcached"))
 			Expect(*(NeutronAPI.Spec.Replicas)).Should(Equal(int32(1)))
 			Expect(NeutronAPI.Spec.ServiceUser).Should(Equal("neutron"))
 		})
@@ -82,12 +94,17 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 
 		It("should have Unknown Conditions initialized as transporturl not created", func() {
-			th.ExpectCondition(
-				neutronAPIName,
-				ConditionGetterFunc(NeutronAPIConditionGetter),
+			for _, cond := range []condition.Type{
 				condition.InputReadyCondition,
-				corev1.ConditionUnknown,
-			)
+				condition.MemcachedReadyCondition,
+			} {
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					cond,
+					corev1.ConditionUnknown,
+				)
+			}
 		})
 
 		It("should have a finalizer", func() {
@@ -138,7 +155,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 	})
 
-	When("the proper secret is provided and TransportURL Created", func() {
+	When("the proper secret is provided, TransportURL and Memcached are Created", func() {
 		BeforeEach(func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 
@@ -154,6 +171,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
 		})
 		It("should be in a state of having the input ready", func() {
 
@@ -173,7 +192,14 @@ var _ = Describe("NeutronAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
-
+		It("should be in a state of having the Memcached ready", func() {
+			th.ExpectCondition(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.MemcachedReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
 		It("should not create a config map", func() {
 			Eventually(func() []corev1.ConfigMap {
 				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
@@ -220,6 +246,34 @@ var _ = Describe("NeutronAPI controller", func() {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
 				g.Expect(NeutronAPI.Status.Hash[externalDhcpAgentSecret.Name]).NotTo(BeEmpty())
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("Memcached is available", func() {
+		BeforeEach(func() {
+			secret = &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      SecretName,
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"transport_url": []byte("rabbit://user@svc:1234"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			SimulateTransportURLReady(apiTransportURLName)
+		})
+
+		It("should have memcached ready", func() {
+			th.ExpectCondition(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.MemcachedReadyCondition,
+				corev1.ConditionTrue,
+			)
 		})
 	})
 
@@ -270,7 +324,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 	})
 
-	When("keystoneAPI and OVNDBCluster instances are available", func() {
+	When("keystoneAPI, OVNDBCluster and Memcached instances are available", func() {
 		BeforeEach(func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -284,6 +338,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -500,6 +556,25 @@ var _ = Describe("NeutronAPI controller", func() {
 				g.Expect(newHash).NotTo(Equal(initialHash))
 			}, timeout, interval).Should(Succeed())
 		})
+		It("should create a ConfigMap for neutron.conf with memcached servers set", func() {
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
+			}, timeout, interval).ShouldNot(BeNil())
+			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
+				ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
+			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
+				ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
+
+		})
 	})
 
 	When("DB is created", func() {
@@ -527,6 +602,8 @@ var _ = Describe("NeutronAPI controller", func() {
 				),
 			)
 			SimulateTransportURLReady(apiTransportURLName)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 		})
@@ -575,6 +652,8 @@ var _ = Describe("NeutronAPI controller", func() {
 				),
 			)
 			SimulateTransportURLReady(apiTransportURLName)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
@@ -648,6 +727,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
 			SimulateTransportURLReady(apiTransportURLName)
 
 			DeferCleanup(

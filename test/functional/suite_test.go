@@ -37,6 +37,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
@@ -88,7 +89,7 @@ var _ = BeforeSuite(func() {
 	ovnCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/ovn-operator/api", "../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
-	transportCRDs, err := test.GetCRDDirFromModule(
+	infraCRDs, err := test.GetCRDDirFromModule(
 		"github.com/openstack-k8s-operators/infra-operator/apis", "../../go.mod", "bases")
 	Expect(err).ShouldNot(HaveOccurred())
 
@@ -100,7 +101,7 @@ var _ = BeforeSuite(func() {
 			keystoneCRDs,
 			mariaDBCRDs,
 			ovnCRDs,
-			transportCRDs,
+			infraCRDs,
 		},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -121,6 +122,8 @@ var _ = BeforeSuite(func() {
 	err = keystonev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = ovnv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = memcachedv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = rabbitmqv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())

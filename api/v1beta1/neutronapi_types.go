@@ -64,6 +64,12 @@ type NeutronAPISpec struct {
 	// Needed to request a transportURL that is created and used in Neutron
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
 
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=memcached
+	// Memcached instance name.
+	MemcachedInstance string `json:"memcachedInstance"`
+
 	// +kubebuilder:validation:Required
 	// NeutronAPI Container Image URL (will be set to environmental default if empty)
 	ContainerImage string `json:"containerImage"`
