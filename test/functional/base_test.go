@@ -47,7 +47,7 @@ func SetExternalSBEndpoint(name types.NamespacedName, endpoint string) {
 
 func SimulateTransportURLReady(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
-		transport := th.GetTransportURL(name)
+		transport := infra.GetTransportURL(name)
 		// To avoid another secret creation and cleanup
 		transport.Status.SecretName = SecretName
 		transport.Status.Conditions.MarkTrue("TransportURLReady", "Ready")
