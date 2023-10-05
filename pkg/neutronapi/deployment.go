@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	// ServiceCommand -
-	ServiceCommand = "/usr/local/bin/kolla_set_configs && /usr/local/bin/kolla_start"
+	ServiceCommand = "/usr/bin/neutron-server"
 )
 
 // Deployment func
@@ -50,10 +49,12 @@ func Deployment(
 		PeriodSeconds:       5,
 		InitialDelaySeconds: 20,
 	}
+	cmd := ServiceCommand
+	args := []string{}
 
-	args := []string{"-c"}
 	if instance.Spec.Debug.Service {
-		args = append(args, common.DebugCommand)
+		cmd = "/bin/sleep"
+		args = []string{"infinity"}
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
@@ -66,7 +67,6 @@ func Deployment(
 			},
 		}
 	} else {
-		args = append(args, ServiceCommand)
 		//
 		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 		//
@@ -81,7 +81,6 @@ func Deployment(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	deployment := &appsv1.Deployment{
@@ -103,12 +102,10 @@ func Deployment(
 					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
-							Name: ServiceName + "-api",
-							Command: []string{
-								"/bin/bash",
-							},
-							Args:  args,
-							Image: instance.Spec.ContainerImage,
+							Name:    ServiceName + "-api",
+							Command: []string{cmd},
+							Args:    args,
+							Image:   instance.Spec.ContainerImage,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: &runAsUser,
 							},
@@ -138,19 +135,6 @@ func Deployment(
 	if instance.Spec.NodeSelector != nil && len(instance.Spec.NodeSelector) > 0 {
 		deployment.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
-
-	initContainerDetails := InitContainer{
-		ContainerImage:       instance.Spec.ContainerImage,
-		DatabaseHost:         instance.Status.DatabaseHostname,
-		DatabaseUser:         instance.Spec.DatabaseUser,
-		Database:             Database,
-		NeutronSecret:        instance.Spec.Secret,
-		TransportURLSecret:   instance.Status.TransportURLSecret,
-		DBPasswordSelector:   instance.Spec.PasswordSelectors.Database,
-		UserPasswordSelector: instance.Spec.PasswordSelectors.Service,
-		VolumeMounts:         GetInitVolumeMounts(instance.Spec.ExtraMounts, NeutronAPIPropagation),
-	}
-	deployment.Spec.Template.Spec.InitContainers = GetInitContainer(initContainerDetails)
 
 	return deployment
 }

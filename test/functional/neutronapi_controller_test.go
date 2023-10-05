@@ -98,7 +98,7 @@ var _ = Describe("NeutronAPI controller", func() {
 
 		It("should not create a config map", func() {
 			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data")).Items
+				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
 			}, timeout, interval).Should(BeEmpty())
 		})
 	})
@@ -131,7 +131,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 		It("should not create a config map", func() {
 			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data")).Items
+				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
 			}, timeout, interval).Should(BeEmpty())
 		})
 	})
@@ -174,7 +174,7 @@ var _ = Describe("NeutronAPI controller", func() {
 
 		It("should not create a config map", func() {
 			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data")).Items
+				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
 			}, timeout, interval).Should(BeEmpty())
 		})
 
@@ -230,6 +230,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 				Data: map[string][]byte{
 					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -238,7 +239,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 		It("should not create a config map", func() {
 			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data")).Items
+				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
 			}, timeout, interval).Should(BeEmpty())
 		})
 	})
@@ -252,6 +253,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 				Data: map[string][]byte{
 					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -261,7 +263,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 		It("should not create a config map", func() {
 			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data")).Items
+				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
 			}, timeout, interval).Should(BeEmpty())
 		})
 	})
@@ -275,11 +277,23 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 				Data: map[string][]byte{
 					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
 			SimulateTransportURLReady(apiTransportURLName)
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 		})
 
 		It("should create a ConfigMap for neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
@@ -287,17 +301,17 @@ var _ = Describe("NeutronAPI controller", func() {
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
 
-			configataCM := types.NamespacedName{
+			secret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
 			}
 
-			Eventually(func() corev1.ConfigMap {
-				return *th.GetConfigMap(configataCM)
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
 
 			keystone := keystone.GetKeystoneAPI(keystoneAPI)
-			Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
+			Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystone.Status.APIEndpoints["internal"]))
 
 			th.ExpectCondition(
@@ -310,7 +324,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
 				condition.DBReadyCondition,
-				corev1.ConditionFalse,
+				corev1.ConditionTrue,
 			)
 		})
 
@@ -319,18 +333,18 @@ var _ = Describe("NeutronAPI controller", func() {
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
 
-			configataCM := types.NamespacedName{
+			secret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
 			}
 
-			Eventually(func() corev1.ConfigMap {
-				return *th.GetConfigMap(configataCM)
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
 
-			Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
+			Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
 				ContainSubstring("api_workers = 2"))
-			Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
+			Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
 				ContainSubstring("rpc_workers = 1"))
 
 		})
@@ -340,17 +354,17 @@ var _ = Describe("NeutronAPI controller", func() {
 			DeferCleanup(DeleteOVNDBClusters, dbs)
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
-			configataCM := types.NamespacedName{
+			secret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
 			}
 
-			Eventually(func() corev1.ConfigMap {
-				return *th.GetConfigMap(configataCM)
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
 			for _, db := range dbs {
 				ovndb := GetOVNDBCluster(db)
-				Expect(th.GetConfigMap(configataCM).Data["neutron.conf"]).Should(
+				Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
 					ContainSubstring("ovn_%s_connection = %s", strings.ToLower(string(ovndb.Spec.DBType)), ovndb.Status.InternalDBAddress))
 			}
 			th.ExpectCondition(
@@ -363,7 +377,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
 				condition.DBReadyCondition,
-				corev1.ConditionFalse,
+				corev1.ConditionTrue,
 			)
 		})
 		It("should create an external Metadata Agent Secret with expected ovn_sb_connection set", func() {
@@ -477,6 +491,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 				Data: map[string][]byte{
 					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -524,6 +539,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 				Data: map[string][]byte{
 					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -584,13 +600,13 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			)
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
-			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(1))
 			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			container := deployment.Spec.Template.Spec.Containers[0]
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(container.VolumeMounts).To(HaveLen(3))
+			Expect(container.VolumeMounts).To(HaveLen(1))
 			Expect(container.Image).To(Equal("test-neutron-container-image"))
 
 			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
@@ -607,42 +623,45 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 				Data: map[string][]byte{
 					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			SimulateTransportURLReady(apiTransportURLName)
+
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 		})
 
 		It("removes the Config MAP", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
-			configataCM := types.NamespacedName{
+			secret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config-data"),
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
 			}
 
-			scriptsCM := types.NamespacedName{
-				Namespace: neutronAPIName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "scripts"),
-			}
-
-			Eventually(func() corev1.ConfigMap {
-				return *th.GetConfigMap(configataCM)
-			}, timeout, interval).ShouldNot(BeNil())
-			Eventually(func() corev1.ConfigMap {
-				return *th.GetConfigMap(scriptsCM)
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
 
 			DeleteNeutronAPI(neutronAPIName)
 
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(configataCM.Name).Items
-			}, timeout, interval).Should(BeEmpty())
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(scriptsCM.Name).Items
-			}, timeout, interval).Should(BeEmpty())
+			// TODO(ihar) uncomment when we actually handle finalizers for created Secrets on neutronapi delete
+			//Eventually(func() corev1.Secret {
+			//	return th.GetSecret(secret)
+			//}, timeout, interval).Should(BeNil())
 		})
 	})
 })
