@@ -45,7 +45,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
-	"github.com/openstack-k8s-operators/lib-common/modules/database"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
@@ -214,7 +213,7 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	r.Log.Info("Reconciling Service delete")
 
 	// remove db finalizer first
-	db, err := database.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -278,7 +277,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 
 	// create neutron DB instance
 	//
-	db := database.NewDatabase(
+	db := mariadbv1.NewDatabase(
 		instance.Name,
 		instance.Spec.DatabaseUser,
 		instance.Spec.Secret,
