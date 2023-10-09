@@ -366,7 +366,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	} else if hashChanged {
 		// Hash changed and instance status should be updated (which will be done by main defer func),
 		// so we need to return and reconcile again
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 	// Create Secrets - end
 
