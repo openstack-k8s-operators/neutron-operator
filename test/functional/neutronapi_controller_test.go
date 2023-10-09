@@ -56,7 +56,9 @@ var _ = Describe("NeutronAPI controller", func() {
 			Name:      name + "-neutron-transport",
 		}
 
-		neutronAPIName = CreateNeutronAPI(namespace, name, GetDefaultNeutronAPISpec())
+		spec := GetDefaultNeutronAPISpec()
+		spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
+		neutronAPIName = CreateNeutronAPI(namespace, name, spec)
 		DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 	})
 
@@ -296,7 +298,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 		})
 
-		It("should create a ConfigMap for neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
+		It("should create a ConfigMap for 01-neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -311,7 +313,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			}, timeout, interval).ShouldNot(BeNil())
 
 			keystone := keystone.GetKeystoneAPI(keystoneAPI)
-			Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
+			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
 				ContainSubstring("auth_url = %s", keystone.Status.APIEndpoints["internal"]))
 
 			th.ExpectCondition(
@@ -328,7 +330,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 		})
 
-		It("should create a ConfigMap for neutron.conf with api and rpc workers", func() {
+		It("should create a ConfigMap for 01-neutron.conf with api and rpc workers", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -342,14 +344,14 @@ var _ = Describe("NeutronAPI controller", func() {
 				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
 
-			Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
+			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
 				ContainSubstring("api_workers = 2"))
-			Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
+			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
 				ContainSubstring("rpc_workers = 1"))
 
 		})
 
-		It("should create a ConfigMap for neutron.conf with the ovn connection config option set based on the OVNDBCluster", func() {
+		It("should create a ConfigMap for 01-neutron.conf with the ovn connection config option set based on the OVNDBCluster", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
@@ -364,7 +366,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			}, timeout, interval).ShouldNot(BeNil())
 			for _, db := range dbs {
 				ovndb := GetOVNDBCluster(db)
-				Expect(th.GetSecret(secret).Data["neutron.conf"]).Should(
+				Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
 					ContainSubstring("ovn_%s_connection = %s", strings.ToLower(string(ovndb.Spec.DBType)), ovndb.Status.InternalDBAddress))
 			}
 			th.ExpectCondition(
@@ -379,6 +381,24 @@ var _ = Describe("NeutronAPI controller", func() {
 				condition.DBReadyCondition,
 				corev1.ConditionTrue,
 			)
+		})
+		It("should create a ConfigMap for 02-neutron-custom.conf with customServiceConfig input", func() {
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
+			}, timeout, interval).ShouldNot(BeNil())
+
+			Expect(th.GetSecret(secret).Data["02-neutron-custom.conf"]).Should(
+				ContainSubstring("[DEFAULT]\ndebug=True"))
+
 		})
 		It("should create an external Metadata Agent Secret with expected ovn_sb_connection set", func() {
 			dbs := CreateOVNDBClusters(namespace)
