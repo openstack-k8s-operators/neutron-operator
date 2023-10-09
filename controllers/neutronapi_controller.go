@@ -1148,10 +1148,11 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	}
 
 	// customData hold any customization for the service.
-	// custom.conf is going to /etc/<service>/<service>.conf.d
+	// 02-neutron-custom.conf is going to /etc/<service>.conf.d
+	// 01-neutron.conf is going to /etc/<service>.conf.d such that it gets loaded before custom one
 	// all other files get placed into /etc/<service> to allow overwrite of e.g. logging.conf or policy.json
 	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{common.CustomServiceConfigFileName: instance.Spec.CustomServiceConfig}
+	customData := map[string]string{"02-neutron-custom.conf": instance.Spec.CustomServiceConfig}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
