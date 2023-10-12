@@ -11,15 +11,12 @@ import (
 //
 //	mechanism.
 func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.Volume {
-	var config0640AccessMode int32 = 0640
-
 	res := []corev1.Volume{
 		{
 			Name: "config",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0640AccessMode,
-					SecretName:  name + "-config",
+					SecretName: name + "-config",
 				},
 			},
 		},

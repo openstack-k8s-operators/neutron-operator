@@ -35,8 +35,6 @@ func Deployment(
 	labels map[string]string,
 	annotations map[string]string,
 ) *appsv1.Deployment {
-	runAsUser := int64(0)
-
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
@@ -102,13 +100,11 @@ func Deployment(
 					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
-							Name:    ServiceName + "-api",
-							Command: []string{cmd},
-							Args:    args,
-							Image:   instance.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
+							Name:                     ServiceName + "-api",
+							Command:                  []string{cmd},
+							Args:                     args,
+							Image:                    instance.Spec.ContainerImage,
+							SecurityContext:          getNeutronSecurityContext(),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:             GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
 							Resources:                instance.Spec.Resources,

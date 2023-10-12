@@ -12,6 +12,10 @@ const (
 	// Database -
 	Database = "neutron"
 
+	// neutron:neutron
+	NeutronUid int64 = 42435
+	NeutronGid int64 = 42435
+
 	// NeutronPublicPort -
 	NeutronPublicPort int32 = 9696
 	// NeutronInternalPort -

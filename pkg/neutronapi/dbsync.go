@@ -14,8 +14,6 @@ func DbSyncJob(
 	annotations map[string]string,
 ) *batchv1.Job {
 	dbSyncExtraMounts := []neutronv1beta1.NeutronExtraVolMounts{}
-	runAsUser := int64(0)
-
 	volumeMounts := GetVolumeMounts("db-sync", dbSyncExtraMounts, DbsyncPropagation)
 	volumes := GetVolumes(cr.Name, dbSyncExtraMounts, DbsyncPropagation)
 
@@ -33,14 +31,12 @@ func DbSyncJob(
 					ServiceAccountName: cr.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
-							Command: []string{"neutron-db-manage"},
-							Args:    []string{"upgrade", "heads"},
-							Name:    cr.Name + "-db-sync",
-							Image:   cr.Spec.ContainerImage,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: &runAsUser,
-							},
-							VolumeMounts: volumeMounts,
+							Command:         []string{"neutron-db-manage"},
+							Args:            []string{"upgrade", "heads"},
+							Name:            cr.Name + "-db-sync",
+							Image:           cr.Spec.ContainerImage,
+							SecurityContext: getNeutronSecurityContext(),
+							VolumeMounts:    volumeMounts,
 						},
 					},
 					Volumes: volumes,
