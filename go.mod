@@ -8,14 +8,14 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.28.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.1.1-0.20231001103054-f74a88ed4971
-	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231005132119-e75019792469
+	github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20231012092711-5f52f15720bf
+	github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20231013095818-732d852436d1
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231011150636-e8a0540a3c32
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231006072650-7fe7fe16bcd1
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231006072650-7fe7fe16bcd1
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231011150636-e8a0540a3c32
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.3.1-0.20231011150636-e8a0540a3c32
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.3.0
 	github.com/openstack-k8s-operators/neutron-operator/api v0.1.1-0.20230824160722-048e30e1d426
-	github.com/openstack-k8s-operators/ovn-operator/api v0.3.1-0.20231005121428-58b0e24477c0
+	github.com/openstack-k8s-operators/ovn-operator/api v0.3.1-0.20231013125443-b16fa6f5efb1
 	go.uber.org/zap v1.26.0
 	k8s.io/api v0.26.9
 	k8s.io/apimachinery v0.26.9
@@ -52,7 +52,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231006072650-7fe7fe16bcd1 // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20231011150636-e8a0540a3c32 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
