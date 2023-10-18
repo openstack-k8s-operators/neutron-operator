@@ -33,6 +33,9 @@ const (
 	// Key in external Secret for Neutron OVN Metadata Agent with agent config
 	NeutronOVNMetadataAgentSecretKey = "10-neutron-metadata.conf"
 
+	// Key in external Secret for Neutron OVN Agent with agent config
+	NeutronOVNAgentSecretKey = "10-neutron-ovn.conf"
+
 	// Key in external Secret for Neutron SR-IOV Agent with agent config
 	NeutronSriovAgentSecretKey = "10-neutron-sriov.conf"
 
