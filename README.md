@@ -204,6 +204,7 @@ spec:
   databaseInstance: openstack
   databaseUser: neutron
   rabbitMqClusterName: rabbitmq
+  memcachedInstance: memcached
   debug:
     dbSync: false
     service: false
