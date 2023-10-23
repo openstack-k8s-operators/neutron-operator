@@ -1228,7 +1228,6 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 	databasePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Database])
-	templateParameters["NovaPassword"] = servicePassword
 	templateParameters["ServicePassword"] = servicePassword
 
 	// Database
