@@ -404,6 +404,8 @@ var _ = Describe("NeutronAPI controller", func() {
 				ContainSubstring("api_workers = 2"))
 			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
 				ContainSubstring("rpc_workers = 1"))
+			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
+				ContainSubstring("mysql_wsrep_sync_wait = 1"))
 
 		})
 
