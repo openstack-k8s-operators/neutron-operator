@@ -912,6 +912,10 @@ func getMetadataAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
 	return getExternalSecretName(instance, "ovn-metadata-agent")
 }
 
+func getOvnAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
+	return getExternalSecretName(instance, "ovn-agent")
+}
+
 func getSriovAgentSecretName(instance *neutronv1beta1.NeutronAPI) string {
 	return getExternalSecretName(instance, "sriov-agent")
 }
@@ -947,6 +951,55 @@ func (r *NeutronAPIReconciler) reconcileExternalMetadataAgentSecret(
 	err = r.ensureExternalMetadataAgentSecret(ctx, h, instance, sbEndpoint, envVars)
 	if err != nil {
 		return fmt.Errorf("Failed to ensure Neutron Metadata Agent external Secret: %w", err)
+	}
+	return nil
+}
+
+func (r *NeutronAPIReconciler) reconcileExternalOvnAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	envVars *map[string]env.Setter,
+) error {
+	nbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.NBDBType)
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getOvnAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron Ovn Agent external Secret: %w", err)
+		}
+		return nil
+	}
+
+	nbEndpoint, err := nbCluster.GetExternalEndpoint()
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getOvnAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron Ovn Agent external Secret: %w", err)
+		}
+		return nil
+	}
+
+	sbCluster, err := ovnclient.GetDBClusterByType(ctx, h, instance.Namespace, map[string]string{}, ovnclient.SBDBType)
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getOvnAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron Ovn Agent external Secret: %w", err)
+		}
+		return nil
+	}
+
+	sbEndpoint, err := sbCluster.GetExternalEndpoint()
+	if err != nil {
+		err = r.deleteExternalSecret(ctx, h, instance, getOvnAgentSecretName(instance))
+		if err != nil {
+			return fmt.Errorf("Failed to delete Neutron Ovn Agent external Secret: %w", err)
+		}
+		return nil
+	}
+
+	err = r.ensureExternalOvnAgentSecret(ctx, h, instance, nbEndpoint, sbEndpoint, envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to ensure Neutron Ovn Agent external Secret: %w", err)
 	}
 	return nil
 }
@@ -1028,6 +1081,10 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	err := r.reconcileExternalMetadataAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
 		return fmt.Errorf("Failed to reconcile Neutron Metadata Agent external Secret: %w", err)
+	}
+	err = r.reconcileExternalOvnAgentSecret(ctx, h, instance, envVars)
+	if err != nil {
+		return fmt.Errorf("Failed to reconcile Neutron Ovn Agent external Secret: %w", err)
 	}
 	err = r.reconcileExternalSriovAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
@@ -1115,6 +1172,25 @@ func (r *NeutronAPIReconciler) ensureExternalMetadataAgentSecret(
 	templateParameters["SBConnection"] = sbEndpoint
 
 	secretName := getMetadataAgentSecretName(instance)
+	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+}
+
+func (r *NeutronAPIReconciler) ensureExternalOvnAgentSecret(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+	nbEndpoint string,
+	sbEndpoint string,
+	envVars *map[string]env.Setter,
+) error {
+	templates := map[string]string{
+		neutronapi.NeutronOVNAgentSecretKey: "/ovn-agent.conf",
+	}
+	templateParameters := make(map[string]interface{})
+	templateParameters["NBConnection"] = nbEndpoint
+	templateParameters["SBConnection"] = sbEndpoint
+
+	secretName := getOvnAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
 }
 

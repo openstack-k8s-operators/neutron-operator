@@ -37,7 +37,7 @@ const (
 	interval = timeout / 100
 )
 
-func SetExternalSBEndpoint(name types.NamespacedName, endpoint string) {
+func SetExternalDBEndpoint(name types.NamespacedName, endpoint string) {
 	Eventually(func(g Gomega) {
 		cluster := GetOVNDBCluster(name)
 		cluster.Status.DBAddress = endpoint
