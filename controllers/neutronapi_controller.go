@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -61,11 +62,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+func (r *NeutronAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
+	return log.FromContext(ctx).WithName("Controllers").WithName("NeutronAPI")
+}
+
 // NeutronAPIReconciler reconciles a NeutronAPI object
 type NeutronAPIReconciler struct {
 	client.Client
 	Kclient kubernetes.Interface
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
 }
 
@@ -97,7 +102,7 @@ type NeutronAPIReconciler struct {
 // Reconcile - neutron api
 func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("neutronapi", req.NamespacedName)
+	Log := r.GetLogger(ctx)
 
 	// Fetch the NeutronAPI instance
 	instance := &neutronv1beta1.NeutronAPI{}
@@ -118,7 +123,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		r.Client,
 		r.Kclient,
 		r.Scheme,
-		r.Log,
+		Log,
 	)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -196,7 +201,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 
 // SetupWithManager -
-func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	crs := &neutronv1beta1.NeutronAPIList{}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&neutronv1beta1.NeutronAPI{}).
@@ -211,13 +216,14 @@ func (r *NeutronAPIReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
-		Watches(&source.Kind{Type: &ovnclient.OVNDBCluster{}}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNDBClusterNamespaceMapFunc(crs, mgr.GetClient(), r.Log))).
-		Watches(&source.Kind{Type: &memcachedv1.Memcached{}}, handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(crs))).
+		Watches(&source.Kind{Type: &ovnclient.OVNDBCluster{}}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNDBClusterNamespaceMapFunc(crs, mgr.GetClient(), r.GetLogger(ctx)))).
+		Watches(&source.Kind{Type: &memcachedv1.Memcached{}}, handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(ctx, crs))).
 		Complete(r)
 }
 
 func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service delete")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling Service delete")
 
 	// remove db finalizer first
 	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
@@ -229,7 +235,7 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 		if err := db.DeleteFinalizer(ctx, helper); err != nil {
 			return ctrl.Result{}, err
 		}
-		util.LogForObject(helper, "Removed finalizer from our MariaDBDatabase", instance)
+		Log.Info("Removed finalizer from our MariaDBDatabase")
 	}
 
 	// Remove the finalizer from our KeystoneEndpoint CR
@@ -244,7 +250,7 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 			if err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
-			util.LogForObject(helper, "Removed finalizer from our KeystoneEndpoint", instance)
+			Log.Info("Removed finalizer from our KeystoneEndpoint")
 		}
 	}
 
@@ -260,13 +266,13 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 			if err != nil && !k8s_errors.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
-			util.LogForObject(helper, "Removed finalizer from our KeystoneService", instance)
+			Log.Info("Removed finalizer from our KeystoneService")
 		}
 	}
 
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
-	r.Log.Info("Reconciled Service delete successfully")
+	Log.Info("Reconciled Service delete successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -280,7 +286,8 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	ospSecret *corev1.Secret,
 	secretVars map[string]env.Setter,
 ) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service init")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling Service init")
 
 	// create neutron DB instance
 	//
@@ -416,7 +423,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 	if dbSyncjob.HasChanged() {
 		instance.Status.Hash[neutronv1beta1.DbSyncHash] = dbSyncjob.GetHash()
-		r.Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[neutronv1beta1.DbSyncHash]))
+		Log.Info(fmt.Sprintf("Job %s hash added - %s", jobDef.Name, instance.Status.Hash[neutronv1beta1.DbSyncHash]))
 	}
 	instance.Status.Conditions.MarkTrue(condition.DBSyncReadyCondition, condition.DBSyncReadyMessage)
 
@@ -530,7 +537,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	// expose service - end
 
 	// update status with endpoint information
-	r.Log.Info("Reconciling neutron KeystoneService")
+	Log.Info("Reconciling neutron KeystoneService")
 
 	ksSvcSpec := keystonev1.KeystoneServiceSpec{
 		ServiceType:        neutronapi.ServiceType,
@@ -587,32 +594,35 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		return ctrlResult, nil
 	}
 
-	r.Log.Info("Reconciled Service init successfully")
+	Log.Info("Reconciled Service init successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *NeutronAPIReconciler) reconcileUpdate(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service update")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling Service update")
 
 	// TODO: should have minor update tasks if required
 	// - delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service update successfully")
+	Log.Info("Reconciled Service update successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *NeutronAPIReconciler) reconcileUpgrade(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service upgrade")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling Service upgrade")
 
 	// TODO: should have major version upgrade tasks
 	// -delete dbsync hash from status to rerun it?
 
-	r.Log.Info("Reconciled Service upgrade successfully")
+	Log.Info("Reconciled Service upgrade successfully")
 	return ctrl.Result{}, nil
 }
 
 func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
-	r.Log.Info("Reconciling Service")
+	Log := r.GetLogger(ctx)
+	Log.Info("Reconciling Service")
 
 	// Service account, role, binding
 	rbacRules := []rbacv1.PolicyRule{
@@ -654,13 +664,13 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	if op != controllerutil.OperationResultNone {
-		r.Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
+		Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
 	}
 
 	instance.Status.TransportURLSecret = transportURL.Status.SecretName
 
 	if instance.Status.TransportURLSecret == "" {
-		r.Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
+		Log.Info(fmt.Sprintf("Waiting for TransportURL %s secret to be created", transportURL.Name))
 
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.RabbitMqTransportURLReadyCondition,
@@ -759,7 +769,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	err = r.reconcileExternalSecrets(ctx, helper, instance, &secretVars)
 	if err != nil {
-		r.Log.Error(err, "Failed to reconcile external Secrets")
+		Log.Error(err, "Failed to reconcile external Secrets")
 		return ctrl.Result{}, err
 	}
 
@@ -882,7 +892,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 	// create Deployment - end
 
-	r.Log.Info("Reconciled Service successfully")
+	Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -1077,6 +1087,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	instance *neutronv1beta1.NeutronAPI,
 	envVars *map[string]env.Setter,
 ) error {
+	Log := r.GetLogger(ctx)
 	// Generate one Secret per external service
 	err := r.reconcileExternalMetadataAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
@@ -1095,7 +1106,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 		return fmt.Errorf("Failed to reconcile Neutron DHCP Agent external Secret: %w", err)
 	}
 	// NOTE(ihar): Add config reconciliation code for any other services here
-	r.Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
+	Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
 	return nil
 }
 
@@ -1339,6 +1350,8 @@ func (r *NeutronAPIReconciler) createHashOfInputHashes(
 	instance *neutronv1beta1.NeutronAPI,
 	envVars map[string]env.Setter,
 ) (bool, error) {
+	Log := r.GetLogger(ctx)
+
 	var hashMap map[string]string
 	changed := false
 	mergedMapVars := env.MergeEnvs([]corev1.EnvVar{}, envVars)
@@ -1348,12 +1361,14 @@ func (r *NeutronAPIReconciler) createHashOfInputHashes(
 	}
 	if hashMap, changed = util.SetHash(instance.Status.Hash, common.InputHashName, hash); changed {
 		instance.Status.Hash = hashMap
-		r.Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
+		Log.Info(fmt.Sprintf("Input maps hash %s - %s", common.InputHashName, hash))
 	}
 	return changed, nil
 }
 
-func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(crs client.ObjectList) handler.MapFunc {
+func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context, clt client.ObjectList) handler.MapFunc {
+	Log := r.GetLogger(ctx)
+
 	return func(o client.Object) []reconcile.Request {
 		result := []reconcile.Request{}
 
@@ -1363,7 +1378,7 @@ func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(crs client.ObjectList) 
 			client.InNamespace(o.GetNamespace()),
 		}
 		if err := r.Client.List(context.Background(), neutrons, listOpts...); err != nil {
-			r.Log.Error(err, "Unable to retrieve Neutron CRs %w")
+			Log.Error(err, "Unable to retrieve Neutron CRs %w")
 			return nil
 		}
 
@@ -1373,7 +1388,7 @@ func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(crs client.ObjectList) 
 					Namespace: o.GetNamespace(),
 					Name:      cr.Name,
 				}
-				r.Log.Info(fmt.Sprintf("Memcached %s is used by Neutron CR %s", o.GetName(), cr.Name))
+				Log.Info(fmt.Sprintf("Memcached %s is used by Neutron CR %s", o.GetName(), cr.Name))
 				result = append(result, reconcile.Request{NamespacedName: name})
 			}
 		}
