@@ -816,17 +816,20 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			)
 			Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
-			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(1))
-			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(2))
+			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(2))
 
-			container := deployment.Spec.Template.Spec.Containers[0]
-			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(container.VolumeMounts).To(HaveLen(1))
-			Expect(container.Image).To(Equal("test-neutron-container-image"))
+			nSvcContainer := deployment.Spec.Template.Spec.Containers[0]
+			Expect(nSvcContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
+			Expect(nSvcContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
+			Expect(nSvcContainer.VolumeMounts).To(HaveLen(1))
+			Expect(nSvcContainer.Image).To(Equal("test-neutron-container-image"))
 
-			Expect(container.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(container.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
+			nHttpdProxyContainer := deployment.Spec.Template.Spec.Containers[1]
+			Expect(nHttpdProxyContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
+			Expect(nHttpdProxyContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
+			Expect(nHttpdProxyContainer.VolumeMounts).To(HaveLen(2))
+			Expect(nHttpdProxyContainer.Image).To(Equal("test-neutron-container-image"))
 		})
 	})
 

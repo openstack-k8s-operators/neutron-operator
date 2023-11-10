@@ -20,6 +20,14 @@ func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, sv
 				},
 			},
 		},
+		{
+			Name: "httpd-config",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: name + "-httpd-config",
+				},
+			},
+		},
 	}
 	for _, exv := range extraVol {
 		for _, vol := range exv.Propagate(svc) {
@@ -46,4 +54,20 @@ func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraV
 	}
 	return res
 
+} // GetHttpdVolumeMount - Returns the VolumeMounts used by the httpd sidecar
+func GetHttpdVolumeMount() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      "httpd-config",
+			MountPath: "/etc/httpd/conf/httpd.conf",
+			SubPath:   "httpd.conf",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "httpd-config",
+			MountPath: "/etc/httpd/conf.d/10-neutron.conf",
+			SubPath:   "10-neutron-httpd.conf",
+			ReadOnly:  true,
+		},
+	}
 }

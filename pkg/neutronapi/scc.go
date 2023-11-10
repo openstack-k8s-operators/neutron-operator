@@ -20,3 +20,11 @@ func getNeutronSecurityContext() *corev1.SecurityContext {
 		},
 	}
 }
+
+func getNeutronHttpdSecurityContext() *corev1.SecurityContext {
+	runAsUser := int64(0)
+
+	return &corev1.SecurityContext{
+		RunAsUser: &runAsUser,
+	}
+}
