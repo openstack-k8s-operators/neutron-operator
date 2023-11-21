@@ -1337,6 +1337,17 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 			Labels:        cmLabels,
 			ConfigOptions: templateParameters,
 		},
+		{
+			Name:         fmt.Sprintf("%s-httpd-config", instance.Name),
+			Namespace:    instance.Namespace,
+			Type:         util.TemplateTypeNone,
+			InstanceType: instance.Kind,
+			Labels:       cmLabels,
+			AdditionalTemplate: map[string]string{
+				"httpd.conf":            "/neutronapi/httpd/httpd.conf",
+				"10-neutron-httpd.conf": "/neutronapi/httpd/10-neutron-httpd.conf",
+			},
+		},
 	}
 	return secret.EnsureSecrets(ctx, h, instance, secrets, envVars)
 }

@@ -25,7 +25,8 @@ import (
 )
 
 const (
-	ServiceCommand = "/usr/bin/neutron-server"
+	ServiceCommand         = "/usr/bin/neutron-server"
+	NeutronAPIHttpdCommand = "/usr/sbin/httpd"
 )
 
 // Deployment func
@@ -49,6 +50,7 @@ func Deployment(
 	}
 	cmd := ServiceCommand
 	args := []string{}
+	httpd_args := []string{"-DFOREGROUND"}
 
 	if instance.Spec.Debug.Service {
 		cmd = "/bin/sleep"
@@ -107,6 +109,19 @@ func Deployment(
 							SecurityContext:          getNeutronSecurityContext(),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:             GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
+							Resources:                instance.Spec.Resources,
+							ReadinessProbe:           readinessProbe,
+							LivenessProbe:            livenessProbe,
+							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+						},
+						{
+							Name:                     ServiceName + "-httpd",
+							Command:                  []string{NeutronAPIHttpdCommand},
+							Args:                     httpd_args,
+							Image:                    instance.Spec.ContainerImage,
+							SecurityContext:          getNeutronHttpdSecurityContext(),
+							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
+							VolumeMounts:             GetHttpdVolumeMount(),
 							Resources:                instance.Spec.Resources,
 							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,

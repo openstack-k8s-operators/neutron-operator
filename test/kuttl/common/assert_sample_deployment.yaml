@@ -98,6 +98,35 @@ spec:
           runAsUser: 42435
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: FallbackToLogsOnError
+      - command:
+        - /usr/sbin/httpd
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9696
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: neutron-httpd
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9696
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
       schedulerName: default-scheduler
       securityContext: {}
       serviceAccount: neutron-neutron
