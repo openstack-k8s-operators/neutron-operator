@@ -66,8 +66,8 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
-	golang.org/x/term v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/term v0.14.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
@@ -86,7 +86,7 @@ require (
 )
 
 // Bump golang.org/x/net to avoid Rapid Reset CVE
-replace golang.org/x/net => golang.org/x/net v0.17.0 //allow-merging
+replace golang.org/x/net => golang.org/x/net v0.18.0 //allow-merging
 
 replace github.com/openstack-k8s-operators/neutron-operator/api => ./api
 
