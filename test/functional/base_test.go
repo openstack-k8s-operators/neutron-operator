@@ -24,6 +24,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
@@ -32,6 +33,10 @@ import (
 
 const (
 	SecretName = "test-secret"
+
+	PublicCertSecretName   = "public-tls-certs"
+	InternalCertSecretName = "internal-tls-certs"
+	CABundleSecretName     = "combined-ca-bundle"
 
 	timeout  = time.Second * 10
 	interval = timeout / 100
@@ -64,7 +69,7 @@ func GetDefaultNeutronAPISpec() map[string]interface{} {
 	}
 }
 
-func CreateNeutronAPI(namespace string, NeutronAPIName string, spec map[string]interface{}) types.NamespacedName {
+func CreateNeutronAPI(namespace string, NeutronAPIName string, spec map[string]interface{}) client.Object {
 
 	raw := map[string]interface{}{
 		"apiVersion": "neutron.openstack.org/v1beta1",
@@ -75,27 +80,8 @@ func CreateNeutronAPI(namespace string, NeutronAPIName string, spec map[string]i
 		},
 		"spec": spec,
 	}
-	th.CreateUnstructured(raw)
 
-	return types.NamespacedName{Name: NeutronAPIName, Namespace: namespace}
-}
-
-func DeleteNeutronAPI(name types.NamespacedName) {
-	// We have to wait for the controller to fully delete the instance
-	Eventually(func(g Gomega) {
-		NeutronAPI := &neutronv1.NeutronAPI{}
-		err := k8sClient.Get(ctx, name, NeutronAPI)
-		// if it is already gone that is OK
-		if k8s_errors.IsNotFound(err) {
-			return
-		}
-		g.Expect(err).Should(BeNil())
-
-		g.Expect(k8sClient.Delete(ctx, NeutronAPI)).Should(Succeed())
-
-		err = k8sClient.Get(ctx, name, NeutronAPI)
-		g.Expect(k8s_errors.IsNotFound(err)).To(BeTrue())
-	}, timeout, interval).Should(Succeed())
+	return th.CreateUnstructured(raw)
 }
 
 func GetNeutronAPI(name types.NamespacedName) *neutronv1.NeutronAPI {

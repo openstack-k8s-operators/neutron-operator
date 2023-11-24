@@ -13,15 +13,20 @@ limitations under the License.
 package neutronapi
 
 import (
+	"fmt"
+
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -35,7 +40,7 @@ func Deployment(
 	configHash string,
 	labels map[string]string,
 	annotations map[string]string,
-) *appsv1.Deployment {
+) (*appsv1.Deployment, error) {
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
 		TimeoutSeconds:      5,
@@ -49,7 +54,7 @@ func Deployment(
 		InitialDelaySeconds: 20,
 	}
 	args := []string{"-c"}
-	httpd_args := []string{"-DFOREGROUND"}
+	httpdArgs := []string{"-DFOREGROUND"}
 
 	if instance.Spec.Debug.Service {
 		args = append(args, common.DebugCommand)
@@ -77,11 +82,51 @@ func Deployment(
 			Path: "/",
 			Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NeutronPublicPort)},
 		}
+
+		if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
+			livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+			readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		}
 	}
 
 	envVars := map[string]env.Setter{}
 	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
+
+	// create Volume and VolumeMounts
+	volumes := GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
+	apiVolumeMounts := GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation)
+	httpdVolumeMounts := GetHttpdVolumeMount()
+
+	// add CA cert if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
+		apiVolumeMounts = append(apiVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+		httpdVolumeMounts = append(httpdVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
+		if instance.Spec.TLS.API.Enabled(endpt) {
+			var tlsEndptCfg tls.GenericService
+			switch endpt {
+			case service.EndpointPublic:
+				tlsEndptCfg = instance.Spec.TLS.API.Public
+			case service.EndpointInternal:
+				tlsEndptCfg = instance.Spec.TLS.API.Internal
+			}
+
+			svc, err := tlsEndptCfg.ToService()
+			if err != nil {
+				return nil, err
+			}
+			// httpd container is not using kolla, mount the certs to its dst
+			svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+			svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+
+			volumes = append(volumes, svc.CreateVolume(endpt.String()))
+			httpdVolumeMounts = append(httpdVolumeMounts, svc.CreateVolumeMounts(endpt.String())...)
+		}
+	}
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -108,7 +153,7 @@ func Deployment(
 							Image:                    instance.Spec.ContainerImage,
 							SecurityContext:          getNeutronSecurityContext(),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation),
+							VolumeMounts:             apiVolumeMounts,
 							Resources:                instance.Spec.Resources,
 							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,
@@ -117,22 +162,23 @@ func Deployment(
 						{
 							Name:                     ServiceName + "-httpd",
 							Command:                  []string{NeutronAPIHttpdCommand},
-							Args:                     httpd_args,
+							Args:                     httpdArgs,
 							Image:                    instance.Spec.ContainerImage,
 							SecurityContext:          getNeutronHttpdSecurityContext(),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             GetHttpdVolumeMount(),
+							VolumeMounts:             httpdVolumeMounts,
 							Resources:                instance.Spec.Resources,
 							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,
 							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 						},
 					},
+					Volumes: volumes,
 				},
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Volumes = GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
+
 	// If possible two pods of the same service should not
 	// run on the same worker node. If this is not possible
 	// the get still created on the same worker node.
@@ -147,5 +193,5 @@ func Deployment(
 		deployment.Spec.Template.Spec.NodeSelector = instance.Spec.NodeSelector
 	}
 
-	return deployment
+	return deployment, nil
 }

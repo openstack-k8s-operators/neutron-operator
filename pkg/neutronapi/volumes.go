@@ -75,5 +75,11 @@ func GetHttpdVolumeMount() []corev1.VolumeMount {
 			SubPath:   "10-neutron-httpd.conf",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "httpd-config",
+			MountPath: "/etc/httpd/conf.d/ssl.conf",
+			SubPath:   "ssl.conf",
+			ReadOnly:  true,
+		},
 	}
 }
