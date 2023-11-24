@@ -266,7 +266,8 @@ func (instance NeutronAPI) RbacResourceName() string {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Neutron defaults with them
 	neutronDefaults := NeutronAPIDefaults{
-		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", NeutronAPIContainerImage),
+		ContainerImageURL:      util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", NeutronAPIContainerImage),
+		NeutronAPIRouteTimeout: "120s",
 	}
 
 	SetupNeutronAPIDefaults(neutronDefaults)
