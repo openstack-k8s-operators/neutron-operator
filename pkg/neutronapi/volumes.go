@@ -43,7 +43,13 @@ func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraV
 	res := []corev1.VolumeMount{
 		{
 			Name:      "config",
-			MountPath: "/etc/neutron.conf.d",
+			MountPath: "/var/lib/config-data",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   serviceName + "-config.json",
 			ReadOnly:  true,
 		},
 	}
