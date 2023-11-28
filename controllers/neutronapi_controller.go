@@ -287,7 +287,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	secretVars map[string]env.Setter,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
-	Log.Info("Reconciling Service init")
+	Log.Info("Reconciling Service init. Slaweq test")
 
 	// create neutron DB instance
 	//
