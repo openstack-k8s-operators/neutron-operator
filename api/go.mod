@@ -5,8 +5,8 @@ go 1.19
 require (
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231128145648-956f4d361a63
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231128145648-956f4d361a63
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231209173030-f7a552f208e7
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231209173030-f7a552f208e7
 	k8s.io/api v0.26.11
 	k8s.io/apimachinery v0.26.11
 	k8s.io/client-go v0.26.11
@@ -48,6 +48,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/testify v1.8.3 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
