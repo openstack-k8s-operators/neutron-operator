@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	ServiceCommand         = "/usr/bin/neutron-server"
+	ServiceCommand         = "/usr/local/bin/kolla_start"
 	NeutronAPIHttpdCommand = "/usr/sbin/httpd"
 )
 
@@ -48,13 +48,11 @@ func Deployment(
 		PeriodSeconds:       5,
 		InitialDelaySeconds: 20,
 	}
-	cmd := ServiceCommand
-	args := []string{}
+	args := []string{"-c"}
 	httpd_args := []string{"-DFOREGROUND"}
 
 	if instance.Spec.Debug.Service {
-		cmd = "/bin/sleep"
-		args = []string{"infinity"}
+		args = append(args, common.DebugCommand)
 		livenessProbe.Exec = &corev1.ExecAction{
 			Command: []string{
 				"/bin/true",
@@ -67,6 +65,7 @@ func Deployment(
 			},
 		}
 	} else {
+		args = append(args, ServiceCommand)
 		//
 		// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 		//
@@ -81,6 +80,7 @@ func Deployment(
 	}
 
 	envVars := map[string]env.Setter{}
+	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	deployment := &appsv1.Deployment{
@@ -103,7 +103,7 @@ func Deployment(
 					Containers: []corev1.Container{
 						{
 							Name:                     ServiceName + "-api",
-							Command:                  []string{cmd},
+							Command:                  []string{"/bin/bash"},
 							Args:                     args,
 							Image:                    instance.Spec.ContainerImage,
 							SecurityContext:          getNeutronSecurityContext(),
