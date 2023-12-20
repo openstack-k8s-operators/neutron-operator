@@ -60,7 +60,6 @@ func SimulateTransportURLReady(name types.NamespacedName) {
 func GetDefaultNeutronAPISpec() map[string]interface{} {
 	return map[string]interface{}{
 		"databaseInstance": "test-neutron-db-instance",
-		"containerImage":   "test-neutron-container-image",
 		"secret":           SecretName,
 	}
 }

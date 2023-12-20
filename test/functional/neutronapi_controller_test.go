@@ -17,13 +17,16 @@ limitations under the License.
 package functional_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
+	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,38 +34,30 @@ import (
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
+	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
 )
 
 var _ = Describe("NeutronAPI controller", func() {
 
-	var namespace string
 	var secret *corev1.Secret
 	var apiTransportURLName types.NamespacedName
 	var neutronAPIName types.NamespacedName
 	var memcachedSpec memcachedv1.MemcachedSpec
 	var memcachedName types.NamespacedName
+	var name string
+	var spec map[string]interface{}
 
 	BeforeEach(func() {
-		// NOTE(gibi): We need to create a unique namespace for each test run
-		// as namespaces cannot be deleted in a locally running envtest. See
-		// https://book.kubebuilder.io/reference/envtest.html#namespace-usage-limitation
-		namespace = uuid.New().String()
-		th.CreateNamespace(namespace)
-		// We still request the delete of the Namespace to properly cleanup if
-		// we run the test in an existing cluster.
-		DeferCleanup(th.DeleteNamespace, namespace)
-
-		name := fmt.Sprintf("neutron-%s", uuid.New().String())
+		name = fmt.Sprintf("neutron-%s", uuid.New().String())
 		apiTransportURLName = types.NamespacedName{
 			Namespace: namespace,
 			Name:      name + "-neutron-transport",
 		}
 
-		spec := GetDefaultNeutronAPISpec()
-		spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
-		neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+		spec = GetDefaultNeutronAPISpec()
+
 		memcachedSpec = memcachedv1.MemcachedSpec{
 			Replicas: pointer.Int32(3),
 		}
@@ -70,11 +65,14 @@ var _ = Describe("NeutronAPI controller", func() {
 			Name:      "memcached",
 			Namespace: namespace,
 		}
-		DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 	})
 
 	When("A NeutronAPI instance is created", func() {
 
+		BeforeEach(func() {
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
+		})
 		It("should have the Spec fields initialized", func() {
 			NeutronAPI := GetNeutronAPI(neutronAPIName)
 			Expect(NeutronAPI.Spec.DatabaseInstance).Should(Equal("test-neutron-db-instance"))
@@ -115,14 +113,20 @@ var _ = Describe("NeutronAPI controller", func() {
 			}, timeout, interval).Should(ContainElement("NeutronAPI"))
 		})
 
-		It("should not create a config map", func() {
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
-			}, timeout, interval).Should(BeEmpty())
+		It("should not create a secret", func() {
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+			th.AssertSecretDoesNotExist(secret)
 		})
 	})
 
 	When("an unrelated secret is provided", func() {
+		BeforeEach(func() {
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
+		})
 		It("should remain in a state of waiting for the proper secret", func() {
 			SimulateTransportURLReady(apiTransportURLName)
 			secret = &corev1.Secret{
@@ -148,10 +152,12 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 
 		})
-		It("should not create a config map", func() {
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
-			}, timeout, interval).Should(BeEmpty())
+		It("should not create a secret", func() {
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+			th.AssertSecretDoesNotExist(secret)
 		})
 	})
 
@@ -169,10 +175,13 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
 			infra.SimulateMemcachedReady(memcachedName)
+
 		})
 		It("should be in a state of having the input ready", func() {
 
@@ -200,10 +209,12 @@ var _ = Describe("NeutronAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
-		It("should not create a config map", func() {
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
-			}, timeout, interval).Should(BeEmpty())
+		It("should not create a secret", func() {
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+			th.AssertSecretDoesNotExist(secret)
 		})
 
 		It("should create an external SR-IOV Agent Secret with expected transport_url set", func() {
@@ -261,6 +272,8 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
 			infra.SimulateMemcachedReady(memcachedName)
@@ -290,13 +303,17 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			SimulateTransportURLReady(apiTransportURLName)
 		})
-		It("should not create a config map", func() {
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
-			}, timeout, interval).Should(BeEmpty())
+		It("should not create a secret", func() {
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+			th.AssertSecretDoesNotExist(secret)
 		})
 	})
 
@@ -313,14 +330,18 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 		})
-		It("should not create a config map", func() {
-			Eventually(func() []corev1.ConfigMap {
-				return th.ListConfigMaps(fmt.Sprintf("%s-%s", neutronAPIName.Name, "config")).Items
-			}, timeout, interval).Should(BeEmpty())
+		It("should not create a secret", func() {
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+			th.AssertSecretDoesNotExist(secret)
 		})
 	})
 
@@ -337,6 +358,9 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
 			infra.SimulateMemcachedReady(memcachedName)
@@ -354,7 +378,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
 		})
 
-		It("should create a ConfigMap for 01-neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
+		It("should create a Secret for 01-neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -386,7 +410,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 		})
 
-		It("should create a ConfigMap for 01-neutron.conf with api and rpc workers", func() {
+		It("should create a Secret for 01-neutron.conf with api and rpc workers", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -409,7 +433,7 @@ var _ = Describe("NeutronAPI controller", func() {
 
 		})
 
-		It("should create a ConfigMap for 01-neutron.conf with the ovn connection config option set based on the OVNDBCluster", func() {
+		It("should create a Secret for 01-neutron.conf with the ovn connection config option set based on the OVNDBCluster", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
@@ -440,7 +464,27 @@ var _ = Describe("NeutronAPI controller", func() {
 				corev1.ConditionTrue,
 			)
 		})
-		It("should create a ConfigMap for 02-neutron-custom.conf with customServiceConfig input", func() {
+
+		It("should create secret with OwnerReferences set", func() {
+			dbs := CreateOVNDBClusters(namespace)
+			DeferCleanup(DeleteOVNDBClusters, dbs)
+			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+
+			Eventually(func() corev1.Secret {
+				return th.GetSecret(secret)
+			}, timeout, interval).ShouldNot(BeNil())
+
+			// Check OwnerReferences set correctly for the Config Map
+			Expect(th.GetSecret(secret).ObjectMeta.OwnerReferences[0].Name).To(Equal(neutronAPIName.Name))
+			Expect(th.GetSecret(secret).ObjectMeta.OwnerReferences[0].Kind).To(Equal("NeutronAPI"))
+		})
+
+		It("should create a Secret for 02-neutron-custom.conf with customServiceConfig input", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -555,7 +599,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				g.Expect(newHash).NotTo(Equal(initialHash))
 			}, timeout, interval).Should(Succeed())
 		})
-		It("should create a ConfigMap for neutron.conf with memcached servers set", func() {
+		It("should create a Secret for neutron.conf with memcached servers set", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -701,6 +745,8 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
 			DeferCleanup(
 				mariadb.DeleteDBService,
@@ -752,6 +798,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, secret)
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -817,17 +865,17 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(nSvcContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(nSvcContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(nSvcContainer.VolumeMounts).To(HaveLen(2))
-			Expect(nSvcContainer.Image).To(Equal("test-neutron-container-image"))
+			Expect(nSvcContainer.Image).To(Equal(util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", neutronv1.NeutronAPIContainerImage)))
 
 			nHttpdProxyContainer := deployment.Spec.Template.Spec.Containers[1]
 			Expect(nHttpdProxyContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(nHttpdProxyContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(nHttpdProxyContainer.VolumeMounts).To(HaveLen(2))
-			Expect(nHttpdProxyContainer.Image).To(Equal("test-neutron-container-image"))
+			Expect(nHttpdProxyContainer.Image).To(Equal(util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", neutronv1.NeutronAPIContainerImage)))
 		})
 	})
 
-	When("NeutronAPI CR is deleted", func() {
+	When("NeutronAPI is created with networkAttachments", func() {
 		BeforeEach(func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -840,11 +888,10 @@ var _ = Describe("NeutronAPI controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			spec["networkAttachments"] = []string{"internalapi"}
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
 			DeferCleanup(k8sClient.Delete, ctx, secret)
-			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedName)
-			SimulateTransportURLReady(apiTransportURLName)
-
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -855,28 +902,198 @@ var _ = Describe("NeutronAPI controller", func() {
 					},
 				),
 			)
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			SimulateTransportURLReady(apiTransportURLName)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 		})
 
-		It("removes the Config MAP", func() {
-			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
-			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
-			secret := types.NamespacedName{
-				Namespace: neutronAPIName.Namespace,
-				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+		It("reports that the definition is missing", func() {
+			th.ExpectConditionWithDetails(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.RequestedReason,
+				"NetworkAttachment resources missing: internalapi",
+			)
+		})
+		It("reports that network attachment is missing", func() {
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+
+			deplName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "neutron",
 			}
+			depl := th.GetDeployment(deplName)
 
-			Eventually(func() corev1.Secret {
-				return th.GetSecret(secret)
-			}, timeout, interval).ShouldNot(BeNil())
+			expectedAnnotation, err := json.Marshal(
+				[]networkv1.NetworkSelectionElement{
+					{
+						Name:             "internalapi",
+						Namespace:        namespace,
+						InterfaceRequest: "internalapi",
+					}})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(depl.Spec.Template.ObjectMeta.Annotations).To(
+				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
+			)
 
-			DeleteNeutronAPI(neutronAPIName)
+			// We don't add network attachment status annotations to the Pods
+			// to simulate that the network attachments are missing.
+			//th.SimulateDeploymentReadyWithPods(deplName, map[string][]string{})
 
-			// TODO(ihar) uncomment when we actually handle finalizers for created Secrets on neutronapi delete
-			//Eventually(func() corev1.Secret {
-			//	return th.GetSecret(secret)
-			//}, timeout, interval).Should(BeNil())
+			th.ExpectConditionWithDetails(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occurred "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+		})
+		It("reports that an IP is missing", func() {
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			deplName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "neutron",
+			}
+			depl := th.GetDeployment(deplName)
+
+			expectedAnnotation, err := json.Marshal(
+				[]networkv1.NetworkSelectionElement{
+					{
+						Name:             "internalapi",
+						Namespace:        namespace,
+						InterfaceRequest: "internalapi",
+					}})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(depl.Spec.Template.ObjectMeta.Annotations).To(
+				HaveKeyWithValue("k8s.v1.cni.cncf.io/networks", string(expectedAnnotation)),
+			)
+
+			// We simulate that there is no IP associated with the internalapi
+			// network attachment
+			th.SimulateDeploymentReadyWithPods(
+				deplName,
+				map[string][]string{namespace + "/internalapi": {}},
+			)
+
+			th.ExpectConditionWithDetails(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionFalse,
+				condition.ErrorReason,
+				"NetworkAttachments error occurred "+
+					"not all pods have interfaces with ips as configured in NetworkAttachments: [internalapi]",
+			)
+		})
+		It("reports NetworkAttachmentsReady if the Pods got the proper annotations", func() {
+
+			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
+			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
+			DeferCleanup(th.DeleteInstance, nad)
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+
+			deplName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "neutron",
+			}
+			th.SimulateDeploymentReadyWithPods(
+				deplName,
+				map[string][]string{namespace + "/internalapi": {"10.0.0.1"}},
+			)
+
+			th.ExpectCondition(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.NetworkAttachmentsReadyCondition,
+				corev1.ConditionTrue,
+			)
+
+			Eventually(func(g Gomega) {
+				NeutronAPI := GetNeutronAPI(neutronAPIName)
+				g.Expect(NeutronAPI.Status.NetworkAttachments).To(
+					Equal(map[string][]string{namespace + "/internalapi": {"10.0.0.1"}}))
+
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("A NeutronAPI instance is created with debug on", func() {
+		BeforeEach(func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      SecretName,
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+			spec["debug"] = map[string]interface{}{
+				"service": true,
+			}
+			neutronAPIName = CreateNeutronAPI(namespace, name, spec)
+			DeferCleanup(DeleteNeutronAPI, neutronAPIName)
+			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+
+		})
+
+		It("Container commands to include debug commands", func() {
+			deplName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "neutron",
+			}
+			depl := th.GetDeployment(deplName)
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
+			Expect(depl.Spec.Template.Spec.Containers[0].LivenessProbe.Exec.Command).To(
+				Equal([]string{"/bin/true"}))
+			Expect(depl.Spec.Template.Spec.Containers[0].ReadinessProbe.Exec.Command).To(
+				Equal([]string{"/bin/true"}))
+			Expect(depl.Spec.Template.Spec.Containers[0].Command[0]).Should(ContainSubstring("/bin/bash"))
+			Expect(depl.Spec.Template.Spec.Containers[0].Args[1]).Should(ContainSubstring("infinity"))
 		})
 	})
 })
