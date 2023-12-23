@@ -220,10 +220,10 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/onsi/ginkgo/v2 v2.13.2 h1:Bi2gGVkfn6gQcjNjZJVO8Gf0FHzMPf2phUei9tejVMs=
 github.com/onsi/gomega v1.30.0 h1:hvMK7xYz4D3HapigLTeGdId/NcfQx1VHMJc60ew99+8=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231215134849-9acca0025036 h1:4ZBqMuNb63NVpB5YUyNiuMvQKe04ty3ItAEg/ItEPpA=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231215134849-9acca0025036/go.mod h1:gcsno+cczP8lUANyOQ/jHKHv3QgzmZvLv8cMSS0rMws=
-github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231215134849-9acca0025036 h1:I1pL5cjmB6twM+5eXz8HO0/NkNE1lqgHXvP7O97vnzA=
-github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231215134849-9acca0025036/go.mod h1:cZDEOHUMdjWrYlxxF7a4iE30GYEVSGwJYc76FJk/znY=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231219100655-bf6e709d8019 h1:YrwrkjSHw88dgBD6u0K4eV25wG8blYku3UrafAusdz4=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20231219100655-bf6e709d8019/go.mod h1:YgWd1xXF9VgsfPIwkCv3Q0j2akpnojs9zgso87tvCXY=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231219100655-bf6e709d8019 h1:ZQBEtgwXoHgS3lT++VAOLYKhVBh19d8Dvr/5dOXrPXE=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20231219100655-bf6e709d8019/go.mod h1:cZDEOHUMdjWrYlxxF7a4iE30GYEVSGwJYc76FJk/znY=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
