@@ -1,0 +1,7 @@
+---
+- project:
+    name: openstack-k8s-operators/neutron-operator
+    github-check:
+      jobs:
+        - openstack-k8s-operators-content-provider
+        - neutron-operator-tempest-multinode
