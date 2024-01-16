@@ -1,0 +1,29 @@
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+  namespace: openstack
+spec:
+  serviceUser: neutron
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  databaseUser: neutron
+  rabbitMqClusterName: rabbitmq
+  memcachedInstance: memcached
+  debug:
+    dbSync: false
+    service: false
+  preserveJobs: false
+  secret: neutron-secret
+  tls:
+    api:
+      # secret holding tls.crt and tls.key for the APIs internal k8s service
+      internal:
+        secretName: cert-neutron-internal-svc
+      # secret holding tls.crt and tls.key for the APIs public k8s service
+      public:
+        secretName: cert-neutron-public-svc
+    # secret holding the tls-ca-bundle.pem to be used as a deploymend env CA bundle
+    caBundleSecretName: combined-ca-bundle
