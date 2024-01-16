@@ -16,7 +16,7 @@
       - ^OWNERS$
       - ^OWNERS_ALIASES$
       - ^PROJECT$
-      - go.(mod|sum|work).*
+      - .*go.(mod|sum|work).*
       - ^kuttl-test.yaml$
       - ^renovate.json$
       - ^config/samples/.*$
