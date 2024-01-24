@@ -1208,6 +1208,34 @@ var _ = Describe("NeutronAPI controller", func() {
 			Expect(endpoints).To(HaveKeyWithValue("public", "https://neutron-public."+neutronAPIName.Namespace+".svc:9696"))
 			Expect(endpoints).To(HaveKeyWithValue("internal", "https://neutron-internal."+neutronAPIName.Namespace+".svc:9696"))
 		})
+
+		It("reconfigures the neutron pod when CA changes", func() {
+			// Grab the current config hash
+			originalHash := GetEnvVarValue(
+				th.GetDeployment(
+					types.NamespacedName{
+						Namespace: neutronAPIName.Namespace,
+						Name:      "neutron",
+					},
+				).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+			Expect(originalHash).NotTo(BeEmpty())
+
+			// Change the content of the CA secret
+			th.UpdateSecret(caBundleSecretName, "tls-ca-bundle.pem", []byte("DifferentCAData"))
+
+			// Assert that the deployment is updated
+			Eventually(func(g Gomega) {
+				newHash := GetEnvVarValue(
+					th.GetDeployment(
+						types.NamespacedName{
+							Namespace: neutronAPIName.Namespace,
+							Name:      "neutron",
+						},
+					).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+				g.Expect(newHash).NotTo(BeEmpty())
+				g.Expect(newHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 	When("A NeutronAPI is created with TLS and service override endpointURL set", func() {
