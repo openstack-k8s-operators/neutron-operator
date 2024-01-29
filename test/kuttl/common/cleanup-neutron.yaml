@@ -3,4 +3,4 @@ kind: TestStep
 commands:
   - script: |
       oc kustomize deploy | oc delete -n $NAMESPACE -f -
-      rm deploy/neutron_v1beta1_neutronapi.yaml
+      rm deploy/neutron_v1beta1_neutronapi*.yaml

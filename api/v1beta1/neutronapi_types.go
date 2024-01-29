@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 
@@ -63,7 +64,6 @@ type NeutronAPISpec struct {
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Neutron
 	RabbitMqClusterName string `json:"rabbitMqClusterName"`
-
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=memcached
@@ -132,6 +132,11 @@ type NeutronAPISpec struct {
 	// +kubebuilder:validation:Optional
 	// Override, provides the ability to override the generated manifest of several child resources.
 	Override APIOverrideSpec `json:"override,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// TLS - Parameters related to the TLS
+	TLS tls.API `json:"tls,omitempty"`
 }
 
 // APIOverrideSpec to override the generated manifest of several child resources.

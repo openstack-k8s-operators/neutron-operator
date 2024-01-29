@@ -1,0 +1,122 @@
+#
+# Check for:
+#
+# - 1 NeutronAPI CR
+# - Deployment with tls volumes
+
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+spec:
+  tls:
+    api:
+      internal:
+        secretName: cert-neutron-internal-svc
+      public:
+        secretName: cert-neutron-public-svc
+    caBundleSecretName: combined-ca-bundle
+status:
+  databaseHostname: openstack
+  readyCount: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutron
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        service: neutron
+    spec:
+      containers:
+      - args:
+        - -c
+        - /usr/local/bin/kolla_start
+        volumeMounts:
+        - mountPath: /var/lib/config-data
+          name: config
+          readOnly: true
+        - mountPath: /var/lib/kolla/config_files/config.json
+          name: config
+          readOnly: true
+          subPath: neutron-api-config.json
+        - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+          name: combined-ca-bundle
+          readOnly: true
+          subPath: tls-ca-bundle.pem
+      - args:
+        - -DFOREGROUND
+        command:
+        - /usr/sbin/httpd
+        volumeMounts:
+        - mountPath: /etc/httpd/conf/httpd.conf
+          name: httpd-config
+          readOnly: true
+          subPath: httpd.conf
+        - mountPath: /etc/httpd/conf.d/10-neutron.conf
+          name: httpd-config
+          readOnly: true
+          subPath: 10-neutron-httpd.conf
+        - mountPath: /etc/httpd/conf.d/ssl.conf
+          name: httpd-config
+          readOnly: true
+          subPath: ssl.conf
+        - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+          name: combined-ca-bundle
+          readOnly: true
+          subPath: tls-ca-bundle.pem
+        - mountPath: /etc/pki/tls/certs/internal.crt
+          name: internal-tls-certs
+          readOnly: true
+          subPath: tls.crt
+        - mountPath: /etc/pki/tls/private/internal.key
+          name: internal-tls-certs
+          readOnly: true
+          subPath: tls.key
+        - mountPath: /etc/pki/tls/certs/public.crt
+          name: public-tls-certs
+          readOnly: true
+          subPath: tls.crt
+        - mountPath: /etc/pki/tls/private/public.key
+          name: public-tls-certs
+          readOnly: true
+          subPath: tls.key
+      volumes:
+      - name: config
+        secret:
+          defaultMode: 420
+          secretName: neutron-config
+      - name: httpd-config
+        secret:
+          defaultMode: 420
+          secretName: neutron-httpd-config
+      - name: combined-ca-bundle
+        secret:
+          defaultMode: 292
+          secretName: combined-ca-bundle
+      - name: internal-tls-certs
+        secret:
+          defaultMode: 256
+          secretName: cert-neutron-internal-svc
+      - name: public-tls-certs
+        secret:
+          defaultMode: 256
+          secretName: cert-neutron-public-svc
+---
+# the actual addresses of the api endpoints are platform specific, so we can't rely on
+# kuttl asserts to check them. This short script gathers the addresses and checks that
+# the two endpoints are defined and their addresses follow the default pattern
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      template='{{.spec.endpoints.internal}}{{":"}}{{.spec.endpoints.public}}{{"\n"}}'
+      regex="https:\/\/neutron-internal.$NAMESPACE.*:https:\/\/neutron-public.$NAMESPACE.*"
+      apiEndpoints=$(oc get -n $NAMESPACE KeystoneEndpoint neutron -o go-template="$template")
+      matches=$(echo "$apiEndpoints" | sed -e "s?$regex??")
+      if [[ -n "$matches" ]]; then
+        exit 1
+      fi
