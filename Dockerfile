@@ -1,5 +1,5 @@
 # Build the manager binary
-ARG GOLANG_BUILDER=golang:1.19
+ARG GOLANG_BUILDER=quay.io/projectquay/golang:1.19
 ARG OPERATOR_BASE_IMAGE=gcr.io/distroless/static:nonroot
 
 FROM $GOLANG_BUILDER AS builder
@@ -13,6 +13,9 @@ ARG REMOTE_SOURCE_SUBDIR=
 ARG DEST_ROOT=/dest-root
 
 ARG GO_BUILD_EXTRA_ARGS=
+# note we set CGO_ENABLED=0 to force a static build so that we can use
+# distroless/static as our base image
+ARG GO_BUILD_EXTRA_ENV_ARGS="CGO_ENABLED=0 GO111MODULE=on"
 
 COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
 WORKDIR $REMOTE_SOURCE_DIR/$REMOTE_SOURCE_SUBDIR
@@ -24,7 +27,7 @@ RUN mkdir -p ${DEST_ROOT}/usr/local/bin/
 RUN if [ ! -f $CACHITO_ENV_FILE ]; then go mod download ; fi
 
 # Build manager
-RUN if [ -f $CACHITO_ENV_FILE ] ; then source $CACHITO_ENV_FILE ; fi ; CGO_ENABLED=0  GO111MODULE=on go build ${GO_BUILD_EXTRA_ARGS} -a -o ${DEST_ROOT}/manager main.go
+RUN if [ -f $CACHITO_ENV_FILE ] ; then source $CACHITO_ENV_FILE ; fi ; env ${GO_BUILD_EXTRA_ENV_ARGS} go build ${GO_BUILD_EXTRA_ARGS} -a -o ${DEST_ROOT}/manager main.go
 
 RUN cp -r templates ${DEST_ROOT}/templates
 
