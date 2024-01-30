@@ -42,9 +42,6 @@
         # To check metadata with and without config drive
         - tempest.scenario.test_server_basic_ops.TestServerBasicOps.test_server_basic_ops
       cifmw_tempest_tests_skipped:
-        # https://issues.redhat.com/browse/OSPRH-3099
-        - test_list_pagination_page_reverse_with_href_links
-        - test_list_pagination_with_href_links
         # https://review.opendev.org/892839
         - neutron_tempest_plugin.scenario.test_mtu.NetworkWritableMtuTest
         # missing https://review.opendev.org/882818 in antelope
