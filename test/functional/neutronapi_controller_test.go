@@ -1057,62 +1057,6 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 	})
 
-	When("A NeutronAPI instance is created with debug on", func() {
-		BeforeEach(func() {
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			spec["debug"] = map[string]interface{}{
-				"service": true,
-			}
-			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-			DeferCleanup(k8sClient.Delete, ctx, secret)
-			DeferCleanup(
-				mariadb.DeleteDBService,
-				mariadb.CreateDBService(
-					namespace,
-					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
-					corev1.ServiceSpec{
-						Ports: []corev1.ServicePort{{Port: 3306}},
-					},
-				),
-			)
-			SimulateTransportURLReady(apiTransportURLName)
-			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
-			infra.SimulateMemcachedReady(memcachedName)
-			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
-			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
-			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
-			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
-			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
-
-		})
-
-		It("Container commands to include debug commands", func() {
-			deplName := types.NamespacedName{
-				Namespace: namespace,
-				Name:      "neutron",
-			}
-			depl := th.GetDeployment(deplName)
-			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(2))
-			Expect(depl.Spec.Template.Spec.Containers[0].LivenessProbe.Exec.Command).To(
-				Equal([]string{"/bin/true"}))
-			Expect(depl.Spec.Template.Spec.Containers[0].ReadinessProbe.Exec.Command).To(
-				Equal([]string{"/bin/true"}))
-			Expect(depl.Spec.Template.Spec.Containers[0].Command[0]).Should(ContainSubstring("/bin/bash"))
-			Expect(depl.Spec.Template.Spec.Containers[0].Args[1]).Should(ContainSubstring("infinity"))
-		})
-	})
-
 	When("A NeutronAPI is created with TLS", func() {
 		BeforeEach(func() {
 			spec["tls"] = map[string]interface{}{

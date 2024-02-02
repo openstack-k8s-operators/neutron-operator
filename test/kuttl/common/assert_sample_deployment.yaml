@@ -18,10 +18,6 @@ spec:
     debug = true
   databaseInstance: openstack
   databaseUser: neutron
-  debug:
-    bootstrap: false
-    dbSync: false
-    service: false
   passwordSelectors:
     database: NeutronDatabasePassword
     service: NeutronPassword

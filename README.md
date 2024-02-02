@@ -205,9 +205,6 @@ spec:
   databaseUser: neutron
   rabbitMqClusterName: rabbitmq
   memcachedInstance: memcached
-  debug:
-    dbSync: false
-    service: false
   preserveJobs: false
   containerImage: quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified
   replicas: 1
