@@ -95,11 +95,6 @@ type NeutronAPISpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// Debug - enable debug for different deploy stages. If an init container is used, it runs and the
-	// actual action pod gets started with sleep infinity
-	Debug NeutronAPIDebug `json:"debug,omitempty"`
-
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	// PreserveJobs - do not delete jobs after they finished e.g. to check logs
 	PreserveJobs bool `json:"preserveJobs"`
@@ -157,22 +152,6 @@ type PasswordSelector struct {
 	// +kubebuilder:default="NeutronPassword"
 	// Database - Selector to get the neutron service password from the Secret
 	Service string `json:"service"`
-}
-
-// NeutronAPIDebug defines the observed state of NeutronAPIDebug
-type NeutronAPIDebug struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// DBSync enable debug
-	DBSync bool `json:"dbSync"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Bootstrap enable debug
-	Bootstrap bool `json:"bootstrap"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	// Service enable debug
-	Service bool `json:"service"`
 }
 
 // NeutronAPIStatus defines the observed state of NeutronAPI
