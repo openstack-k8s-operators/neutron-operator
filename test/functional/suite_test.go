@@ -37,6 +37,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -172,14 +175,17 @@ var _ = BeforeSuite(func() {
 	// Start the controller-manager if goroutine
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:  scheme.Scheme,
-		Host:    webhookInstallOptions.LocalServingHost,
-		Port:    webhookInstallOptions.LocalServingPort,
-		CertDir: webhookInstallOptions.LocalServingCertDir,
-		// NOTE(gibi): disable metrics reporting in test to allow
-		// parallel test execution. Otherwise each instance would like to
-		// bind to the same port
-		MetricsBindAddress: "0",
+		Scheme: scheme.Scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
+		WebhookServer: webhook.NewServer(
+			webhook.Options{
+				Host:    webhookInstallOptions.LocalServingHost,
+				Port:    webhookInstallOptions.LocalServingPort,
+				CertDir: webhookInstallOptions.LocalServingCertDir,
+			}),
+		LeaderElection: false,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -216,7 +222,6 @@ var _ = BeforeSuite(func() {
 		conn.Close()
 		return nil
 	}).Should(Succeed())
-
 })
 
 var _ = AfterSuite(func() {
