@@ -1,5 +1,5 @@
 # Build the manager binary
-ARG GOLANG_BUILDER=registry.access.redhat.com/ubi9/go-toolset:1.19
+ARG GOLANG_BUILDER=registry.access.redhat.com/ubi9/go-toolset:1.20
 ARG OPERATOR_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 FROM $GOLANG_BUILDER AS builder
@@ -53,16 +53,16 @@ ARG IMAGE_TAGS="cn-openstack openstack"
 
 # Labels required by upstream and osbs build system
 LABEL com.redhat.component="${IMAGE_COMPONENT}" \
-      name="${IMAGE_NAME}" \
-      version="${IMAGE_VERSION}" \
-      summary="${IMAGE_SUMMARY}" \
-      io.k8s.name="${IMAGE_NAME}" \
-      io.k8s.description="${IMAGE_DESC}" \
-      io.openshift.tags="${IMAGE_TAGS}"
+	name="${IMAGE_NAME}" \
+	version="${IMAGE_VERSION}" \
+	summary="${IMAGE_SUMMARY}" \
+	io.k8s.name="${IMAGE_NAME}" \
+	io.k8s.description="${IMAGE_DESC}" \
+	io.openshift.tags="${IMAGE_TAGS}"
 ### DO NOT EDIT LINES ABOVE
 
 ENV USER_UID=$USER_ID \
-    OPERATOR_TEMPLATES=/usr/share/neutron-operator/templates/
+	OPERATOR_TEMPLATES=/usr/share/neutron-operator/templates/
 
 WORKDIR /
 
