@@ -88,6 +88,8 @@ type NeutronAPIReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;patch;update;delete;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;patch;update;delete;
 // +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbdatabases,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mariadb.openstack.org,resources=mariadbaccounts/finalizers,verbs=update
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneapis,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneservices,verbs=get;list;watch;create;update;patch;delete;
 // +kubebuilder:rbac:groups=keystone.openstack.org,resources=keystoneendpoints,verbs=get;list;watch;create;update;patch;delete;
@@ -213,18 +215,15 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 )
 
-var (
-	allWatchFields = []string{
-		passwordSecretField,
-		caBundleSecretNameField,
-		tlsAPIInternalField,
-		tlsAPIPublicField,
-	}
-)
+var allWatchFields = []string{
+	passwordSecretField,
+	caBundleSecretNameField,
+	tlsAPIInternalField,
+	tlsAPIPublicField,
+}
 
 // SetupWithManager -
 func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-
 	// index passwordSecretField
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &neutronv1beta1.NeutronAPI{}, passwordSecretField, func(rawObj client.Object) []string {
 		// Extract the secret name from the spec, if one is provided
@@ -277,6 +276,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&neutronv1beta1.NeutronAPI{}).
 		Owns(&mariadbv1.MariaDBDatabase{}).
+		Owns(&mariadbv1.MariaDBAccount{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
@@ -400,13 +400,15 @@ func (r *NeutronAPIReconciler) reconcileInit(
 
 	// create neutron DB instance
 	//
-	db := mariadbv1.NewDatabase(
-		instance.Name,
+	db := mariadbv1.NewDatabaseWithNamespace(
+		neutronapi.Database,
 		instance.Spec.DatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.DatabaseInstance,
 		},
+		neutronapi.Database,
+		instance.Namespace,
 	)
 	// create or patch the DB
 	ctrlResult, err := db.CreateOrPatchDBByName(
@@ -414,7 +416,6 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		helper,
 		instance.Spec.DatabaseInstance,
 	)
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,
@@ -574,7 +575,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	//
 	// expose the service (create service and return the created endpoint URLs)
 	//
-	var neutronEndpoints = map[service.Endpoint]endpoint.Data{
+	neutronEndpoints := map[service.Endpoint]endpoint.Data{
 		service.EndpointPublic: {
 			Port: neutronapi.NeutronPublicPort,
 		},
@@ -799,7 +800,6 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 
 	transportURL, op, err := r.transportURLCreateOrUpdate(instance)
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.RabbitMqTransportURLReadyCondition,
