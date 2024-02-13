@@ -400,13 +400,15 @@ func (r *NeutronAPIReconciler) reconcileInit(
 
 	// create neutron DB instance
 	//
-	db := mariadbv1.NewDatabase(
-		instance.Name,
+	db := mariadbv1.NewDatabaseWithNamespace(
+		neutronapi.Database,
 		instance.Spec.DatabaseUser,
 		instance.Spec.Secret,
 		map[string]string{
 			"dbName": instance.Spec.DatabaseInstance,
 		},
+		neutronapi.Database,
+		instance.Namespace,
 	)
 	// create or patch the DB
 	ctrlResult, err := db.CreateOrPatchDBByName(

@@ -392,8 +392,8 @@ var _ = Describe("NeutronAPI controller", func() {
 				),
 			)
 			SimulateTransportURLReady(apiTransportURLName)
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 		})
 
 		It("should create a Secret for 01-neutron.conf with the auth_url config option set based on the KeystoneAPI", func() {
@@ -783,11 +783,12 @@ var _ = Describe("NeutronAPI controller", func() {
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 		})
 		It("Should set DBReady Condition and set DatabaseHostname Status when DB is Created", func() {
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			NeutronAPI := GetNeutronAPI(neutronAPIName)
-			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal("hostname-for-" + NeutronAPI.Spec.DatabaseInstance))
+			hostname := "hostname-for-" + NeutronAPI.Spec.DatabaseInstance + "." + namespace + ".svc"
+			Expect(NeutronAPI.Status.DatabaseHostname).To(Equal(hostname))
 			th.ExpectCondition(
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
@@ -834,8 +835,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
@@ -944,8 +945,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
@@ -987,8 +988,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
@@ -1032,8 +1033,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			internalAPINADName := types.NamespacedName{Namespace: namespace, Name: "internalapi"}
 			nad := th.CreateNetworkAttachmentDefinition(internalAPINADName)
 			DeferCleanup(th.DeleteInstance, nad)
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
@@ -1109,8 +1110,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
@@ -1245,8 +1246,8 @@ var _ = Describe("NeutronAPI controller", func() {
 			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
-			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name})
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
