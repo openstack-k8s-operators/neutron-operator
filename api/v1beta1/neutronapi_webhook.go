@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // NeutronAPIDefaults -
@@ -76,25 +77,25 @@ func (spec *NeutronAPISpec) Default() {
 var _ webhook.Validator = &NeutronAPI{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *NeutronAPI) ValidateCreate() error {
+func (r *NeutronAPI) ValidateCreate() (admission.Warnings, error) {
 	neutronapilog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *NeutronAPI) ValidateUpdate(old runtime.Object) error {
+func (r *NeutronAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	neutronapilog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *NeutronAPI) ValidateDelete() error {
+func (r *NeutronAPI) ValidateDelete() (admission.Warnings, error) {
 	neutronapilog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
-	return nil
+	return nil, nil
 }
