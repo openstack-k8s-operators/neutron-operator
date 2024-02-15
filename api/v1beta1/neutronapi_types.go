@@ -63,9 +63,8 @@ type NeutronAPISpecCore struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=neutron
-	// DatabaseUser - optional username used for neutron DB, defaults to neutron
-	// TODO: -> implement needs work in mariadb-operator, right now only neutron
-	DatabaseUser string `json:"databaseUser"`
+	// DatabaseAccount - optional MariaDBAccount CR name used for neutron DB, defaults to neutron
+	DatabaseAccount string `json:"databaseAccount"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=rabbitmq
@@ -86,12 +85,12 @@ type NeutronAPISpecCore struct {
 	Replicas *int32 `json:"replicas"`
 
 	// +kubebuilder:validation:Required
-	// Secret containing OpenStack password information for NeutronDatabasePassword, NeutronPassword
+	// Secret containing OpenStack password information for NeutronPassword
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default={database: NeutronDatabasePassword, service: NeutronPassword}
-	// PasswordSelectors - Selectors to identify the DB and ServiceUser password from the Secret
+	// +kubebuilder:default={service: NeutronPassword}
+	// PasswordSelectors - Selectors to identify the ServiceUser password from the Secret
 	PasswordSelectors PasswordSelector `json:"passwordSelectors"`
 
 	// +kubebuilder:validation:Optional
@@ -162,11 +161,6 @@ type APIOverrideSpec struct {
 
 // PasswordSelector to identify the DB and AdminUser password from the Secret
 type PasswordSelector struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="NeutronDatabasePassword"
-	// Database - Selector to get the neutron database user password from the Secret
-	// TODO: not used, need change in mariadb-operator
-	Database string `json:"database"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="NeutronPassword"
 	// Database - Selector to get the neutron service password from the Secret

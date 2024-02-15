@@ -18,6 +18,10 @@ spec:
       displayName: Neutron API
       kind: NeutronAPI
       name: neutronapis.neutron.openstack.org
+      specDescriptors:
+      - description: TLS - Parameters related to the TLS
+        displayName: TLS
+        path: tls
       version: v1beta1
   description: Neutron Operator
   displayName: Neutron Operator
