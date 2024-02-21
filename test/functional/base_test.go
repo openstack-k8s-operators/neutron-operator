@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -164,4 +165,15 @@ func GetOVNDBCluster(name types.NamespacedName) *ovnv1.OVNDBCluster {
 		g.Expect(k8sClient.Get(ctx, name, instance)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return instance
+}
+
+func CreateNeutronAPISecret(namespace string, name string) *corev1.Secret {
+	return th.CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
+			"NeutronPassword":         []byte("12345678"),
+			"NeutronDatabasePassword": []byte("12345678"),
+			"transport_url":           []byte("rabbit://user@svc:1234"),
+		},
+	)
 }

@@ -397,64 +397,12 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling Service init")
 
-	// create neutron DB instance
-	//
-	db := mariadbv1.NewDatabaseWithNamespace(
-		neutronapi.Database,
-		instance.Spec.DatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.DatabaseInstance,
-		},
-		neutronapi.Database,
-		instance.Namespace,
-	)
-	// create or patch the DB
-	ctrlResult, err := db.CreateOrPatchDBByName(
-		ctx,
-		helper,
-		instance.Spec.DatabaseInstance,
-	)
+	db, result, err := r.ensureDB(ctx, helper, instance)
 	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBReadyErrorMessage,
-			err.Error()))
 		return ctrl.Result{}, err
+	} else if (result != ctrl.Result{}) {
+		return result, nil
 	}
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
-	}
-	// wait for the DB to be setup
-	ctrlResult, err = db.WaitForDBCreatedWithTimeout(ctx, helper, time.Second*5)
-	if err != nil {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.DBReadyErrorMessage,
-			err.Error()))
-		return ctrlResult, err
-	}
-	if (ctrlResult != ctrl.Result{}) {
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.DBReadyCondition,
-			condition.RequestedReason,
-			condition.SeverityInfo,
-			condition.DBReadyRunningMessage))
-		return ctrlResult, nil
-	}
-	// update Status.DatabaseHostname, used to bootstrap/config the service
-	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
-	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
-	// create neutron DB - end
 
 	// Create Secrets required as input for the Service and calculate an overall hash of hashes
 	//
@@ -462,7 +410,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	//
 	// create Secret required for neutronapi and dbsync input. It contains minimal neutron config required
 	// to get the service up, user can add additional files to be added to the service.
-	err = r.generateServiceSecrets(ctx, helper, instance, ospSecret, &secretVars)
+	err = r.generateServiceSecrets(ctx, helper, instance, ospSecret, &secretVars, db)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -1404,6 +1352,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	instance *neutronv1beta1.NeutronAPI,
 	ospSecret *corev1.Secret,
 	envVars *map[string]env.Setter,
+	db *mariadbv1.Database,
 ) error {
 	// Create/update secrets from templates
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
@@ -1425,13 +1374,19 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	if err != nil {
 		return err
 	}
-
+	var tlsCfg *tls.Service
+	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
+		tlsCfg = &tls.Service{}
+	}
 	// customData hold any customization for the service.
 	// 02-neutron-custom.conf is going to /etc/<service>.conf.d
 	// 01-neutron.conf is going to /etc/<service>.conf.d such that it gets loaded before custom one
 	// all other files get placed into /etc/<service> to allow overwrite of e.g. logging.conf or policy.json
 	// TODO: make sure custom.conf can not be overwritten
-	customData := map[string]string{"02-neutron-custom.conf": instance.Spec.CustomServiceConfig}
+	customData := map[string]string{
+		"02-neutron-custom.conf": instance.Spec.CustomServiceConfig,
+		"my.cnf":                 db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
+	}
 	for key, data := range instance.Spec.DefaultConfigOverwrite {
 		customData[key] = data
 	}
@@ -1601,4 +1556,69 @@ func (r *NeutronAPIReconciler) getNeutronMemcached(
 		return nil, err
 	}
 	return memcached, err
+}
+
+// ensureDB - create neutron DB instance
+func (r *NeutronAPIReconciler) ensureDB(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+) (*mariadbv1.Database, ctrl.Result, error) {
+	db := mariadbv1.NewDatabaseWithNamespace(
+		neutronapi.Database,
+		instance.Spec.DatabaseUser,
+		instance.Spec.Secret,
+		map[string]string{
+			"dbName": instance.Spec.DatabaseInstance,
+		},
+		neutronapi.Database,
+		instance.Namespace,
+	)
+	// create or patch the DB
+	ctrlResult, err := db.CreateOrPatchDBByName(
+		ctx,
+		h,
+		instance.Spec.DatabaseInstance,
+	)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
+		return db, ctrl.Result{}, err
+	}
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
+		return db, ctrlResult, nil
+	}
+	// wait for the DB to be setup
+	ctrlResult, err = db.WaitForDBCreatedWithTimeout(ctx, h, time.Second*5)
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.DBReadyErrorMessage,
+			err.Error()))
+		return db, ctrlResult, err
+	}
+	if (ctrlResult != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.DBReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.DBReadyRunningMessage))
+		return db, ctrlResult, nil
+	}
+	// update Status.DatabaseHostname, used to bootstrap/config the service
+	instance.Status.DatabaseHostname = db.GetDatabaseHostname()
+	instance.Status.Conditions.MarkTrue(condition.DBReadyCondition, condition.DBReadyMessage)
+
+	return db, ctrlResult, nil
 }

@@ -310,19 +310,7 @@ var _ = Describe("NeutronAPI controller", func() {
 	When("OVNDBCluster instance is not available", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			SimulateTransportURLReady(apiTransportURLName)
 		})
 		It("should not create a secret", func() {
@@ -337,19 +325,7 @@ var _ = Describe("NeutronAPI controller", func() {
 	When("keystoneAPI instance is not available", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			SimulateTransportURLReady(apiTransportURLName)
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 		})
@@ -366,19 +342,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		BeforeEach(func() {
 			spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
 			infra.SimulateMemcachedReady(memcachedName)
 			DeferCleanup(
@@ -428,7 +392,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			)
 		})
 
-		It("should create a Secret for 01-neutron.conf with api and rpc workers", func() {
+		It("should create a Secret for 01-neutron.conf with api and rpc workers and my.cnf", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			keystoneAPI := keystone.CreateKeystoneAPI(namespace)
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
@@ -442,12 +406,21 @@ var _ = Describe("NeutronAPI controller", func() {
 				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
 
-			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
+			configData := th.GetSecret(secret)
+			Expect(configData).ShouldNot(BeNil())
+			conf := string(configData.Data["01-neutron.conf"])
+			Expect(conf).Should(
 				ContainSubstring("api_workers = 2"))
-			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
+			Expect(conf).Should(
 				ContainSubstring("rpc_workers = 1"))
-			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
+			Expect(conf).Should(
 				ContainSubstring("mysql_wsrep_sync_wait = 1"))
+			Expect(conf).Should(
+				ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://neutron:12345678@hostname-for-test-neutron-db-instance.%s.svc/neutron?read_default_file=/etc/my.cnf", namespace)))
+
+			myCnf := configData.Data["my.cnf"]
+			Expect(myCnf).To(
+				ContainSubstring("[client]\nssl=0"))
 
 		})
 
@@ -753,19 +726,7 @@ var _ = Describe("NeutronAPI controller", func() {
 	When("DB is created", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -807,19 +768,7 @@ var _ = Describe("NeutronAPI controller", func() {
 	When("Keystone Resources are created", func() {
 		BeforeEach(func() {
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -900,19 +849,7 @@ var _ = Describe("NeutronAPI controller", func() {
 		BeforeEach(func() {
 			spec["networkAttachments"] = []string{"internalapi"}
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -1082,19 +1019,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(caBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(internalCertSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(publicCertSecretName))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
@@ -1111,7 +1036,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
-			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+			mariadb.SimulateMariaDBTLSDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
 			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
 			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
@@ -1145,6 +1070,27 @@ var _ = Describe("NeutronAPI controller", func() {
 
 			Expect(nHttpdProxyContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 			Expect(nHttpdProxyContainer.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+
+			secret := types.NamespacedName{
+				Namespace: neutronAPIName.Namespace,
+				Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+			}
+
+			configData := th.GetSecret(secret)
+			Expect(configData).ShouldNot(BeNil())
+			conf := string(configData.Data["01-neutron.conf"])
+			Expect(conf).Should(
+				ContainSubstring("api_workers = 2"))
+			Expect(conf).Should(
+				ContainSubstring("rpc_workers = 1"))
+			Expect(conf).Should(
+				ContainSubstring("mysql_wsrep_sync_wait = 1"))
+			Expect(conf).Should(
+				ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://neutron:12345678@hostname-for-test-neutron-db-instance.%s.svc/neutron?read_default_file=/etc/my.cnf", namespace)))
+
+			conf = string(configData.Data["my.cnf"])
+			Expect(conf).To(
+				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))
 		})
 
 		It("TLS Endpoints are created", func() {
@@ -1218,19 +1164,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(caBundleSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(internalCertSecretName))
 			DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(publicCertSecretName))
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: namespace,
-				},
-				Data: map[string][]byte{
-					"NeutronPassword": []byte("12345678"),
-					"transport_url":   []byte("rabbit://user@svc:1234"),
-				},
-			}
-			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-			DeferCleanup(k8sClient.Delete, ctx, secret)
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 			DeferCleanup(
 				mariadb.DeleteDBService,
 				mariadb.CreateDBService(
