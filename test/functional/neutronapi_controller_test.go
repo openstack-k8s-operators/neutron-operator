@@ -51,6 +51,7 @@ var _ = Describe("NeutronAPI controller", func() {
 	var caBundleSecretName types.NamespacedName
 	var internalCertSecretName types.NamespacedName
 	var publicCertSecretName types.NamespacedName
+	var ovnDbCertSecretName types.NamespacedName
 
 	BeforeEach(func() {
 		name = fmt.Sprintf("neutron-%s", uuid.New().String())
@@ -82,6 +83,10 @@ var _ = Describe("NeutronAPI controller", func() {
 		}
 		publicCertSecretName = types.NamespacedName{
 			Name:      PublicCertSecretName,
+			Namespace: namespace,
+		}
+		ovnDbCertSecretName = types.NamespacedName{
+			Name:      OvnDbCertSecretName,
 			Namespace: namespace,
 		}
 	})
@@ -1013,6 +1018,9 @@ var _ = Describe("NeutronAPI controller", func() {
 					},
 				},
 				"caBundleSecretName": CABundleSecretName,
+				"ovn": map[string]interface{}{
+					"secretName": InternalCertSecretName,
+				},
 			}
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
 
@@ -1055,10 +1063,14 @@ var _ = Describe("NeutronAPI controller", func() {
 			th.AssertVolumeExists(caBundleSecretName.Name, deployment.Spec.Template.Spec.Volumes)
 			th.AssertVolumeExists(internalCertSecretName.Name, deployment.Spec.Template.Spec.Volumes)
 			th.AssertVolumeExists(publicCertSecretName.Name, deployment.Spec.Template.Spec.Volumes)
+			th.AssertVolumeExists(ovnDbCertSecretName.Name, deployment.Spec.Template.Spec.Volumes)
 
 			// svc container ca cert
 			nSvcContainer := deployment.Spec.Template.Spec.Containers[0]
 			th.AssertVolumeMountExists(caBundleSecretName.Name, "tls-ca-bundle.pem", nSvcContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ovnDbCertSecretName.Name, "tls.key", nSvcContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ovnDbCertSecretName.Name, "tls.crt", nSvcContainer.VolumeMounts)
+			th.AssertVolumeMountExists(ovnDbCertSecretName.Name, "ca.crt", nSvcContainer.VolumeMounts)
 
 			// httpd container certs
 			nHttpdProxyContainer := deployment.Spec.Template.Spec.Containers[1]
@@ -1087,7 +1099,14 @@ var _ = Describe("NeutronAPI controller", func() {
 				ContainSubstring("mysql_wsrep_sync_wait = 1"))
 			Expect(conf).Should(
 				ContainSubstring(fmt.Sprintf("connection=mysql+pymysql://neutron:12345678@hostname-for-test-neutron-db-instance.%s.svc/neutron?read_default_file=/etc/my.cnf", namespace)))
-
+			Expect(conf).Should(And(
+				ContainSubstring("ovn_nb_private_key = /etc/pki/tls/private/ovndb.key"),
+				ContainSubstring("ovn_nb_certificate = /etc/pki/tls/certs/ovndb.crt"),
+				ContainSubstring("ovn_nb_ca_cert = /etc/pki/tls/certs/ovndbca.crt"),
+				ContainSubstring("ovn_sb_private_key = /etc/pki/tls/private/ovndb.key"),
+				ContainSubstring("ovn_sb_certificate = /etc/pki/tls/certs/ovndb.crt"),
+				ContainSubstring("ovn_sb_ca_cert = /etc/pki/tls/certs/ovndbca.crt"),
+			))
 			conf = string(configData.Data["my.cnf"])
 			Expect(conf).To(
 				ContainSubstring("[client]\nssl-ca=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\nssl=1"))

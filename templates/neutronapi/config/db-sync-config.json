@@ -2,19 +2,19 @@
   "command": "neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d upgrade heads",
   "config_files": [
     {
-      "source": "/var/lib/config-data/01-neutron.conf",
+      "source": "/var/lib/config-data/default/01-neutron.conf",
       "dest": "/etc/neutron/neutron.conf.d/01-neutron.conf",
       "owner": "root:neutron",
       "perm": "0640"
     },
     {
-      "source": "/var/lib/config-data/02-neutron-custom.conf",
+      "source": "/var/lib/config-data/default/02-neutron-custom.conf",
       "dest": "/etc/neutron/neutron.conf.d/02-neutron-custom.conf",
       "owner": "root:neutron",
       "perm": "0640"
     },
     {
-      "source": "/var/lib/config-data/my.cnf",
+      "source": "/var/lib/config-data/default/my.cnf",
       "dest": "/etc/my.cnf",
       "owner": "neutron",
       "perm": "0644"

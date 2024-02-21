@@ -2250,6 +2250,14 @@ spec:
                     description: CaBundleSecretName - holding the CA certs in a pre-created
                       bundle file
                     type: string
+                  ovn:
+                    description: Ovn GenericService - holds the secret for the OvnDb
+                      client cert
+                    properties:
+                      secretName:
+                        description: SecretName - holding the cert, key for the service
+                        type: string
+                    type: object
                 type: object
             required:
             - containerImage

@@ -112,6 +112,15 @@ func Deployment(
 		}
 	}
 
+	if instance.Spec.TLS.Ovn.Enabled() {
+		svc := tls.Service{
+			SecretName: *instance.Spec.TLS.Ovn.SecretName,
+			CaMount:    ptr.To("/var/lib/config-data/tls/certs/ovndbca.crt"),
+		}
+		volumes = append(volumes, svc.CreateVolume("ovndb"))
+		apiVolumeMounts = append(apiVolumeMounts, svc.CreateVolumeMounts("ovndb")...)
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ServiceName,
