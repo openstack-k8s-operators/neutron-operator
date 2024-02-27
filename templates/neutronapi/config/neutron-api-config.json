@@ -12,6 +12,12 @@
       "dest": "/etc/neutron/neutron.conf.d/02-neutron-custom.conf",
       "owner": "root:neutron",
       "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/my.cnf",
+      "dest": "/etc/my.cnf",
+      "owner": "neutron",
+      "perm": "0644"
     }
   ]
 }
