@@ -66,9 +66,16 @@ func (r *NeutronAPI) Default() {
 
 // Default - set defaults for this NeutronAPI spec
 func (spec *NeutronAPISpec) Default() {
+	// only container image validations go here
 	if spec.ContainerImage == "" {
 		spec.ContainerImage = neutronAPIDefaults.ContainerImageURL
 	}
+	spec.NeutronAPISpecCore.Default()
+}
+
+// Default - set defaults for this NeutronAPI spec core. This version gets used by OpenStackControlplane
+func (spec *NeutronAPISpecCore) Default() {
+	// nothing here yet
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
