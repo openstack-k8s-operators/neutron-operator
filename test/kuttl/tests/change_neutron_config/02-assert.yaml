@@ -1,0 +1,6 @@
+# check that by default, debug is set in neutron config
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+        $NEUTRON_KUTTL_DIR/../common/scripts/check_debug_in_neutron_pod_logs.sh

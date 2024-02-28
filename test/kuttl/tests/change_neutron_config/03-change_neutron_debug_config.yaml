@@ -1,0 +1,8 @@
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+spec:
+  customServiceConfig: |
+    [DEFAULT]
+    debug = false
