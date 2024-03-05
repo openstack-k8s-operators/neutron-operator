@@ -42,6 +42,14 @@ const (
 
 // NeutronAPISpec defines the desired state of NeutronAPI
 type NeutronAPISpec struct {
+	NeutronAPISpecCore `json:",inline"`
+	// +kubebuilder:validation:Required
+	// NeutronAPI Container Image URL (will be set to environmental default if empty)
+	ContainerImage string `json:"containerImage"`
+}
+
+// NeutronAPISpecCore -
+type NeutronAPISpecCore struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=neutron
 	// ServiceUser - optional username used for this service to register in neutron
@@ -69,10 +77,6 @@ type NeutronAPISpec struct {
 	// +kubebuilder:default=memcached
 	// Memcached instance name.
 	MemcachedInstance string `json:"memcachedInstance"`
-
-	// +kubebuilder:validation:Required
-	// NeutronAPI Container Image URL (will be set to environmental default if empty)
-	ContainerImage string `json:"containerImage"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
