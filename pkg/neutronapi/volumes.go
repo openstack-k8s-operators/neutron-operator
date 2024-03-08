@@ -43,7 +43,7 @@ func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraV
 	res := []corev1.VolumeMount{
 		{
 			Name:      "config",
-			MountPath: "/var/lib/config-data",
+			MountPath: "/var/lib/config-data/default",
 			ReadOnly:  true,
 		},
 		{

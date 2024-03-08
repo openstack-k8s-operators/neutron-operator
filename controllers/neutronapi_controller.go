@@ -212,6 +212,7 @@ const (
 	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
 	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
+	tlsOvnField             = ".spec.tls.ovn.secretName"
 )
 
 var allWatchFields = []string{
@@ -219,6 +220,7 @@ var allWatchFields = []string{
 	caBundleSecretNameField,
 	tlsAPIInternalField,
 	tlsAPIPublicField,
+	tlsOvnField,
 }
 
 // SetupWithManager -
@@ -267,6 +269,18 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			return nil
 		}
 		return []string{*cr.Spec.TLS.API.Public.SecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index tlsOvnField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &neutronv1beta1.NeutronAPI{}, tlsOvnField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*neutronv1beta1.NeutronAPI)
+		if cr.Spec.TLS.Ovn.SecretName == nil {
+			return nil
+		}
+		return []string{*cr.Spec.TLS.Ovn.SecretName}
 	}); err != nil {
 		return err
 	}
@@ -1284,6 +1298,7 @@ func (r *NeutronAPIReconciler) ensureExternalMetadataAgentSecret(
 	}
 	templateParameters := make(map[string]interface{})
 	templateParameters["SBConnection"] = sbEndpoint
+	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 
 	secretName := getMetadataAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
@@ -1303,6 +1318,7 @@ func (r *NeutronAPIReconciler) ensureExternalOvnAgentSecret(
 	templateParameters := make(map[string]interface{})
 	templateParameters["NBConnection"] = nbEndpoint
 	templateParameters["SBConnection"] = sbEndpoint
+	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 
 	secretName := getOvnAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
@@ -1436,6 +1452,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	// OVN
 	templateParameters["NBConnection"] = nbEndpoint
 	templateParameters["SBConnection"] = sbEndpoint
+	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}
