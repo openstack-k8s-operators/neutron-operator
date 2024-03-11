@@ -9,8 +9,15 @@ const (
 	ServiceName = "neutron"
 	// ServiceType -
 	ServiceType = "network"
-	// Database -
+	// Database - Name of the database used in CREATE DATABASE statement
 	Database = "neutron"
+
+	// DatabaseCRName - Name of the MariaDBDatabase CR
+	DatabaseCRName = "neutron"
+
+	// DatabaseUsernamePrefix - used by EnsureMariaDBAccount when a new username
+	// is to be generated, e.g. "neutron_e5a4", "neutron_78bc", etc
+	DatabaseUsernamePrefix = "neutron"
 
 	// neutron:neutron
 	NeutronUid int64 = 42435

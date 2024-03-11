@@ -9,7 +9,7 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  databaseUser: neutron
+  databaseAccount: neutron
   rabbitMqClusterName: rabbitmq
   memcachedInstance: memcached
   preserveJobs: false

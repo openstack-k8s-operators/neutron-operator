@@ -172,9 +172,8 @@ func CreateNeutronAPISecret(namespace string, name string) *corev1.Secret {
 	return th.CreateSecret(
 		types.NamespacedName{Namespace: namespace, Name: name},
 		map[string][]byte{
-			"NeutronPassword":         []byte("12345678"),
-			"NeutronDatabasePassword": []byte("12345678"),
-			"transport_url":           []byte("rabbit://user@svc:1234"),
+			"NeutronPassword": []byte("12345678"),
+			"transport_url":   []byte("rabbit://user@svc:1234"),
 		},
 	)
 }

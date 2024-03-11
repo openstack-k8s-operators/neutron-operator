@@ -348,7 +348,7 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	Log.Info("Reconciling Service delete")
 
 	// remove db finalizer first
-	db, err := mariadbv1.GetDatabaseByName(ctx, helper, instance.Name)
+	db, err := mariadbv1.GetDatabaseByNameAndAccount(ctx, helper, neutronapi.DatabaseCRName, instance.Spec.DatabaseAccount, instance.Namespace)
 	if err != nil && !k8s_errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
@@ -958,6 +958,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			err.Error()))
 		return ctrlResult, err
 	}
+
 	depl := deployment.NewDeployment(
 		deplDef,
 		time.Duration(5)*time.Second,
@@ -1008,6 +1009,16 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
 	}
 	// create Deployment - end
+
+	if instance.Status.ReadyCount > 0 {
+		// remove finalizers from unused MariaDBAccount records
+		err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(
+			ctx, helper, neutronapi.DatabaseCRName,
+			instance.Spec.DatabaseAccount, instance.Namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
@@ -1440,13 +1451,15 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
-	databasePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Database])
 	templateParameters["ServicePassword"] = servicePassword
 
 	// Database
+	databaseAccount := db.GetAccount()
+	dbSecret := db.GetSecret()
+
 	templateParameters["DbHost"] = instance.Status.DatabaseHostname
-	templateParameters["DbUser"] = instance.Spec.DatabaseUser
-	templateParameters["DbPassword"] = databasePassword
+	templateParameters["DbUser"] = databaseAccount.Spec.UserName
+	templateParameters["DbPassword"] = string(dbSecret.Data[mariadbv1.DatabasePasswordSelector])
 	templateParameters["Db"] = neutronapi.Database
 
 	// OVN
@@ -1581,22 +1594,45 @@ func (r *NeutronAPIReconciler) ensureDB(
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 ) (*mariadbv1.Database, ctrl.Result, error) {
-	db := mariadbv1.NewDatabaseWithNamespace(
-		neutronapi.Database,
-		instance.Spec.DatabaseUser,
-		instance.Spec.Secret,
-		map[string]string{
-			"dbName": instance.Spec.DatabaseInstance,
-		},
-		neutronapi.Database,
-		instance.Namespace,
+
+	// ensure MariaDBAccount exists.  This account record may be created by
+	// openstack-operator or the cloud operator up front without a specific
+	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
+	// created here with a generated username as well as a secret with
+	// generated password.   The MariaDBAccount is created without being
+	// yet associated with any MariaDBDatabase.
+	_, _, err := mariadbv1.EnsureMariaDBAccount(
+		ctx, h, instance.Spec.DatabaseAccount,
+		instance.Namespace, false, neutronapi.DatabaseUsernamePrefix,
 	)
+
+	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			mariadbv1.MariaDBAccountReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			mariadbv1.MariaDBAccountNotReadyMessage,
+			err.Error()))
+
+		return nil, ctrl.Result{}, err
+	}
+	instance.Status.Conditions.MarkTrue(
+		mariadbv1.MariaDBAccountReadyCondition,
+		mariadbv1.MariaDBAccountReadyMessage)
+
+	// create neutron DB instance
+	//
+	db := mariadbv1.NewDatabaseForAccount(
+		instance.Spec.DatabaseInstance, // mariadb/galera service to target
+		neutronapi.Database,            // name used in CREATE DATABASE in mariadb
+		neutronapi.DatabaseCRName,      // CR name for MariaDBDatabase
+		instance.Spec.DatabaseAccount,  // CR name for MariaDBAccount
+		instance.Namespace,             // namespace
+	)
+
 	// create or patch the DB
-	ctrlResult, err := db.CreateOrPatchDBByName(
-		ctx,
-		h,
-		instance.Spec.DatabaseInstance,
-	)
+	ctrlResult, err := db.CreateOrPatchAll(ctx, h)
+
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,

@@ -17,9 +17,8 @@ spec:
     [DEFAULT]
     debug = true
   databaseInstance: openstack
-  databaseUser: neutron
+  databaseAccount: neutron
   passwordSelectors:
-    database: NeutronDatabasePassword
     service: NeutronPassword
   preserveJobs: false
   rabbitMqClusterName: rabbitmq
