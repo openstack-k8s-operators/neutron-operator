@@ -32,7 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -70,7 +70,9 @@ var _ = Describe("NeutronAPI controller", func() {
 			Name:      name,
 		}
 		memcachedSpec = memcachedv1.MemcachedSpec{
-			Replicas: pointer.Int32(3),
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
 		}
 		memcachedName = types.NamespacedName{
 			Name:      "memcached",
@@ -621,11 +623,13 @@ var _ = Describe("NeutronAPI controller", func() {
 			Eventually(func() corev1.Secret {
 				return th.GetSecret(secret)
 			}, timeout, interval).ShouldNot(BeNil())
-			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
-				ContainSubstring("memcache_servers=memcached-0.memcached:11211,memcached-1.memcached:11211,memcached-2.memcached:11211"))
-			Expect(th.GetSecret(secret).Data["01-neutron.conf"]).Should(
-				ContainSubstring("memcached_servers=inet:[memcached-0.memcached]:11211,inet:[memcached-1.memcached]:11211,inet:[memcached-2.memcached]:11211"))
-
+			neutronCfg := string(th.GetSecret(secret).Data["01-neutron.conf"])
+			Expect(neutronCfg).Should(
+				ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
+					neutronAPIName.Namespace, neutronAPIName.Namespace, neutronAPIName.Namespace)))
+			Expect(neutronCfg).Should(
+				ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
+					neutronAPIName.Namespace, neutronAPIName.Namespace, neutronAPIName.Namespace)))
 		})
 
 		It("should create an external Ovn Agent Secret with expected ovn nb and sb connection set", func() {
