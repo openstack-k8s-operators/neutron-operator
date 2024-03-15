@@ -113,7 +113,9 @@ func CreateOVNDBClusters(namespace string) []types.NamespacedName {
 				Namespace: namespace,
 			},
 			Spec: ovnv1.OVNDBClusterSpec{
-				DBType: db,
+				OVNDBClusterSpecCore: ovnv1.OVNDBClusterSpecCore{
+					DBType: db,
+				},
 			},
 		}
 
