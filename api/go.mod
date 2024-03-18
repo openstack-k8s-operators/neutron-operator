@@ -3,8 +3,8 @@ module github.com/openstack-k8s-operators/neutron-operator/api
 go 1.20
 
 require (
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240313150019-749b817f2f32
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240313150019-749b817f2f32
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240314165949-fec16b14c33b
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240314165949-fec16b14c33b
 	k8s.io/api v0.28.7
 	k8s.io/apimachinery v0.28.7
 	sigs.k8s.io/controller-runtime v0.16.5
