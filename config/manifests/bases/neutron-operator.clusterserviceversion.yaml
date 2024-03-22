@@ -22,6 +22,12 @@ spec:
       - description: TLS - Parameters related to the TLS
         displayName: TLS
         path: tls
+      - description: API tls type which encapsulates for API services
+        displayName: API
+        path: tls.api
+      - description: Ovn GenericService - holds the secret for the OvnDb client cert
+        displayName: Ovn
+        path: tls.ovn
       version: v1beta1
   description: Neutron Operator
   displayName: Neutron Operator
