@@ -32,7 +32,8 @@ import (
 
 // NeutronAPIDefaults -
 type NeutronAPIDefaults struct {
-	ContainerImageURL string
+	ContainerImageURL      string
+	NeutronAPIRouteTimeout string
 }
 
 var neutronAPIDefaults NeutronAPIDefaults
@@ -105,4 +106,11 @@ func (r *NeutronAPI) ValidateDelete() (admission.Warnings, error) {
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+func (spec *NeutronAPISpec) GetDefaultRouteAnnotations() (annotations map[string]string) {
+	annotations = map[string]string{
+		"haproxy.router.openshift.io/timeout": neutronAPIDefaults.NeutronAPIRouteTimeout,
+	}
+	return
 }
