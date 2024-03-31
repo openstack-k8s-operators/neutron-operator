@@ -65,8 +65,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8m
 github.com/onsi/ginkgo/v2 v2.17.1 h1:V++EzdbhI4ZV4ev0UTIj0PzhzOcReJFyJaLjtSF55M8=
 github.com/onsi/ginkgo/v2 v2.17.1/go.mod h1:llBI3WDLL9Z6taip6f33H76YcWtJv+7R3HigUjbIBOs=
 github.com/onsi/gomega v1.31.1 h1:KYppCUK+bUgAZwHOu7EXVBKyQA6ILvOESHkn/tgoqvo=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240314165949-fec16b14c33b h1:5EzrrjcGziV69MsEgoBwPdsggY56M6jUxGBP9pp+hwo=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240314165949-fec16b14c33b/go.mod h1:DL+Ts0k+fzgZmx0XxWArIeAmdKuTkPa1I5DThdybfmE=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240326081751-56015b1ae3f6 h1:4Z7LjnjEF82XiusXJTI/4TqgwnJas3cdvg/qEgkrW8Q=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240326081751-56015b1ae3f6/go.mod h1:DL+Ts0k+fzgZmx0XxWArIeAmdKuTkPa1I5DThdybfmE=
 github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240314165949-fec16b14c33b h1:lygG1KiF5d9HpKpGAl5fa8JVlC9j5VFvC4iKvJkJslA=
 github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240314165949-fec16b14c33b/go.mod h1:O5Cc9+++JnKewv8VWtTQeH5r2gPLy0lhdECfmjy7mF0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

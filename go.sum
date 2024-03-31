@@ -82,8 +82,8 @@ github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20240313161042-8
 github.com/openstack-k8s-operators/infra-operator/apis v0.3.1-0.20240313161042-88282483a04f/go.mod h1:qKuzDDDMlAmJn4JWPoUeBEzpAia7J17++hhzR0oPv88=
 github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240320215953-86c8fe80f1af h1:pMlTPnhzp0ADeGKMASghOikQUF/loPrn+0BII1KM3fk=
 github.com/openstack-k8s-operators/keystone-operator/api v0.3.1-0.20240320215953-86c8fe80f1af/go.mod h1:8C7VPKXAxiwB5Z4Kwn12VL0guW6onIG0Ayxiio5Vyu0=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240314165949-fec16b14c33b h1:5EzrrjcGziV69MsEgoBwPdsggY56M6jUxGBP9pp+hwo=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240314165949-fec16b14c33b/go.mod h1:DL+Ts0k+fzgZmx0XxWArIeAmdKuTkPa1I5DThdybfmE=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240326081751-56015b1ae3f6 h1:4Z7LjnjEF82XiusXJTI/4TqgwnJas3cdvg/qEgkrW8Q=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240326081751-56015b1ae3f6/go.mod h1:DL+Ts0k+fzgZmx0XxWArIeAmdKuTkPa1I5DThdybfmE=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240314165949-fec16b14c33b h1:FEbadtLx4+ktxf79ZJoKZmfMNsQyqqgL5T9NXWc3i/k=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.3.1-0.20240314165949-fec16b14c33b/go.mod h1:ghnFgNIzj4amS897wEto+L+jYzDSg2cJ6y32RNfFGhk=
 github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240314165949-fec16b14c33b h1:lygG1KiF5d9HpKpGAl5fa8JVlC9j5VFvC4iKvJkJslA=

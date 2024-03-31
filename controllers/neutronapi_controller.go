@@ -134,17 +134,23 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	// Always patch the instance status when exiting this function so we can persist any changes.
+	// initialize status if Conditions is nil, but do not reset if it already
+	// exists
+	isNewInstance := instance.Status.Conditions == nil
+	if isNewInstance {
+		instance.Status.Conditions = condition.Conditions{}
+	}
+
+	// Save a copy of the condtions so that we can restore the LastTransitionTime
+	// when a condition's state doesn't change.
+	savedConditions := instance.Status.Conditions.DeepCopy()
+
+	// Always patch the instance status when exiting this function so we can
+	// persist any changes.
 	defer func() {
-		// update the Ready condition based on the sub conditions
-		if instance.Status.Conditions.AllSubConditionIsTrue() {
-			instance.Status.Conditions.MarkTrue(
-				condition.ReadyCondition, condition.ReadyMessage)
-		} else {
-			// something is not ready so reset the Ready condition
-			instance.Status.Conditions.MarkUnknown(
-				condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage)
-			// and recalculate it based on the state of the rest of the conditions
+		condition.RestoreLastTransitionTimes(
+			&instance.Status.Conditions, savedConditions)
+		if instance.Status.Conditions.IsUnknown(condition.ReadyCondition) {
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
@@ -155,40 +161,35 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	}()
 
-	// If we're not deleting this and the service object doesn't have our finalizer, add it.
-	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) {
-		return ctrl.Result{}, nil
-	}
-
 	//
 	// initialize status
 	//
-	if instance.Status.Conditions == nil {
-		instance.Status.Conditions = condition.Conditions{}
-		// initialize conditions used later as Status=Unknown
-		cl := condition.CreateList(
-			condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
-			condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
-			condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
-			condition.UnknownCondition(condition.RabbitMqTransportURLReadyCondition, condition.InitReason, condition.RabbitMqTransportURLReadyInitMessage),
-			condition.UnknownCondition(condition.MemcachedReadyCondition, condition.InitReason, condition.MemcachedReadyInitMessage),
-			condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
-			condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
-			condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
-			// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
-			condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
-			condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""),
-			condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
-			condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
-			condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
-			condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
-		)
+	cl := condition.CreateList(
+		condition.UnknownCondition(condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage),
+		condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
+		condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
+		condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+		condition.UnknownCondition(condition.RabbitMqTransportURLReadyCondition, condition.InitReason, condition.RabbitMqTransportURLReadyInitMessage),
+		condition.UnknownCondition(condition.MemcachedReadyCondition, condition.InitReason, condition.MemcachedReadyInitMessage),
+		condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
+		condition.UnknownCondition(condition.ServiceConfigReadyCondition, condition.InitReason, condition.ServiceConfigReadyInitMessage),
+		condition.UnknownCondition(condition.DeploymentReadyCondition, condition.InitReason, condition.DeploymentReadyInitMessage),
+		// right now we have no dedicated KeystoneServiceReadyInitMessage and KeystoneEndpointReadyInitMessage
+		condition.UnknownCondition(condition.KeystoneServiceReadyCondition, condition.InitReason, ""),
+		condition.UnknownCondition(condition.KeystoneEndpointReadyCondition, condition.InitReason, ""),
+		condition.UnknownCondition(condition.NetworkAttachmentsReadyCondition, condition.InitReason, condition.NetworkAttachmentsReadyInitMessage),
+		condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
+		condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
+		condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
+	)
 
-		instance.Status.Conditions.Init(&cl)
+	instance.Status.Conditions.Init(&cl)
 
-		// Register overall status immediately to have an early feedback e.g. in the cli
+	// If we're not deleting this and the service object doesn't have our finalizer, add it.
+	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) || isNewInstance {
 		return ctrl.Result{}, nil
 	}
+
 	if instance.Status.Hash == nil {
 		instance.Status.Hash = map[string]string{}
 	}
@@ -448,8 +449,21 @@ func (r *NeutronAPIReconciler) reconcileInit(
 			},
 		)
 		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
+			// Marking the condition as Unknown because we are not returining
+			// an err, but comparing the ctrlResult: this represents an in
+			// progress operation rather than something that failed
+			instance.Status.Conditions.MarkUnknown(
+				condition.TLSInputReadyCondition,
+				condition.RequestedReason,
+				condition.InputReadyWaitingMessage)
 			return ctrlResult, nil
 		}
 
@@ -461,8 +475,21 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	// Validate API service certs secrets
 	certsHash, ctrlResult, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
 	if err != nil {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.TLSInputReadyCondition,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			condition.TLSInputErrorMessage,
+			err.Error()))
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
+		// Marking the condition as Unknown because we are not returining
+		// an err, but comparing the ctrlResult: this represents an in
+		// progress operation rather than something that failed
+		instance.Status.Conditions.MarkUnknown(
+			condition.TLSInputReadyCondition,
+			condition.RequestedReason,
+			condition.InputReadyWaitingMessage)
 		return ctrlResult, nil
 	}
 	secretVars[tls.TLSHashName] = env.SetValue(certsHash)
@@ -1018,7 +1045,14 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			return ctrl.Result{}, err
 		}
 	}
-
+	// Update the lastObserved generation before evaluating conditions
+	instance.Status.ObservedGeneration = instance.Generation
+	// We reached the end of the Reconcile, update the Ready condition based on
+	// the sub conditions
+	if instance.Status.Conditions.AllSubConditionIsTrue() {
+		instance.Status.Conditions.MarkTrue(
+			condition.ReadyCondition, condition.ReadyMessage)
+	}
 	Log.Info("Reconciled Service successfully")
 	return ctrl.Result{}, nil
 }

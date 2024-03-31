@@ -176,7 +176,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				neutronAPIName,
 				ConditionGetterFunc(NeutronAPIConditionGetter),
 				condition.RabbitMqTransportURLReadyCondition,
-				corev1.ConditionFalse,
+				corev1.ConditionUnknown,
 			)
 
 		})
