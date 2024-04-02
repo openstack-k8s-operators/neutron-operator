@@ -109,6 +109,10 @@ func (r *NeutronAPI) ValidateDelete() (admission.Warnings, error) {
 }
 
 func (spec *NeutronAPISpec) GetDefaultRouteAnnotations() (annotations map[string]string) {
+	return spec.NeutronAPISpecCore.GetDefaultRouteAnnotations()
+}
+
+func (spec *NeutronAPISpecCore) GetDefaultRouteAnnotations() (annotations map[string]string) {
 	annotations = map[string]string{
 		"haproxy.router.openshift.io/timeout": neutronAPIDefaults.NeutronAPIRouteTimeout,
 	}
