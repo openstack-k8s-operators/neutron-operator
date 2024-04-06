@@ -63,13 +63,11 @@ github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjY
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/onsi/ginkgo/v2 v2.17.1 h1:V++EzdbhI4ZV4ev0UTIj0PzhzOcReJFyJaLjtSF55M8=
-github.com/onsi/ginkgo/v2 v2.17.1/go.mod h1:llBI3WDLL9Z6taip6f33H76YcWtJv+7R3HigUjbIBOs=
 github.com/onsi/gomega v1.32.0 h1:JRYU78fJ1LPxlckP6Txi/EYqJvjtMrDC04/MM5XRHPk=
-github.com/onsi/gomega v1.32.0/go.mod h1:a4x4gW6Pz2yK1MAmvluYme5lvYTn61afQ2ETw/8n4Lg=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240402131709-f2ff3c9b230b h1:7eIGVFoocAUlVPZrL38G65i9YjcRGnP2He6chVACz58=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240402131709-f2ff3c9b230b/go.mod h1:/j9yoPY7aIyG2SCqBY0nhFk7aOXuFu85jO29Q7T7mEM=
-github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240402131709-f2ff3c9b230b h1:WR9osN0JV4T12xKx46TpfdzYHVzIdcAvbxt64mv5C38=
-github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240402131709-f2ff3c9b230b/go.mod h1:+FdbsHcN5w5jjSf1o9+pYrqZsjyymY/HK3Hulg/LIXc=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240404123425-54f145c97484 h1:P3I3QBjZql8M5XXB/XBUdeM//e3XHtLv4yu7e+QlYQ8=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240404123425-54f145c97484/go.mod h1:gqByVGUdKQB/NkhKV4eD+8NWYkHq961nC96rTCB3ywE=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240404123425-54f145c97484 h1:OvNHhOe3C34x9Oh29XPtjcOyGi790vgso4+okxbLs9s=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240404123425-54f145c97484/go.mod h1:/ieOXgiSRmc2LpZ9kCnvtXagh/QM88prKpisVNLwrjg=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
