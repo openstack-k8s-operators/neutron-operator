@@ -1,0 +1,8 @@
+---
+- name: Checking
+  hosts: all
+  tasks:
+    - name: List dirs
+      ansible.builtin.shell: |
+        ls
+        pwd
