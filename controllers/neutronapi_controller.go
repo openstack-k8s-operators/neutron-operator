@@ -184,6 +184,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	)
 
 	instance.Status.Conditions.Init(&cl)
+	instance.Status.ObservedGeneration = instance.Generation
 
 	// If we're not deleting this and the service object doesn't have our finalizer, add it.
 	if instance.DeletionTimestamp.IsZero() && controllerutil.AddFinalizer(instance, helper.GetFinalizer()) || isNewInstance {
@@ -1045,8 +1046,6 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			return ctrl.Result{}, err
 		}
 	}
-	// Update the lastObserved generation before evaluating conditions
-	instance.Status.ObservedGeneration = instance.Generation
 	// We reached the end of the Reconcile, update the Ready condition based on
 	// the sub conditions
 	if instance.Status.Conditions.AllSubConditionIsTrue() {
