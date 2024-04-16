@@ -1009,34 +1009,38 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrlResult, nil
 	}
 
-	instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	if depl.GetDeployment().Generation <= depl.GetDeployment().Status.ObservedGeneration {
+		instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
 
-	// verify if network attachment matches expectations
-	networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(ctx, helper, instance.Spec.NetworkAttachments, serviceLabels, instance.Status.ReadyCount)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+		// verify if network attachment matches expectations
+		networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(ctx, helper, instance.Spec.NetworkAttachments, serviceLabels, instance.Status.ReadyCount)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 
-	instance.Status.NetworkAttachments = networkAttachmentStatus
-	if networkReady {
-		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
-	} else {
-		err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
-		instance.Status.Conditions.Set(condition.FalseCondition(
-			condition.NetworkAttachmentsReadyCondition,
-			condition.ErrorReason,
-			condition.SeverityWarning,
-			condition.NetworkAttachmentsReadyErrorMessage,
-			err.Error()))
+		instance.Status.NetworkAttachments = networkAttachmentStatus
+		if networkReady {
+			instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
+		} else {
+			err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NetworkAttachmentsReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NetworkAttachmentsReadyErrorMessage,
+				err.Error()))
 
-		return ctrl.Result{}, err
-	}
+			return ctrl.Result{}, err
+		}
 
-	if instance.Status.ReadyCount > 0 {
-		instance.Status.Conditions.MarkTrue(condition.DeploymentReadyCondition, condition.DeploymentReadyMessage)
+		if instance.Status.ReadyCount == *instance.Spec.Replicas {
+			instance.Status.Conditions.MarkTrue(
+				condition.DeploymentReadyCondition,
+				condition.DeploymentReadyMessage,
+			)
+		}
 	}
 	// create Deployment - end
-
 	if instance.Status.ReadyCount > 0 {
 		// remove finalizers from unused MariaDBAccount records
 		err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(

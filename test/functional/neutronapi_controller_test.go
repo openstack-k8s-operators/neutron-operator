@@ -915,6 +915,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				Name:      "neutron",
 			}
 			depl := th.GetDeployment(deplName)
+			th.SimulateDeploymentReadyWithPods(deplName, map[string][]string{})
 
 			expectedAnnotation, err := json.Marshal(
 				[]networkv1.NetworkSelectionElement{
