@@ -1009,7 +1009,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrlResult, nil
 	}
 
-	if depl.GetDeployment().Generation <= depl.GetDeployment().Status.ObservedGeneration {
+	if depl.GetDeployment().Generation == depl.GetDeployment().Status.ObservedGeneration {
 		instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
 
 		// verify if network attachment matches expectations
