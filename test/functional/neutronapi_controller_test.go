@@ -1069,6 +1069,12 @@ var _ = Describe("NeutronAPI controller", func() {
 		})
 
 		It("it creates deployment with CA and service certs mounted", func() {
+			th.ExpectCondition(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.TLSInputReadyCondition,
+				corev1.ConditionTrue,
+			)
 
 			deployment := th.GetDeployment(
 				types.NamespacedName{
