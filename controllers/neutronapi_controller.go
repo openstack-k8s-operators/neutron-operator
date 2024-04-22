@@ -495,6 +495,9 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 	secretVars[tls.TLSHashName] = env.SetValue(certsHash)
 
+	// all cert input checks out so report InputReady
+	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
+
 	//
 	// create hash over all the different input resources to identify if any those changed
 	// and a restart/recreate is required.
