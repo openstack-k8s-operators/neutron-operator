@@ -20,8 +20,8 @@ const (
 	DatabaseUsernamePrefix = "neutron"
 
 	// neutron:neutron
-	NeutronUid int64 = 42435
-	NeutronGid int64 = 42435
+	NeutronUID int64 = 42435
+	NeutronGID int64 = 42435
 
 	// NeutronPublicPort -
 	NeutronPublicPort int32 = 9696

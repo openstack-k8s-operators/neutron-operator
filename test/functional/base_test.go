@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega" //revive:disable:dot-imports
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -151,7 +151,7 @@ func DeleteOVNDBClusters(names []types.NamespacedName) {
 			if k8s_errors.IsNotFound(err) {
 				return
 			}
-			g.Expect(err).Should(BeNil())
+			g.Expect(err).ShouldNot(HaveOccurred())
 
 			g.Expect(k8sClient.Delete(ctx, ovndbcluster)).Should(Succeed())
 
