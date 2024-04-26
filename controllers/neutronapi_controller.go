@@ -302,7 +302,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Watches(&ovnclient.OVNDBCluster{}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNDBClusterNamespaceMapFunc(crs, mgr.GetClient(), r.GetLogger(ctx)))).
-		Watches(&memcachedv1.Memcached{}, handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(ctx, crs))).
+		Watches(&memcachedv1.Memcached{}, handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(ctx))).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
@@ -314,7 +314,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 func (r *NeutronAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(context.Background()).WithName("Controllers").WithName("NeutronAPI")
+	l := log.FromContext(ctx).WithName("Controllers").WithName("NeutronAPI")
 
 	for _, field := range allWatchFields {
 		crList := &neutronv1beta1.NeutronAPIList{}
@@ -322,7 +322,7 @@ func (r *NeutronAPIReconciler) findObjectsForSrc(ctx context.Context, src client
 			FieldSelector: fields.OneTermEqualSelector(field, src.GetName()),
 			Namespace:     src.GetNamespace(),
 		}
-		err := r.List(context.TODO(), crList, listOps)
+		err := r.List(ctx, crList, listOps)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -737,7 +737,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	return ctrl.Result{}, nil
 }
 
-func (r *NeutronAPIReconciler) reconcileUpdate(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *NeutronAPIReconciler) reconcileUpdate(ctx context.Context) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling Service update")
 
@@ -748,7 +748,7 @@ func (r *NeutronAPIReconciler) reconcileUpdate(ctx context.Context, instance *ne
 	return ctrl.Result{}, nil
 }
 
-func (r *NeutronAPIReconciler) reconcileUpgrade(ctx context.Context, instance *neutronv1beta1.NeutronAPI, helper *helper.Helper) (ctrl.Result, error) {
+func (r *NeutronAPIReconciler) reconcileUpgrade(ctx context.Context) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling Service upgrade")
 
@@ -957,7 +957,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	// Handle service update
-	ctrlResult, err = r.reconcileUpdate(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpdate(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -965,7 +965,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	// Handle service upgrade
-	ctrlResult, err = r.reconcileUpgrade(ctx, instance, helper)
+	ctrlResult, err = r.reconcileUpgrade(ctx)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -1574,7 +1574,7 @@ func (r *NeutronAPIReconciler) createHashOfInputHashes(
 	return changed, nil
 }
 
-func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context, clt client.ObjectList) handler.MapFunc {
+func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context) handler.MapFunc {
 	Log := r.GetLogger(ctx)
 
 	return func(ctx context.Context, o client.Object) []reconcile.Request {

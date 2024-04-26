@@ -4,8 +4,8 @@ import corev1 "k8s.io/api/core/v1"
 
 func getNeutronSecurityContext() *corev1.SecurityContext {
 	trueVal := true
-	runAsUser := int64(NeutronUid)
-	runAsGroup := int64(NeutronGid)
+	runAsUser := int64(NeutronUID)
+	runAsGroup := int64(NeutronGID)
 
 	return &corev1.SecurityContext{
 		RunAsUser:    &runAsUser,
