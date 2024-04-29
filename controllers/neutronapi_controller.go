@@ -1487,6 +1487,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["TransportURL"] = transportURL
 	templateParameters["MemcachedServers"] = mc.GetMemcachedServerListString()
 	templateParameters["MemcachedServersWithInet"] = mc.GetMemcachedServerListWithInetString()
+	templateParameters["MemcachedTLS"] = mc.GetMemcachedTLSSupport()
 
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
