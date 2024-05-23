@@ -19,12 +19,15 @@ package functional_test
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	//revive:disable-next-line:dot-imports
+	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
 	"github.com/google/uuid"
@@ -33,6 +36,7 @@ import (
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -1385,4 +1389,127 @@ var _ = Describe("NeutronAPI controller", func() {
 			).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 	})
 
+})
+
+var _ = Describe("NeutronAPI Webhook", func() {
+
+	var apiTransportURLName types.NamespacedName
+	var neutronAPIName types.NamespacedName
+	var memcachedSpec memcachedv1.MemcachedSpec
+	var memcachedName types.NamespacedName
+	var name string
+
+	BeforeEach(func() {
+		name = fmt.Sprintf("neutron-%s", uuid.New().String())
+		apiTransportURLName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      name + "-neutron-transport",
+		}
+
+		neutronAPIName = types.NamespacedName{
+			Namespace: namespace,
+			Name:      name,
+		}
+		memcachedSpec = memcachedv1.MemcachedSpec{
+			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
+				Replicas: ptr.To(int32(3)),
+			},
+		}
+		memcachedName = types.NamespacedName{
+			Name:      "memcached",
+			Namespace: namespace,
+		}
+
+		err := os.Setenv("OPERATOR_TEMPLATES", "../../templates")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("rejects with wrong NeutronAPI service override endpoint type", func() {
+		spec := GetDefaultNeutronAPISpec()
+		spec["override"] = map[string]interface{}{
+			"service": map[string]interface{}{
+				"internal": map[string]interface{}{},
+				"wrooong":  map[string]interface{}{},
+			},
+		}
+
+		raw := map[string]interface{}{
+			"apiVersion": "neutron.openstack.org/v1beta1",
+			"kind":       "NeutronAPI",
+			"metadata": map[string]interface{}{
+				"name":      neutronAPIName.Name,
+				"namespace": neutronAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.override.service[wrooong]: " +
+					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+		)
+	})
+
+	When("A NeutronAPI instance is updated with wrong service override endpoint", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+			th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+			keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			deplName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "neutron",
+			}
+			th.SimulateDeploymentReadyWithPods(
+				deplName,
+				map[string][]string{namespace + "/internalapi": {}},
+			)
+
+			th.ExpectCondition(
+				neutronAPIName,
+				ConditionGetterFunc(NeutronAPIConditionGetter),
+				condition.ReadyCondition,
+				corev1.ConditionTrue,
+			)
+		})
+
+		It("rejects update with wrong service override endpoint type", func() {
+			NeutronAPI := GetNeutronAPI(neutronAPIName)
+			Expect(NeutronAPI).NotTo(BeNil())
+			if NeutronAPI.Spec.Override.Service == nil {
+				NeutronAPI.Spec.Override.Service = map[service.Endpoint]service.RoutedOverrideSpec{}
+			}
+			NeutronAPI.Spec.Override.Service["wrooong"] = service.RoutedOverrideSpec{}
+			err := k8sClient.Update(ctx, NeutronAPI)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(
+				ContainSubstring(
+					"invalid: spec.override.service[wrooong]: " +
+						"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+			)
+		})
+	})
 })
