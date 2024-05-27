@@ -173,8 +173,7 @@ func (spec *NeutronAPISpec) GetDefaultRouteAnnotations() (annotations map[string
 }
 
 func (spec *NeutronAPISpecCore) GetDefaultRouteAnnotations() (annotations map[string]string) {
-	annotations = map[string]string{
+	return map[string]string{
 		"haproxy.router.openshift.io/timeout": neutronAPIDefaults.NeutronAPIRouteTimeout,
 	}
-	return
 }
