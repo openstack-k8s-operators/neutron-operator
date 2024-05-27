@@ -106,7 +106,6 @@ type NeutronAPIReconciler struct {
 
 // Reconcile - neutron api
 func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, _err error) {
-	_ = context.Background()
 	Log := r.GetLogger(ctx)
 
 	// Fetch the NeutronAPI instance
