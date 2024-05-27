@@ -1021,9 +1021,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		}
 
 		instance.Status.NetworkAttachments = networkAttachmentStatus
-		if networkReady {
-			instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
-		} else {
+		if !networkReady {
 			err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.NetworkAttachmentsReadyCondition,
@@ -1034,6 +1032,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 			return ctrl.Result{}, err
 		}
+		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
 
 		if instance.Status.ReadyCount == *instance.Spec.Replicas {
 			instance.Status.Conditions.MarkTrue(
