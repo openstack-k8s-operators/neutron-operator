@@ -38,7 +38,7 @@ const (
 	PublicCertSecretName   = "public-tls-certs"
 	InternalCertSecretName = "internal-tls-certs"
 	CABundleSecretName     = "combined-ca-bundle"
-	OvnDbCertSecretName    = "ovndb-tls-certs"
+	OVNDbCertSecretName    = "ovndb-tls-certs"
 
 	timeout  = time.Second * 10
 	interval = timeout / 100

@@ -97,7 +97,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			Namespace: namespace,
 		}
 		ovnDbCertSecretName = types.NamespacedName{
-			Name:      OvnDbCertSecretName,
+			Name:      OVNDbCertSecretName,
 			Namespace: namespace,
 		}
 	})
@@ -638,7 +638,7 @@ var _ = Describe("NeutronAPI controller", func() {
 					neutronAPIName.Namespace, neutronAPIName.Namespace, neutronAPIName.Namespace)))
 		})
 
-		It("should create an external Ovn Agent Secret with expected ovn nb and sb connection set", func() {
+		It("should create an external OVN Agent Secret with expected ovn nb and sb connection set", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
 
@@ -647,25 +647,25 @@ var _ = Describe("NeutronAPI controller", func() {
 			externalSBEndpoint := "10.0.0.254"
 			SetExternalDBEndpoint(dbs[1], externalSBEndpoint)
 
-			externalOvnAgentSecret := types.NamespacedName{
+			externalOVNAgentSecret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
 				Name:      fmt.Sprintf("%s-ovn-agent-neutron-config", neutronAPIName.Name),
 			}
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetSecret(externalOvnAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
+				g.Expect(th.GetSecret(externalOVNAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
 					ContainSubstring("ovn_nb_connection = %s", externalNBEndpoint))
-				g.Expect(th.GetSecret(externalOvnAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
+				g.Expect(th.GetSecret(externalOVNAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
 					ContainSubstring("ovn_sb_connection = %s", externalSBEndpoint))
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
-				g.Expect(NeutronAPI.Status.Hash[externalOvnAgentSecret.Name]).NotTo(BeEmpty())
+				g.Expect(NeutronAPI.Status.Hash[externalOVNAgentSecret.Name]).NotTo(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("should delete Ovn Agent external Secret once NB or SB DBClusters are deleted", func() {
+		It("should delete OVN Agent external Secret once NB or SB DBClusters are deleted", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
 			externalNBEndpoint := "10.0.0.253"
@@ -674,34 +674,34 @@ var _ = Describe("NeutronAPI controller", func() {
 			externalSBEndpoint := "10.0.0.254"
 			SetExternalDBEndpoint(dbs[1], externalSBEndpoint)
 
-			externalOvnAgentSecret := types.NamespacedName{
+			externalOVNAgentSecret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
 				Name:      fmt.Sprintf("%s-ovn-agent-neutron-config", neutronAPIName.Name),
 			}
 
 			Eventually(func() corev1.Secret {
-				return th.GetSecret(externalOvnAgentSecret)
+				return th.GetSecret(externalOVNAgentSecret)
 			}, timeout, interval).ShouldNot(BeNil())
 
 			Eventually(func(g Gomega) {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
-				g.Expect(NeutronAPI.Status.Hash[externalOvnAgentSecret.Name]).NotTo(BeEmpty())
+				g.Expect(NeutronAPI.Status.Hash[externalOVNAgentSecret.Name]).NotTo(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 
 			DeleteOVNDBClusters([]types.NamespacedName{dbs[1]})
 
 			Eventually(func(g Gomega) {
 				secret := &corev1.Secret{}
-				g.Expect(k8sClient.Get(ctx, externalOvnAgentSecret, secret)).Should(HaveOccurred())
+				g.Expect(k8sClient.Get(ctx, externalOVNAgentSecret, secret)).Should(HaveOccurred())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
-				g.Expect(NeutronAPI.Status.Hash[externalOvnAgentSecret.Name]).To(BeEmpty())
+				g.Expect(NeutronAPI.Status.Hash[externalOVNAgentSecret.Name]).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("should update Neutron Ovn Agent Secret once NB or SB DBCluster is updated", func() {
+		It("should update Neutron OVN Agent Secret once NB or SB DBCluster is updated", func() {
 			dbs := CreateOVNDBClusters(namespace)
 			DeferCleanup(DeleteOVNDBClusters, dbs)
 			externalNBEndpoint := "10.0.0.253"
@@ -710,24 +710,24 @@ var _ = Describe("NeutronAPI controller", func() {
 			externalSBEndpoint := "10.0.0.254"
 			SetExternalDBEndpoint(dbs[1], externalSBEndpoint)
 
-			externalOvnAgentSecret := types.NamespacedName{
+			externalOVNAgentSecret := types.NamespacedName{
 				Namespace: neutronAPIName.Namespace,
 				Name:      fmt.Sprintf("%s-ovn-agent-neutron-config", neutronAPIName.Name),
 			}
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetSecret(externalOvnAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
+				g.Expect(th.GetSecret(externalOVNAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
 					ContainSubstring("ovn_sb_connection = %s", externalSBEndpoint))
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
-				initialHash := NeutronAPI.Status.Hash[externalOvnAgentSecret.Name]
+				initialHash := NeutronAPI.Status.Hash[externalOVNAgentSecret.Name]
 				g.Expect(initialHash).NotTo(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 
 			NeutronAPI := GetNeutronAPI(neutronAPIName)
-			initialHash := NeutronAPI.Status.Hash[externalOvnAgentSecret.Name]
+			initialHash := NeutronAPI.Status.Hash[externalOVNAgentSecret.Name]
 
 			newExternalNBEndpoint := "10.0.0.249"
 			SetExternalDBEndpoint(dbs[0], newExternalNBEndpoint)
@@ -735,17 +735,17 @@ var _ = Describe("NeutronAPI controller", func() {
 			SetExternalDBEndpoint(dbs[1], newExternalSBEndpoint)
 
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetSecret(externalOvnAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
+				g.Expect(th.GetSecret(externalOVNAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
 					ContainSubstring("ovn_nb_connection = %s", newExternalNBEndpoint))
 			}, timeout, interval).Should(Succeed())
 			Eventually(func(g Gomega) {
-				g.Expect(th.GetSecret(externalOvnAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
+				g.Expect(th.GetSecret(externalOVNAgentSecret).Data[neutronapi.NeutronOVNAgentSecretKey]).Should(
 					ContainSubstring("ovn_sb_connection = %s", newExternalSBEndpoint))
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
-				newHash := NeutronAPI.Status.Hash[externalOvnAgentSecret.Name]
+				newHash := NeutronAPI.Status.Hash[externalOVNAgentSecret.Name]
 				g.Expect(newHash).NotTo(Equal(initialHash))
 			}, timeout, interval).Should(Succeed())
 		})
