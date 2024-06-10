@@ -65,10 +65,10 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/onsi/ginkgo/v2 v2.19.0 h1:9Cnnf7UHo57Hy3k6/m5k3dRfGTMXGvxhHFvkDTCTpvA=
 github.com/onsi/gomega v1.33.1 h1:dsYjIxxSR755MDmKVsaFQTE22ChNBcuuTWgkUDSubOk=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240531085522-94fdcd5ff4fd h1:KdpVRQv1b5y7zIGWpXGmO5K4ErnPJrSsqwmNfGAgD2s=
-github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240531085522-94fdcd5ff4fd/go.mod h1:4Fe07vWr4OYg2qoFwoOM8rHEukdD3/r3FBqkYKE5//E=
-github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240531085522-94fdcd5ff4fd h1:tR0cs3CB7FtlwiAk/bMRl5sEXFs4ut5WNW7utBO5QAQ=
-github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240531085522-94fdcd5ff4fd/go.mod h1:HnATO+h6spGXATZ8fdOc+CJ47BiTV3ML1ZtGZa6yj3I=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240606071226-62abb00585ce h1:3+BwULpV9ooBYtZ3CVnOXsO40gu/w76a8tqvM45qLYk=
+github.com/openstack-k8s-operators/lib-common/modules/common v0.3.1-0.20240606071226-62abb00585ce/go.mod h1:4Fe07vWr4OYg2qoFwoOM8rHEukdD3/r3FBqkYKE5//E=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240606071226-62abb00585ce h1:KeynyjITaiamdmK6iUtyD5TNwfhMD+HT0gMeJTsR1qM=
+github.com/openstack-k8s-operators/lib-common/modules/storage v0.3.1-0.20240606071226-62abb00585ce/go.mod h1:HnATO+h6spGXATZ8fdOc+CJ47BiTV3ML1ZtGZa6yj3I=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
