@@ -20,6 +20,12 @@ repos:
       entry: make
       args: ['generate']
       pass_filenames: false
+    - id: make-bundle
+      name: make-bundle
+      language: system
+      entry: make
+      args: ['bundle', 'VERSION=0.0.1']
+      pass_filenames: false
     - id: make-operator-lint
       name: make-operator-lint
       language: system
