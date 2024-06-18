@@ -10,7 +10,7 @@ apiVersion: neutron.openstack.org/v1beta1
 kind: NeutronAPI
 metadata:
   finalizers:
-  - NeutronAPI
+  - openstack.org/neutronapi
   name: neutron
 ---
 apiVersion: apps/v1

@@ -144,7 +144,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			// it to run
 			Eventually(func() []string {
 				return GetNeutronAPI(neutronAPIName).Finalizers
-			}, timeout, interval).Should(ContainElement("NeutronAPI"))
+			}, timeout, interval).Should(ContainElement("openstack.org/neutronapi"))
 		})
 
 		It("should not create a secret", func() {
@@ -1271,7 +1271,7 @@ var _ = Describe("NeutronAPI controller", func() {
 				"Neutron API",
 				neutronAPIName.Namespace,
 				neutronapi.Database,
-				"NeutronAPI",
+				"openstack.org/neutronapi",
 				mariadb,
 				timeout,
 				interval,
