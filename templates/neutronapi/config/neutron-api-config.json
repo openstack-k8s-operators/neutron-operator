@@ -14,6 +14,13 @@
       "perm": "0640"
     },
     {
+      "source": "/var/lib/config-data/default/policy.yaml",
+      "dest": "/etc/neutron/policy.yaml",
+      "owner": "root:neutron",
+      "perm": "0640",
+      "optional": true
+    },
+    {
       "source": "/var/lib/config-data/default/my.cnf",
       "dest": "/etc/my.cnf",
       "owner": "neutron",

@@ -1409,7 +1409,6 @@ func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
 // generateServiceSecrets - create secrets which service configuration
 // TODO(ihar) we may want to split generation of config for db-sync and for neutronapi main pod, which
 // would allow the operator to proceed with db-sync without waiting for other configuration values
-// TODO add DefaultConfigOverwrite
 func (r *NeutronAPIReconciler) generateServiceSecrets(
 	ctx context.Context,
 	h *helper.Helper,
@@ -1443,10 +1442,9 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		tlsCfg = &tls.Service{}
 	}
 	// customData hold any customization for the service.
-	// 02-neutron-custom.conf is going to /etc/<service>.conf.d
-	// 01-neutron.conf is going to /etc/<service>.conf.d such that it gets loaded before custom one
-	// all other files get placed into /etc/<service> to allow overwrite of e.g. logging.conf or policy.json
-	// TODO: make sure custom.conf can not be overwritten
+	// 02-neutron-custom.conf is going to /etc/<service>/<service>.conf.d
+	// 01-neutron.conf is going to /etc/<service>/<service>.conf.d such that it gets loaded before custom one
+	// all other files get placed into /etc/<service> to allow overwrite of e.g. policy.yaml
 	customData := map[string]string{
 		"02-neutron-custom.conf": instance.Spec.CustomServiceConfig,
 		"my.cnf":                 db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
