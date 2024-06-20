@@ -119,6 +119,8 @@ func (r *NeutronAPISpecCore) ValidateCreate(basePath *field.Path) field.ErrorLis
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
 
+	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
+
 	return allErrs
 }
 
@@ -156,6 +158,8 @@ func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath 
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), spec.Override.Service)...)
+	// validate the defaultConfigOverwrite is valid
+	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, spec.DefaultConfigOverwrite)...)
 
 	return allErrs
 }
@@ -176,4 +180,24 @@ func (spec *NeutronAPISpecCore) GetDefaultRouteAnnotations() (annotations map[st
 	return map[string]string{
 		"haproxy.router.openshift.io/timeout": neutronAPIDefaults.NeutronAPIRouteTimeout,
 	}
+}
+
+func ValidateDefaultConfigOverwrite(
+	basePath *field.Path,
+	validateConfigOverwrite map[string]string,
+) field.ErrorList {
+	var errors field.ErrorList
+	for requested := range validateConfigOverwrite {
+		if requested != "policy.yaml" {
+			errors = append(
+				errors,
+				field.Invalid(
+					basePath.Child("defaultConfigOverwrite"),
+					requested,
+					"Only the following keys are valid: policy.yaml",
+				),
+			)
+		}
+	}
+	return errors
 }

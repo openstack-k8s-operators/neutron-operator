@@ -1454,7 +1454,36 @@ var _ = Describe("NeutronAPI Webhook", func() {
 		)
 	})
 
-	When("A NeutronAPI instance is updated with wrong service override endpoint", func() {
+	It("rejects NeutronAPI with wrong field in defaultConfigOverwrite", func() {
+		spec := GetDefaultNeutronAPISpec()
+		spec["defaultConfigOverwrite"] = map[string]interface{}{
+			"policy.yaml": "support",
+			"policy.json": "not supported",
+		}
+
+		raw := map[string]interface{}{
+			"apiVersion": "neutron.openstack.org/v1beta1",
+			"kind":       "NeutronAPI",
+			"metadata": map[string]interface{}{
+				"name":      neutronAPIName.Name,
+				"namespace": neutronAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"invalid: spec.defaultConfigOverwrite: " +
+					"Invalid value: \"policy.json\": " +
+					"Only the following keys are valid: policy.yaml"),
+		)
+	})
+
+	When("A NeutronAPI instance is updated with unsupported fields", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNeutronAPISpec()
 			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
@@ -1509,6 +1538,23 @@ var _ = Describe("NeutronAPI Webhook", func() {
 				ContainSubstring(
 					"invalid: spec.override.service[wrooong]: " +
 						"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+			)
+		})
+
+		It("rejects update with wrong defaultConfigOverwrite", func() {
+			NeutronAPI := GetNeutronAPI(neutronAPIName)
+			Expect(NeutronAPI).NotTo(BeNil())
+			if NeutronAPI.Spec.DefaultConfigOverwrite == nil {
+				NeutronAPI.Spec.DefaultConfigOverwrite = map[string]string{}
+			}
+			NeutronAPI.Spec.DefaultConfigOverwrite["foo.json"] = "unsupported"
+			err := k8sClient.Update(ctx, NeutronAPI)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(
+				ContainSubstring(
+					"invalid: spec.defaultConfigOverwrite: " +
+						"Invalid value: \"foo.json\": " +
+						"Only the following keys are valid: policy.yaml"),
 			)
 		})
 	})
