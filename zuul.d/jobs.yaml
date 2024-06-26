@@ -2,7 +2,7 @@
 - job:
     name: neutron-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc
-    dependencies: ["openstack-k8s-operators-content-provider"]
+    dependencies: ["openstack-meta-content-provider"]
     irrelevant-files:
       - .*/*.md
       - ^.github/.*$
@@ -28,6 +28,7 @@
     vars:
       cifmw_tempest_container: openstack-tempest-all
       cifmw_run_test_role: tempest
+      cifmw_repo_setup_branch: master
       cifmw_tempest_tempestconf_profile:
           overrides:
             compute-feature-enabled.vnc_console: true
