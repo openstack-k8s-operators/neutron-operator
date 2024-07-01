@@ -410,6 +410,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
 	Log.Info("Reconciling Service init")
+	Log.Info("slaweq: just testing together with u/s change")
 
 	db, result, err := r.ensureDB(ctx, helper, instance)
 	if err != nil {
