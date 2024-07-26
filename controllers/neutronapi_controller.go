@@ -147,12 +147,13 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// Always patch the instance status when exiting this function so we can
 	// persist any changes.
 	defer func() {
-		condition.RestoreLastTransitionTimes(
-			&instance.Status.Conditions, savedConditions)
 		if instance.Status.Conditions.IsUnknown(condition.ReadyCondition) {
 			instance.Status.Conditions.Set(
 				instance.Status.Conditions.Mirror(condition.ReadyCondition))
 		}
+		condition.RestoreLastTransitionTimes(
+			&instance.Status.Conditions, savedConditions)
+
 		err := helper.PatchInstance(ctx, instance)
 		if err != nil {
 			_err = err
