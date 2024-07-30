@@ -62,7 +62,7 @@ spec:
                   values:
                   - neutron
               topologyKey: kubernetes.io/hostname
-            weight: 1
+            weight: 100
       containers:
       - command:
         - /bin/bash
