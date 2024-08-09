@@ -206,7 +206,8 @@ var _ = Describe("NeutronAPI controller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string][]byte{
-					"transport_url": []byte("rabbit://user@svc:1234"),
+					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -303,7 +304,8 @@ var _ = Describe("NeutronAPI controller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string][]byte{
-					"transport_url": []byte("rabbit://user@svc:1234"),
+					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
@@ -1293,7 +1295,8 @@ var _ = Describe("NeutronAPI controller", func() {
 					Namespace: GetNeutronAPI(neutronAPIName).Namespace,
 				},
 				Data: map[string][]byte{
-					"transport_url": []byte("rabbit://user@svc:1234"),
+					"NeutronPassword": []byte("12345678"),
+					"transport_url":   []byte("rabbit://user@svc:1234"),
 				},
 			}
 			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
