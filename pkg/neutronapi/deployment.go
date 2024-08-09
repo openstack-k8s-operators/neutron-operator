@@ -43,15 +43,15 @@ func Deployment(
 ) (*appsv1.Deployment, error) {
 	livenessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 20,
+		TimeoutSeconds:      30,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
 	}
 	readinessProbe := &corev1.Probe{
 		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 20,
+		TimeoutSeconds:      30,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
 	}
 	args := []string{"-c", ServiceCommand}
 	httpdArgs := []string{"-DFOREGROUND"}
