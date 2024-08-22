@@ -405,7 +405,6 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	helper *helper.Helper,
 	serviceLabels map[string]string,
 	serviceAnnotations map[string]string,
-	ospSecret *corev1.Secret,
 	secretVars map[string]env.Setter,
 ) (ctrl.Result, error) {
 	Log := r.GetLogger(ctx)
@@ -424,7 +423,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	//
 	// create Secret required for neutronapi and dbsync input. It contains minimal neutron config required
 	// to get the service up, user can add additional files to be added to the service.
-	err = r.generateServiceSecrets(ctx, helper, instance, ospSecret, &secretVars, db)
+	err = r.generateServiceSecrets(ctx, helper, instance, &secretVars, db)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.ServiceConfigReadyCondition,
@@ -822,26 +821,31 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	// check for required TransportURL secret holding transport URL string
 	//
 
-	transportURLSecret, hash, err := secret.GetSecret(ctx, helper, instance.Status.TransportURLSecret, instance.Namespace)
+	transportURLSecretHash, result, err := secret.VerifySecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Status.TransportURLSecret},
+		[]string{"transport_url"},
+		helper.GetClient(),
+		time.Duration(10)*time.Second,
+	)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			Log.Info(fmt.Sprintf("TransportURL secret %s not found", instance.Status.TransportURLSecret))
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
-		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
 			condition.InputReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return result, err
+	} else if (result != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.InputReadyWaitingMessage))
+		return result, err
 	}
-	secretVars[transportURLSecret.Name] = env.SetValue(hash)
+
+	secretVars[instance.Status.TransportURLSecret] = env.SetValue(transportURLSecretHash)
 
 	// run check TransportURL secret - end
 
@@ -852,26 +856,32 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map,
 	//
-	ospSecret, hash, err := secret.GetSecret(ctx, helper, instance.Spec.Secret, instance.Namespace)
+	ospSecretHash, result, err := secret.VerifySecret(
+		ctx,
+		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
+		[]string{instance.Spec.PasswordSelectors.Service},
+		helper.GetClient(),
+		time.Duration(10)*time.Second,
+	)
+
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			Log.Info(fmt.Sprintf("OpenStack secret %s not found", instance.Spec.Secret))
-			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.InputReadyCondition,
-				condition.RequestedReason,
-				condition.SeverityInfo,
-				condition.InputReadyWaitingMessage))
-			return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
-		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
 			condition.ErrorReason,
 			condition.SeverityWarning,
 			condition.InputReadyErrorMessage,
 			err.Error()))
-		return ctrl.Result{}, err
+		return result, err
+	} else if (result != ctrl.Result{}) {
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			condition.InputReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			condition.InputReadyWaitingMessage))
+		return result, err
 	}
-	secretVars[ospSecret.Name] = env.SetValue(hash)
+
+	secretVars[instance.Spec.Secret] = env.SetValue(ospSecretHash)
 
 	instance.Status.Conditions.MarkTrue(condition.InputReadyCondition, condition.InputReadyMessage)
 	// run check OpenStack secret - end
@@ -953,7 +963,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	}
 
 	// Handle service init
-	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels, serviceAnnotations, ospSecret, secretVars)
+	ctrlResult, err := r.reconcileInit(ctx, instance, helper, serviceLabels, serviceAnnotations, secretVars)
 	if err != nil {
 		return ctrlResult, err
 	} else if (ctrlResult != ctrl.Result{}) {
@@ -1418,7 +1428,6 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
-	ospSecret *corev1.Secret,
 	envVars *map[string]env.Setter,
 	db *mariadbv1.Database,
 ) error {
@@ -1477,6 +1486,11 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	}
 
 	mc, err := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
+	if err != nil {
+		return err
+	}
+
+	ospSecret, _, err := secret.GetSecret(ctx, h, instance.Spec.Secret, instance.Namespace)
 	if err != nil {
 		return err
 	}
