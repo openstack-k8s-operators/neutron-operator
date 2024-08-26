@@ -863,7 +863,6 @@ var _ = Describe("NeutronAPI controller", func() {
 
 			nSvcContainer := deployment.Spec.Template.Spec.Containers[0]
 			Expect(nSvcContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(nSvcContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(nSvcContainer.VolumeMounts).To(HaveLen(2))
 			Expect(nSvcContainer.Image).To(Equal(util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", neutronv1.NeutronAPIContainerImage)))
 

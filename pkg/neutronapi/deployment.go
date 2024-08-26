@@ -41,17 +41,21 @@ func Deployment(
 	labels map[string]string,
 	annotations map[string]string,
 ) (*appsv1.Deployment, error) {
+	// TODO(lucasagomes): Look into how to implement separated probes
+	// for the httpd and neutron-api containers. Right now the code uses
+	// the same liveness and readiness probes for both containers which
+	// only checks the port 9696 (NeutronPublicPort) which is the port
+	// that httpd is listening to. Ideally, we should also include a
+	// probe on port 9697 which is the port that neutron-api binds to
 	livenessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 20,
+		TimeoutSeconds:      30,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
 	}
 	readinessProbe := &corev1.Probe{
-		// TODO might need tuning
-		TimeoutSeconds:      5,
-		PeriodSeconds:       5,
-		InitialDelaySeconds: 20,
+		TimeoutSeconds:      30,
+		PeriodSeconds:       30,
+		InitialDelaySeconds: 5,
 	}
 	args := []string{"-c", ServiceCommand}
 	httpdArgs := []string{"-DFOREGROUND"}
@@ -148,7 +152,6 @@ func Deployment(
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:             apiVolumeMounts,
 							Resources:                instance.Spec.Resources,
-							ReadinessProbe:           readinessProbe,
 							LivenessProbe:            livenessProbe,
 							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 						},
