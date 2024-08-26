@@ -76,21 +76,11 @@ spec:
             path: /
             port: 9696
             scheme: HTTP
-          initialDelaySeconds: 20
-          periodSeconds: 5
+          initialDelaySeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         name: neutron-api
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9696
-            scheme: HTTP
-          initialDelaySeconds: 20
-          periodSeconds: 5
-          successThreshold: 1
-          timeoutSeconds: 5
         resources: {}
         securityContext:
           runAsUser: 42435
@@ -105,10 +95,10 @@ spec:
             path: /
             port: 9696
             scheme: HTTP
-          initialDelaySeconds: 20
-          periodSeconds: 5
+          initialDelaySeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         name: neutron-httpd
         readinessProbe:
           failureThreshold: 3
@@ -116,10 +106,10 @@ spec:
             path: /
             port: 9696
             scheme: HTTP
-          initialDelaySeconds: 20
-          periodSeconds: 5
+          initialDelaySeconds: 5
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 30
         resources: {}
         securityContext:
           runAsUser: 0
