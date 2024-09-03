@@ -42,4 +42,3 @@ metadata:
     endpoint: public
     service: neutron
   name: neutron-public
-  namespace: openstack

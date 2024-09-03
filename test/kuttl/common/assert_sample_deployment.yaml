@@ -26,7 +26,6 @@ spec:
   secret: osp-secret
   serviceUser: neutron
 status:
-  databaseHostname: openstack.neutron-kuttl-tests.svc
   transportURLSecret: rabbitmq-transport-url-neutron-neutron-transport
   readyCount: 1
 ---
