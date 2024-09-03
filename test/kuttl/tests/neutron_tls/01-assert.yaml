@@ -17,7 +17,6 @@ spec:
         secretName: cert-neutron-public-svc
     caBundleSecretName: combined-ca-bundle
 status:
-  databaseHostname: openstack.neutron-kuttl-tests.svc
   readyCount: 1
 ---
 apiVersion: apps/v1
