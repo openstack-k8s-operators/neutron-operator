@@ -4,3 +4,10 @@ kind: TestAssert
 commands:
   - script: |
         $NEUTRON_KUTTL_DIR/../common/scripts/check_debug_in_neutron_pod_logs.sh
+  - script: |
+        neutron_pod=$(oc get pods -n $NAMESPACE -l service=neutron --field-selector=status.phase=Running -o name|head -1)
+        oc rsh -n $NAMESPACE ${neutron_pod} crudini --get /etc/neutron/neutron.conf.d/testcm.conf DEFAULT api_workers
+        oc rsh -n $NAMESPACE ${neutron_pod} crudini --get /etc/neutron/neutron.conf.d/testsecret.conf DEFAULT rpc_workers
+        # Check config in pod logs
+        oc logs -n $NAMESPACE ${neutron_pod} | grep -q "api_workers.*= 1"
+        oc logs -n $NAMESPACE ${neutron_pod} | grep -q "rpc_workers.*= 0"

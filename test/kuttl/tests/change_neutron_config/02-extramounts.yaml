@@ -1,0 +1,23 @@
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+spec:
+  extraMounts:
+    - extraVol:
+        - volumes:
+            - name: test-configmap-vol
+              configMap:
+                name: test-configmap-vol
+            - name: test-secret-vol
+              secret:
+                secretName: test-secret-vol
+          mounts:
+            - name: test-configmap-vol
+              mountPath: /etc/neutron/neutron.conf.d/testcm.conf
+              subPath: testcm.conf
+              readOnly: true
+            - name: test-secret-vol
+              mountPath: /etc/neutron/neutron.conf.d/testsecret.conf
+              subPath: testsecret.conf
+              readOnly: false

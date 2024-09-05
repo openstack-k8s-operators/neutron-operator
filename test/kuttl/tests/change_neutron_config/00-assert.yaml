@@ -1,0 +1,15 @@
+#
+# Check for:
+#
+# - Secret
+# - ConfigMap
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret-vol
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap-vol
