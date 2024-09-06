@@ -6,20 +6,20 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/google/uuid v1.6.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
-	github.com/onsi/ginkgo/v2 v2.20.0
+	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
 	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240813061654-72bf12d9b73e
 	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240812074544-7379da550fef
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240814075458-0ae9f7f9e059
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240905123813-174296c09ec6
 	github.com/openstack-k8s-operators/lib-common/modules/storage v0.4.1-0.20240814075458-0ae9f7f9e059
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240814075458-0ae9f7f9e059
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240812075114-497caae42b27
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
 	github.com/openstack-k8s-operators/ovn-operator/api v0.4.1-0.20240821110851-6a2f34fc6383
 	go.uber.org/zap v1.27.0
-	k8s.io/api v0.28.12
-	k8s.io/apimachinery v0.28.12
-	k8s.io/client-go v0.28.12
+	k8s.io/api v0.28.13
+	k8s.io/apimachinery v0.28.13
+	k8s.io/client-go v0.28.13
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.16.6
 )
@@ -75,8 +75,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.28.12 // indirect
-	k8s.io/component-base v0.28.12 // indirect
+	k8s.io/apiextensions-apiserver v0.28.13 // indirect
+	k8s.io/component-base v0.28.13 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
