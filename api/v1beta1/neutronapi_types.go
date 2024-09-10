@@ -103,6 +103,10 @@ type NeutronAPISpecCore struct {
 	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Optional
+	// Ml2Drivers - list of ml2 drivers to enable. Using ["ovn"] if not set.
+	Ml2Drivers []string `json:"ml2Drivers,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
 	// or overwrite rendered information using raw OpenStack config format. The content gets added to
 	// to /etc/<service>/<service>.conf.d directory as custom.conf file.
@@ -264,6 +268,24 @@ func (instance NeutronAPI) RbacNamespace() string {
 // RbacResourceName - return the name to be used for rbac objects (serviceaccount, role, rolebinding)
 func (instance NeutronAPI) RbacResourceName() string {
 	return "neutron-" + instance.Name
+}
+
+func (instance NeutronAPI) GetMl2Drivers() []string {
+	if len(instance.Spec.Ml2Drivers) == 0 {
+		// TODO: use const
+		return []string{"ovn"}
+	}
+	return instance.Spec.Ml2Drivers
+}
+
+func (instance NeutronAPI) IsOVNEnabled() bool {
+	for _, driver := range instance.GetMl2Drivers() {
+		// TODO: use const
+		if driver == "ovn" {
+			return true
+		}
+	}
+	return false
 }
 
 // SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)

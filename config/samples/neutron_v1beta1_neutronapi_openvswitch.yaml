@@ -1,0 +1,15 @@
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+  namespace: openstack
+spec:
+  serviceUser: neutron
+  databaseInstance: openstack
+  databaseAccount: neutron
+  rabbitMqClusterName: rabbitmq
+  memcachedInstance: memcached
+  preserveJobs: false
+  secret: neutron-secret
+  ml2Drivers:
+    - openvswitch

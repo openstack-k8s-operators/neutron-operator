@@ -114,7 +114,7 @@ func Deployment(
 		}
 	}
 
-	if instance.Spec.TLS.Ovn.Enabled() {
+	if instance.IsOVNEnabled() && instance.Spec.TLS.Ovn.Enabled() {
 		svc := tls.Service{
 			SecretName: *instance.Spec.TLS.Ovn.SecretName,
 			CaMount:    ptr.To("/var/lib/config-data/tls/certs/ovndbca.crt"),
