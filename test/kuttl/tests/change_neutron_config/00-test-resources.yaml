@@ -1,0 +1,19 @@
+#
+# test-secret-vol Secret
+# test-configmap-vol ConfiMap
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret-vol
+data:
+  testsecret.conf: W0RFRkFVTFRdCnJwY193b3JrZXJzID0gMAo=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap-vol
+data:
+  testcm.conf: |
+    [DEFAULT]
+    api_workers = 1
