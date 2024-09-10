@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240905123813-174296c09ec6
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.4.1-0.20240814075458-0ae9f7f9e059
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.4.1-0.20240905123813-174296c09ec6
 	k8s.io/api v0.28.13
 	k8s.io/apimachinery v0.28.13
 	sigs.k8s.io/controller-runtime v0.16.6
