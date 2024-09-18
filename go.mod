@@ -86,6 +86,6 @@ require (
 
 replace github.com/openstack-k8s-operators/neutron-operator/api => ./api
 
-// mschuppert: map to latest commit from release-4.13 tag
+// mschuppert: map to latest commit from release-4.16 tag
 // must consistent within modules and service operators
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 //allow-merging
