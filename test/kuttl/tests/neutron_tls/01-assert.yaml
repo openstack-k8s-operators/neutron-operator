@@ -47,22 +47,16 @@ spec:
           readOnly: true
           subPath: tls-ca-bundle.pem
       - args:
-        - -DFOREGROUND
-        command:
-        - /usr/sbin/httpd
+        - -c
+        - /usr/local/bin/kolla_start
         volumeMounts:
-        - mountPath: /etc/httpd/conf/httpd.conf
+        - mountPath: /var/lib/config-data/default
           name: httpd-config
           readOnly: true
-          subPath: httpd.conf
-        - mountPath: /etc/httpd/conf.d/10-neutron.conf
-          name: httpd-config
+        - mountPath: /var/lib/kolla/config_files/config.json
+          name: config
           readOnly: true
-          subPath: 10-neutron-httpd.conf
-        - mountPath: /etc/httpd/conf.d/ssl.conf
-          name: httpd-config
-          readOnly: true
-          subPath: ssl.conf
+          subPath: neutron-httpd-config.json
         - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
           name: combined-ca-bundle
           readOnly: true

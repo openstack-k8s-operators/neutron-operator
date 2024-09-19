@@ -60,25 +60,20 @@ func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraV
 	}
 	return res
 
-} // GetHttpdVolumeMount - Returns the VolumeMounts used by the httpd sidecar
+}
+
+// GetHttpdVolumeMount - Returns the VolumeMounts used by the httpd sidecar
 func GetHttpdVolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      "httpd-config",
-			MountPath: "/etc/httpd/conf/httpd.conf",
-			SubPath:   "httpd.conf",
+			MountPath: "/var/lib/config-data/default",
 			ReadOnly:  true,
 		},
 		{
-			Name:      "httpd-config",
-			MountPath: "/etc/httpd/conf.d/10-neutron.conf",
-			SubPath:   "10-neutron-httpd.conf",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "httpd-config",
-			MountPath: "/etc/httpd/conf.d/ssl.conf",
-			SubPath:   "ssl.conf",
+			Name:      "config",
+			MountPath: "/var/lib/kolla/config_files/config.json",
+			SubPath:   "neutron-httpd-config.json",
 			ReadOnly:  true,
 		},
 	}

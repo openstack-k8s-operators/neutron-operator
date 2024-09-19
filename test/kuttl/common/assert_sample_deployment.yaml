@@ -86,7 +86,10 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: FallbackToLogsOnError
       - command:
-        - /usr/sbin/httpd
+        - /bin/bash
+        args:
+        - -c
+        - /usr/local/bin/kolla_start
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -111,7 +114,7 @@ spec:
           timeoutSeconds: 30
         resources: {}
         securityContext:
-          runAsUser: 0
+          runAsUser: 42435
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: FallbackToLogsOnError
       schedulerName: default-scheduler

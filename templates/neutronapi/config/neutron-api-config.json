@@ -29,7 +29,7 @@
     {
       "source": "/var/lib/config-data/tls/certs/*",
       "dest": "/etc/pki/tls/certs/",
-      "owner": "root:neutron",
+      "owner": "neutron:neutron",
       "perm": "0640",
       "optional": true,
       "merge": true
@@ -37,7 +37,7 @@
     {
       "source": "/var/lib/config-data/tls/private/*",
       "dest": "/etc/pki/tls/private/",
-      "owner": "root:neutron",
+      "owner": "neutron:neutron",
       "perm": "0640",
       "optional": true,
       "merge": true
