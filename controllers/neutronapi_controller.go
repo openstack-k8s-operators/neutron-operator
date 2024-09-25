@@ -685,7 +685,6 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 	ksSvc := keystonev1.NewKeystoneService(ksSvcSpec, instance.Namespace, serviceLabels, time.Duration(10)*time.Second)
 	ctrlResult, err = ksSvc.CreateOrPatch(ctx, helper)
-
 	if err != nil {
 		return ctrlResult, err
 	}
@@ -1591,7 +1590,7 @@ func (r *NeutronAPIReconciler) createHashOfInputHashes(
 func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context) handler.MapFunc {
 	Log := r.GetLogger(ctx)
 
-	return func(ctx context.Context, o client.Object) []reconcile.Request {
+	return func(_ context.Context, o client.Object) []reconcile.Request {
 		result := []reconcile.Request{}
 
 		// get all Neutron CRs
@@ -1627,7 +1626,6 @@ func (r *NeutronAPIReconciler) ensureDB(
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 ) (*mariadbv1.Database, ctrl.Result, error) {
-
 	// ensure MariaDBAccount exists.  This account record may be created by
 	// openstack-operator or the cloud operator up front without a specific
 	// MariaDBDatabase configured yet.   Otherwise, a MariaDBAccount CR is
@@ -1638,7 +1636,6 @@ func (r *NeutronAPIReconciler) ensureDB(
 		ctx, h, instance.Spec.DatabaseAccount,
 		instance.Namespace, false, neutronapi.DatabaseUsernamePrefix,
 	)
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			mariadbv1.MariaDBAccountReadyCondition,
@@ -1665,7 +1662,6 @@ func (r *NeutronAPIReconciler) ensureDB(
 
 	// create or patch the DB
 	ctrlResult, err := db.CreateOrPatchAll(ctx, h)
-
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DBReadyCondition,
