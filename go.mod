@@ -8,18 +8,18 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240912140341-4066f2ead41d
-	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240906103150-990fe66f2e5d
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240910122823-bdcfe881513b
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.4.1-0.20240910122823-bdcfe881513b
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240910122823-bdcfe881513b
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240913150207-a06f656e440b
+	github.com/openstack-k8s-operators/infra-operator/apis v0.4.1-0.20240924160156-ab5ffca21875
+	github.com/openstack-k8s-operators/keystone-operator/api v0.4.1-0.20240924153427-7c76cf130db3
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.4.1-0.20240925091112-d0fa8e528283
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.4.1-0.20240925091112-d0fa8e528283
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.4.1-0.20240925091112-d0fa8e528283
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.4.1-0.20240924182844-b6e2e51b497f
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/ovn-operator/api v0.4.1-0.20240910131347-9bdb826b7218
+	github.com/openstack-k8s-operators/ovn-operator/api v0.4.1-0.20240926094924-5bde8c313dd8
 	go.uber.org/zap v1.27.0
-	k8s.io/api v0.29.2
-	k8s.io/apimachinery v0.29.2
-	k8s.io/client-go v0.29.2
+	k8s.io/api v0.29.9
+	k8s.io/apimachinery v0.29.9
+	k8s.io/client-go v0.29.9
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.17.6
 )
@@ -52,7 +52,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240910122823-bdcfe881513b // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.4.1-0.20240925091112-d0fa8e528283 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
@@ -76,7 +76,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.29.2 // indirect
-	k8s.io/component-base v0.29.2 // indirect
+	k8s.io/component-base v0.29.9 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
