@@ -56,8 +56,14 @@ func Deployment(
 		TimeoutSeconds:      30,
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
+		Exec: &corev1.ExecAction{
+			Command: []string{
+				"cat",
+				"/etc/pki/tls/certs/internal.crt",
+			},
+		},
 	}
-	args := []string{"-c", ServiceCommand}
+       args := []string{"-c", ServiceCommand}
 	httpdArgs := []string{"-DFOREGROUND"}
 
 	//
@@ -71,7 +77,7 @@ func Deployment(
 		Path: "/",
 		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NeutronPublicPort)},
 	}
-
+	// Use HTTPS if TLS is enabled
 	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
 		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
@@ -93,6 +99,7 @@ func Deployment(
 		httpdVolumeMounts = append(httpdVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
+	// handle TLS certificates for HTTPD
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			var tlsEndptCfg tls.GenericService
@@ -153,6 +160,7 @@ func Deployment(
 							VolumeMounts:             apiVolumeMounts,
 							Resources:                instance.Spec.Resources,
 							LivenessProbe:            livenessProbe,
+							ReadinessProbe:           readinessProbe,
 							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 						},
 						{
@@ -175,9 +183,9 @@ func Deployment(
 		},
 	}
 
-	// If possible two pods of the same service should not
-	// run on the same worker node. If this is not possible
-	// the get still created on the same worker node.
+       // If possible two pods of the same service should not
+       // run on the same worker node. If this is not possible
+       // the get still created on the same worker node.
 	deployment.Spec.Template.Spec.Affinity = affinity.DistributePods(
 		common.AppSelector,
 		[]string{
