@@ -11,5 +11,5 @@ spec:
   memcachedInstance: memcached
   preserveJobs: false
   secret: neutron-secret
-  ml2Drivers:
+  ml2MechanismDrivers:
     - openvswitch

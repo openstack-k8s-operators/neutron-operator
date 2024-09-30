@@ -2052,9 +2052,9 @@ spec:
                 default: memcached
                 description: Memcached instance name.
                 type: string
-              ml2Drivers:
-                description: Ml2Drivers - list of ml2 drivers to enable. Using ["ovn"]
-                  if not set.
+              ml2MechanismDrivers:
+                description: Ml2MechanismDrivers - list of ml2 drivers to enable.
+                  Using ["ovn"] if not set.
                 items:
                   type: string
                 type: array

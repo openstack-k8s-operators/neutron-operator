@@ -6,7 +6,7 @@ metadata:
   name: neutron
 spec:
   replicas: 1
-  ml2Drivers:
+  ml2MechanismDrivers:
     - openvswitch
 status:
   readyCount: 1

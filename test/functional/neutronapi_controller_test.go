@@ -48,9 +48,9 @@ import (
 	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
 )
 
-func getNeutronAPIControllerSuite(ml2Drivers []string) func() {
-	isOVNEnabled := len(ml2Drivers) == 0
-	for _, v := range ml2Drivers {
+func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
+	isOVNEnabled := len(ml2MechanismDrivers) == 0
+	for _, v := range ml2MechanismDrivers {
 		if v == "ovn" {
 			isOVNEnabled = true
 		}
@@ -76,8 +76,8 @@ func getNeutronAPIControllerSuite(ml2Drivers []string) func() {
 			}
 
 			spec = GetDefaultNeutronAPISpec()
-			if len(ml2Drivers) > 0 {
-				spec["ml2Drivers"] = ml2Drivers
+			if len(ml2MechanismDrivers) > 0 {
+				spec["ml2MechanismDrivers"] = ml2MechanismDrivers
 			}
 
 			neutronAPIName = types.NamespacedName{
@@ -485,7 +485,7 @@ func getNeutronAPIControllerSuite(ml2Drivers []string) func() {
 				data := th.GetSecret(secret).Data["01-neutron.conf"]
 				Expect(data).Should(
 					ContainSubstring(
-						fmt.Sprintf("mechanism_drivers = %s", strings.Join(ml2Drivers, ","))))
+						fmt.Sprintf("mechanism_drivers = %s", strings.Join(ml2MechanismDrivers, ","))))
 
 				if isOVNEnabled {
 					Expect(data).Should(ContainSubstring("ovn-router"))

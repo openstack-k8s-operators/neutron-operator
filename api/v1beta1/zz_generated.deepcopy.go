@@ -156,8 +156,8 @@ func (in *NeutronAPISpecCore) DeepCopyInto(out *NeutronAPISpecCore) {
 			(*out)[key] = val
 		}
 	}
-	if in.Ml2Drivers != nil {
-		in, out := &in.Ml2Drivers, &out.Ml2Drivers
+	if in.Ml2MechanismDrivers != nil {
+		in, out := &in.Ml2MechanismDrivers, &out.Ml2MechanismDrivers
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
