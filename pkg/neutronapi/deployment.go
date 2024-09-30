@@ -30,8 +30,7 @@ import (
 )
 
 const (
-	ServiceCommand         = "/usr/local/bin/kolla_start"
-	NeutronAPIHttpdCommand = "/usr/sbin/httpd"
+	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
 // Deployment func
@@ -58,7 +57,6 @@ func Deployment(
 		InitialDelaySeconds: 5,
 	}
 	args := []string{"-c", ServiceCommand}
-	httpdArgs := []string{"-DFOREGROUND"}
 
 	//
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -141,6 +139,9 @@ func Deployment(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: ptr.To(NeutronUID),
+					},
 					ServiceAccountName: instance.RbacResourceName(),
 					Containers: []corev1.Container{
 						{
@@ -157,10 +158,10 @@ func Deployment(
 						},
 						{
 							Name:                     ServiceName + "-httpd",
-							Command:                  []string{NeutronAPIHttpdCommand},
-							Args:                     httpdArgs,
+							Command:                  []string{"/bin/bash"},
+							Args:                     args,
 							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          getNeutronHttpdSecurityContext(),
+							SecurityContext:          getNeutronSecurityContext(),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:             httpdVolumeMounts,
 							Resources:                instance.Spec.Resources,

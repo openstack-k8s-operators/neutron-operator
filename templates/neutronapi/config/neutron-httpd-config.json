@@ -1,0 +1,49 @@
+{
+    "command": "/usr/sbin/httpd -DFOREGROUND",
+    "config_files": [
+      {
+        "source": "/var/lib/config-data/tls/certs/*",
+        "dest": "/etc/pki/tls/certs/",
+        "owner": "neutron:neutron",
+        "perm": "0640",
+        "optional": true,
+        "merge": true
+      },
+      {
+        "source": "/var/lib/config-data/tls/private/*",
+        "dest": "/etc/pki/tls/private/",
+        "owner": "neutron:neutron",
+        "perm": "0640",
+        "optional": true,
+        "merge": true
+      },
+      {
+        "source": "/var/lib/config-data/default/httpd.conf",
+        "dest": "/etc/httpd/conf/httpd.conf",
+        "owner": "neutron:apache",
+        "optional": true,
+        "perm": "0644"
+      },
+      {
+        "source": "/var/lib/config-data/default/10-neutron-httpd.conf",
+        "dest": "/etc/httpd/conf.d/10-neutron.conf",
+        "owner": "neutron:apache",
+        "optional": true,
+        "perm": "0644"
+      },
+      {
+        "source": "/var/lib/config-data/default/ssl.conf",
+        "dest": "/etc/httpd/conf.d/ssl.conf",
+        "owner": "neutron:apache",
+        "optional": true,
+        "perm": "0644"
+      }
+    ],
+    "permissions": [
+        {
+            "path": "/etc/httpd/run",
+            "owner": "neutron:apache",
+            "recurse": true
+        }
+    ]
+}

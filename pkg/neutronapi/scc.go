@@ -1,28 +1,20 @@
 package neutronapi
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
+)
 
 func getNeutronSecurityContext() *corev1.SecurityContext {
-	trueVal := true
-	runAsUser := int64(NeutronUID)
-	runAsGroup := int64(NeutronGID)
 
 	return &corev1.SecurityContext{
-		RunAsUser:    &runAsUser,
-		RunAsGroup:   &runAsGroup,
-		RunAsNonRoot: &trueVal,
+		RunAsUser:    ptr.To(NeutronUID),
+		RunAsGroup:   ptr.To(NeutronGID),
+		RunAsNonRoot: ptr.To(true),
 		Capabilities: &corev1.Capabilities{
 			Drop: []corev1.Capability{
 				"MKNOD",
 			},
 		},
-	}
-}
-
-func getNeutronHttpdSecurityContext() *corev1.SecurityContext {
-	runAsUser := int64(0)
-
-	return &corev1.SecurityContext{
-		RunAsUser: &runAsUser,
 	}
 }

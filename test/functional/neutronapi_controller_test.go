@@ -869,7 +869,7 @@ var _ = Describe("NeutronAPI controller", func() {
 			nHttpdProxyContainer := deployment.Spec.Template.Spec.Containers[1]
 			Expect(nHttpdProxyContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 			Expect(nHttpdProxyContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-			Expect(nHttpdProxyContainer.VolumeMounts).To(HaveLen(3))
+			Expect(nHttpdProxyContainer.VolumeMounts).To(HaveLen(2))
 			Expect(nHttpdProxyContainer.Image).To(Equal(util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", neutronv1.NeutronAPIContainerImage)))
 		})
 	})
