@@ -103,8 +103,9 @@ type NeutronAPISpecCore struct {
 	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Optional
-	// Ml2MechanismDrivers - list of ml2 drivers to enable. Using ["ovn"] if not set.
-	Ml2MechanismDrivers []string `json:"ml2MechanismDrivers,omitempty"`
+	// Ml2MechanismDrivers - list of ml2 drivers to enable. Using {"ovn"} if not set.
+	// +kubebuilder:default={"ovn"}
+	Ml2MechanismDrivers []string `json:"ml2MechanismDrivers"`
 
 	// +kubebuilder:validation:Optional
 	// CustomServiceConfig - customize the service config using this parameter to change service defaults,
@@ -270,16 +271,8 @@ func (instance NeutronAPI) RbacResourceName() string {
 	return "neutron-" + instance.Name
 }
 
-func (instance NeutronAPI) GetMl2MechanismDrivers() []string {
-	if len(instance.Spec.Ml2MechanismDrivers) == 0 {
-		// TODO: use const
-		return []string{"ovn"}
-	}
-	return instance.Spec.Ml2MechanismDrivers
-}
-
 func (instance NeutronAPI) IsOVNEnabled() bool {
-	for _, driver := range instance.GetMl2MechanismDrivers() {
+	for _, driver := range instance.Spec.Ml2MechanismDrivers {
 		// TODO: use const
 		if driver == "ovn" {
 			return true
