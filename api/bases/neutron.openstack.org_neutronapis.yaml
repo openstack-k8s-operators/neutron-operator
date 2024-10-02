@@ -2052,6 +2052,14 @@ spec:
                 default: memcached
                 description: Memcached instance name.
                 type: string
+              ml2MechanismDrivers:
+                default:
+                - ovn
+                description: Ml2MechanismDrivers - list of ml2 drivers to enable.
+                  Using {"ovn"} if not set.
+                items:
+                  type: string
+                type: array
               networkAttachments:
                 description: NetworkAttachments is a list of NetworkAttachment resource
                   names to expose the services to the given network
