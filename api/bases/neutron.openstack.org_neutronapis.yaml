@@ -52,6 +52,11 @@ spec:
                 description: NeutronAPI Container Image URL (will be set to environmental
                   default if empty)
                 type: string
+              corePlugin:
+                default: ml2
+                description: CorePlugin - Neutron core plugin to use. Using "ml2"
+                  if not set.
+                type: string
               customServiceConfig:
                 description: CustomServiceConfig - customize the service config using
                   this parameter to change service defaults, or overwrite rendered

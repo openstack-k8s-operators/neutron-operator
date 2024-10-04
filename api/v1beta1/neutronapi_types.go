@@ -103,6 +103,11 @@ type NeutronAPISpecCore struct {
 	PreserveJobs bool `json:"preserveJobs"`
 
 	// +kubebuilder:validation:Optional
+	// CorePlugin - Neutron core plugin to use. Using "ml2" if not set.
+	// +kubebuilder:default="ml2"
+	CorePlugin string `json:"corePlugin"`
+
+	// +kubebuilder:validation:Optional
 	// Ml2MechanismDrivers - list of ml2 drivers to enable. Using {"ovn"} if not set.
 	// +kubebuilder:default={"ovn"}
 	Ml2MechanismDrivers []string `json:"ml2MechanismDrivers"`

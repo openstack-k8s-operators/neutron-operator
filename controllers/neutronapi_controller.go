@@ -1529,6 +1529,8 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["DbUser"] = databaseAccount.Spec.UserName
 	templateParameters["DbPassword"] = string(dbSecret.Data[mariadbv1.DatabasePasswordSelector])
 	templateParameters["Db"] = neutronapi.Database
+
+	templateParameters["CorePlugin"] = instance.Spec.CorePlugin
 	// TODO: add join func to template library?
 	templateParameters["Ml2MechanismDrivers"] = strings.Join(instance.Spec.Ml2MechanismDrivers, ",")
 
