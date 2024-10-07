@@ -301,7 +301,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
-		Watches(&ovnclient.OVNDBCluster{}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNDBClusterNamespaceMapFunc(crs, mgr.GetClient()))).
+		Watches(&ovnclient.OVNDBCluster{}, handler.EnqueueRequestsFromMapFunc(ovnclient.OVNCRNamespaceMapFunc(crs, mgr.GetClient()))).
 		Watches(&memcachedv1.Memcached{}, handler.EnqueueRequestsFromMapFunc(r.memcachedNamespaceMapFunc(ctx))).
 		Watches(
 			&corev1.Secret{},
