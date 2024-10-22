@@ -441,7 +441,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	//
 	// Validate the CA cert secret if provided
 	if instance.Spec.TLS.CaBundleSecretName != "" {
-		hash, err := tls.ValidateCACertSecret(
+		caHash, err := tls.ValidateCACertSecret(
 			ctx,
 			helper.GetClient(),
 			types.NamespacedName{
@@ -467,13 +467,13 @@ func (r *NeutronAPIReconciler) reconcileInit(
 			return ctrl.Result{}, err
 		}
 
-		if hash != "" {
-			secretVars[tls.CABundleKey] = env.SetValue(hash)
+		if caHash != "" {
+			secretVars[tls.CABundleKey] = env.SetValue(caHash)
 		}
 	}
 
 	// Validate API service certs secrets
-	certsHash, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
+	apiCertsHash, err := instance.Spec.TLS.API.ValidateCertSecrets(ctx, helper, instance.Namespace)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -491,7 +491,36 @@ func (r *NeutronAPIReconciler) reconcileInit(
 			err.Error()))
 		return ctrl.Result{}, err
 	}
-	secretVars[tls.TLSHashName] = env.SetValue(certsHash)
+
+	if apiCertsHash != "" {
+		secretVars["apiCertsHash"] = env.SetValue(apiCertsHash)
+	}
+
+	// Validate OVN service cert secret
+	if instance.Spec.TLS.Ovn.Enabled() {
+		ovnCertsHash, err := instance.Spec.TLS.Ovn.ValidateCertSecret(ctx, helper, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					condition.TLSInputReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+				return ctrl.Result{}, nil
+			}
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.TLSInputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.TLSInputErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+
+		if ovnCertsHash != "" {
+			secretVars["ovnCertsHash"] = env.SetValue(ovnCertsHash)
+		}
+	}
 
 	// all cert input checks out so report InputReady
 	instance.Status.Conditions.MarkTrue(condition.TLSInputReadyCondition, condition.InputReadyMessage)
@@ -514,6 +543,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		// so we need to return and reconcile again
 		return ctrl.Result{Requeue: true}, nil
 	}
+
 	// Create Secrets - end
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
