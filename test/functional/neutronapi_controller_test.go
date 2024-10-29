@@ -859,12 +859,12 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			})
-			It("Should set ExposeServiceReadyCondition Condition", func() {
+			It("Should set CreateServiceReadyCondition Condition", func() {
 
 				th.ExpectCondition(
 					neutronAPIName,
 					ConditionGetterFunc(NeutronAPIConditionGetter),
-					condition.ExposeServiceReadyCondition,
+					condition.CreateServiceReadyCondition,
 					corev1.ConditionTrue,
 				)
 			})
