@@ -511,6 +511,29 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				)
 			})
 
+			It("should create a Secret for 10-neutron-httpd.conf with Timeout set", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "httpd-config"),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(secret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				configData := th.GetSecret(secret)
+				Expect(configData).ShouldNot(BeNil())
+				conf := string(configData.Data["10-neutron-httpd.conf"])
+				Expect(conf).Should(
+					ContainSubstring("TimeOut 120"))
+			})
+
 			It("should create secret with OwnerReferences set", func() {
 				if isOVNEnabled {
 					dbs := CreateOVNDBClusters(namespace)

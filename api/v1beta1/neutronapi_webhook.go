@@ -37,8 +37,8 @@ import (
 
 // NeutronAPIDefaults -
 type NeutronAPIDefaults struct {
-	ContainerImageURL      string
-	NeutronAPIRouteTimeout string
+	ContainerImageURL string
+	APITimeout        int
 }
 
 var neutronAPIDefaults NeutronAPIDefaults
@@ -81,7 +81,9 @@ func (spec *NeutronAPISpec) Default() {
 
 // Default - set defaults for this NeutronAPI spec core. This version gets used by OpenStackControlplane
 func (spec *NeutronAPISpecCore) Default() {
-	// nothing here yet
+	if spec.APITimeout == 0 {
+		spec.APITimeout = neutronAPIDefaults.APITimeout
+	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -178,7 +180,7 @@ func (spec *NeutronAPISpec) GetDefaultRouteAnnotations() (annotations map[string
 
 func (spec *NeutronAPISpecCore) GetDefaultRouteAnnotations() (annotations map[string]string) {
 	return map[string]string{
-		"haproxy.router.openshift.io/timeout": neutronAPIDefaults.NeutronAPIRouteTimeout,
+		"haproxy.router.openshift.io/timeout": fmt.Sprintf("%ds", neutronAPIDefaults.APITimeout),
 	}
 }
 
@@ -200,4 +202,26 @@ func ValidateDefaultConfigOverwrite(
 		}
 	}
 	return errors
+}
+
+// SetDefaultRouteAnnotations sets HAProxy timeout values of the route
+func (spec *NeutronAPISpecCore) SetDefaultRouteAnnotations(annotations map[string]string) {
+	const haProxyAnno = "haproxy.router.openshift.io/timeout"
+	// Use a custom annotation to flag when the operator has set the default HAProxy timeout
+	// With the annotation func determines when to overwrite existing HAProxy timeout with the APITimeout
+	const neutronAnno = "api.neutron.openstack.org/timeout"
+	valNeutronAPI, okNeutronAPI := annotations[neutronAnno]
+	valHAProxy, okHAProxy := annotations[haProxyAnno]
+	// Human operator set the HAProxy timeout manually
+	if (!okNeutronAPI && okHAProxy) {
+		return
+	}
+	// Human operator modified the HAProxy timeout manually without removing the NeutronAPI flag
+	if (okNeutronAPI && okHAProxy && valNeutronAPI != valHAProxy) {
+		delete(annotations, neutronAnno)
+		return
+	}
+	timeout := fmt.Sprintf("%ds", spec.APITimeout)
+	annotations[neutronAnno] = timeout
+	annotations[haProxyAnno] = timeout
 }

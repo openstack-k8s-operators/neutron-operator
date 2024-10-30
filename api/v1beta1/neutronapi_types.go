@@ -51,6 +51,12 @@ type NeutronAPISpec struct {
 // NeutronAPISpecCore -
 type NeutronAPISpecCore struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=120
+	// +kubebuilder:validation:Minimum=1
+	// APITimeout for HAProxy, Apache
+	APITimeout int `json:"apiTimeout"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=neutron
 	// ServiceUser - optional username used for this service to register in neutron
 	ServiceUser string `json:"serviceUser"`
@@ -290,8 +296,8 @@ func (instance NeutronAPI) IsOVNEnabled() bool {
 func SetupDefaults() {
 	// Acquire environmental defaults and initialize Neutron defaults with them
 	neutronDefaults := NeutronAPIDefaults{
-		ContainerImageURL:      util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", NeutronAPIContainerImage),
-		NeutronAPIRouteTimeout: "120s",
+		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", NeutronAPIContainerImage),
+		APITimeout: 120,
 	}
 
 	SetupNeutronAPIDefaults(neutronDefaults)
