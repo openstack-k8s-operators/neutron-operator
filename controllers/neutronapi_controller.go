@@ -168,7 +168,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		condition.UnknownCondition(condition.ReadyCondition, condition.InitReason, condition.ReadyInitMessage),
 		condition.UnknownCondition(condition.DBReadyCondition, condition.InitReason, condition.DBReadyInitMessage),
 		condition.UnknownCondition(condition.DBSyncReadyCondition, condition.InitReason, condition.DBSyncReadyInitMessage),
-		condition.UnknownCondition(condition.ExposeServiceReadyCondition, condition.InitReason, condition.ExposeServiceReadyInitMessage),
+		condition.UnknownCondition(condition.CreateServiceReadyCondition, condition.InitReason, condition.CreateServiceReadyInitMessage),
 		condition.UnknownCondition(condition.RabbitMqTransportURLReadyCondition, condition.InitReason, condition.RabbitMqTransportURLReadyInitMessage),
 		condition.UnknownCondition(condition.MemcachedReadyCondition, condition.InitReason, condition.MemcachedReadyInitMessage),
 		condition.UnknownCondition(condition.InputReadyCondition, condition.InitReason, condition.InputReadyInitMessage),
@@ -638,10 +638,10 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return ctrl.Result{}, err
@@ -670,19 +670,19 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		ctrlResult, err := svc.CreateOrPatch(ctx, helper)
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.ErrorReason,
 				condition.SeverityWarning,
-				condition.ExposeServiceReadyErrorMessage,
+				condition.CreateServiceReadyErrorMessage,
 				err.Error()))
 
 			return ctrlResult, err
 		} else if (ctrlResult != ctrl.Result{}) {
 			instance.Status.Conditions.Set(condition.FalseCondition(
-				condition.ExposeServiceReadyCondition,
+				condition.CreateServiceReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				condition.ExposeServiceReadyRunningMessage))
+				condition.CreateServiceReadyRunningMessage))
 			return ctrlResult, nil
 		}
 		// create service - end
@@ -700,7 +700,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 		}
 	}
 
-	instance.Status.Conditions.MarkTrue(condition.ExposeServiceReadyCondition, condition.ExposeServiceReadyMessage)
+	instance.Status.Conditions.MarkTrue(condition.CreateServiceReadyCondition, condition.CreateServiceReadyMessage)
 	// expose service - end
 
 	// update status with endpoint information
