@@ -48,6 +48,11 @@ spec:
           spec:
             description: NeutronAPISpec defines the desired state of NeutronAPI
             properties:
+              apiTimeout:
+                default: 120
+                description: APITimeout for HAProxy, Apache
+                minimum: 1
+                type: integer
               containerImage:
                 description: NeutronAPI Container Image URL (will be set to environmental
                   default if empty)
