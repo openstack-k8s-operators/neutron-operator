@@ -54,5 +54,10 @@ func DbSyncJob(
 			},
 		},
 	}
+
+	if cr.Spec.NodeSelector != nil {
+		job.Spec.Template.Spec.NodeSelector = *cr.Spec.NodeSelector
+	}
+
 	return job
 }

@@ -101,7 +101,7 @@ type NeutronAPISpecCore struct {
 
 	// +kubebuilder:validation:Optional
 	// NodeSelector to target subset of worker nodes running this service
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
@@ -297,7 +297,7 @@ func SetupDefaults() {
 	// Acquire environmental defaults and initialize Neutron defaults with them
 	neutronDefaults := NeutronAPIDefaults{
 		ContainerImageURL: util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", NeutronAPIContainerImage),
-		APITimeout: 120,
+		APITimeout:        120,
 	}
 
 	SetupNeutronAPIDefaults(neutronDefaults)
