@@ -67,6 +67,8 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		var internalCertSecretName types.NamespacedName
 		var publicCertSecretName types.NamespacedName
 		var ovnDbCertSecretName types.NamespacedName
+		var neutronDeploymentName types.NamespacedName
+		var neutronDBSyncJobName types.NamespacedName
 
 		BeforeEach(func() {
 			name = fmt.Sprintf("neutron-%s", uuid.New().String())
@@ -107,6 +109,14 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			}
 			ovnDbCertSecretName = types.NamespacedName{
 				Name:      OVNDbCertSecretName,
+				Namespace: namespace,
+			}
+			neutronDeploymentName = types.NamespacedName{
+				Name:      neutronapi.ServiceName,
+				Namespace: namespace,
+			}
+			neutronDBSyncJobName = types.NamespacedName{
+				Name:      neutronAPIName.Name + "-db-sync",
 				Namespace: namespace,
 			}
 		})
@@ -838,7 +848,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			It("Should set DBReady Condition and set DatabaseHostname Status when DB is Created", func() {
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
 				hostname := "hostname-for-" + NeutronAPI.Spec.DatabaseInstance + "." + namespace + ".svc"
 				Expect(NeutronAPI.Status.DatabaseHostname).To(Equal(hostname))
@@ -878,7 +888,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			})
@@ -975,7 +985,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(th.DeleteInstance, nad)
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 
@@ -1019,7 +1029,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(th.DeleteInstance, nad)
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				deplName := types.NamespacedName{
@@ -1064,7 +1074,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(th.DeleteInstance, nad)
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 
@@ -1132,7 +1142,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBTLSDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			})
@@ -1320,7 +1330,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			})
@@ -1338,6 +1348,106 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Expect(endpoints).To(HaveKeyWithValue("public", "https://neutron-openstack.apps-crc.testing"))
 				Expect(endpoints).To(HaveKeyWithValue("internal", "https://neutron-internal."+neutronAPIName.Namespace+".svc:9696"))
 			})
+		})
+
+		When("A NeutronAPI is created with nodeSelector", func() {
+			BeforeEach(func() {
+				spec["nodeSelector"] = map[string]interface{}{
+					"foo": "bar",
+				}
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			})
+
+			It("sets nodeSelector in resource specs", func() {
+				Eventually(func(g Gomega) {
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("updates nodeSelector in resource specs when changed", func() {
+				Eventually(func(g Gomega) {
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					newNodeSelector := map[string]string{
+						"foo2": "bar2",
+					}
+					neutron.Spec.NodeSelector = &newNodeSelector
+					g.Expect(k8sClient.Update(ctx, neutron)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					th.SimulateJobSuccess(neutronDBSyncJobName)
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo2": "bar2"}))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("removes nodeSelector from resource specs when cleared", func() {
+				Eventually(func(g Gomega) {
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					emptyNodeSelector := map[string]string{}
+					neutron.Spec.NodeSelector = &emptyNodeSelector
+					g.Expect(k8sClient.Update(ctx, neutron)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					th.SimulateJobSuccess(neutronDBSyncJobName)
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(BeNil())
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("removes nodeSelector from resource specs when nilled", func() {
+				Eventually(func(g Gomega) {
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(Equal(map[string]string{"foo": "bar"}))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					neutron.Spec.NodeSelector = nil
+					g.Expect(k8sClient.Update(ctx, neutron)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					th.SimulateJobSuccess(neutronDBSyncJobName)
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.NodeSelector).To(BeNil())
+					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
+				}, timeout, interval).Should(Succeed())
+			})
+
 		})
 
 		// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
@@ -1397,16 +1507,12 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 				mariadb.SimulateMariaDBAccountCompleted(accountName)
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
-				th.SimulateJobSuccess(types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-db-sync"})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
-				deplName := types.NamespacedName{
-					Namespace: namespace,
-					Name:      "neutron",
-				}
 
 				th.SimulateDeploymentReadyWithPods(
-					deplName,
+					neutronDeploymentName,
 					map[string][]string{namespace + "/internalapi": {}},
 				)
 
