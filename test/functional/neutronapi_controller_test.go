@@ -701,13 +701,21 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Eventually(func() corev1.Secret {
 					return th.GetSecret(secret)
 				}, timeout, interval).ShouldNot(BeNil())
+				memcacheInstance := infra.GetMemcached(memcachedName)
 				neutronCfg := string(th.GetSecret(secret).Data["01-neutron.conf"])
+				if memcacheInstance.GetMemcachedTLSSupport() {
+					Expect(neutronCfg).Should(
+						ContainSubstring("backend = dogpile.cache.pymemcache"))
+					Expect(neutronCfg).Should(
+						ContainSubstring(fmt.Sprintf("memcache_servers = %s", memcacheInstance.GetMemcachedServerListString())))
+				} else {
+					Expect(neutronCfg).Should(
+						ContainSubstring("backend = dogpile.cache.memcached"))
+					Expect(neutronCfg).Should(
+						ContainSubstring(fmt.Sprintf("memcache_servers = %s", memcacheInstance.GetMemcachedServerListWithInetString())))
+				}
 				Expect(neutronCfg).Should(
-					ContainSubstring(fmt.Sprintf("memcache_servers=memcached-0.memcached.%s.svc:11211,memcached-1.memcached.%s.svc:11211,memcached-2.memcached.%s.svc:11211",
-						neutronAPIName.Namespace, neutronAPIName.Namespace, neutronAPIName.Namespace)))
-				Expect(neutronCfg).Should(
-					ContainSubstring(fmt.Sprintf("memcached_servers=inet:[memcached-0.memcached.%s.svc]:11211,inet:[memcached-1.memcached.%s.svc]:11211,inet:[memcached-2.memcached.%s.svc]:11211",
-						neutronAPIName.Namespace, neutronAPIName.Namespace, neutronAPIName.Namespace)))
+					ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListWithInetString())))
 			})
 
 			if isOVNEnabled {
@@ -1137,7 +1145,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				)
 				SimulateTransportURLReady(apiTransportURLName)
 				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
-				infra.SimulateMemcachedReady(memcachedName)
+				infra.SimulateTLSMemcachedReady(memcachedName)
 				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
@@ -1325,7 +1333,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				)
 				SimulateTransportURLReady(apiTransportURLName)
 				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
-				infra.SimulateMemcachedReady(memcachedName)
+				infra.SimulateTLSMemcachedReady(memcachedName)
 				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
