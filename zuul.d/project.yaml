@@ -4,4 +4,34 @@
     github-check:
       jobs:
         - openstack-k8s-operators-content-provider
-        - neutron-operator-tempest-multinode
+        - neutron-operator-tempest-multinode:
+            vars:
+              cifmw_install_yamls_environment:
+                KUBECONFIG: /home/zuul/.crc/machines/crc/kubeconfig
+                BMO_SETUP: 'false'
+                CHECKOUT_FROM_OPENSTACK_REF: 'true'
+                OPENSTACK_K8S_BRANCH: main
+                OPENSTACK_REPO: "/home/zuul/src/github.com/openstack-k8s-operators/openstack-operator"
+                OUT: /home/zuul/ci-framework-data/artifacts/manifests
+                OUTPUT_DIR: /home/zuul/ci-framework-data/artifacts/edpm
+                DATAPLANE_TLS_ENABLED: false
+              cifmw_edpm_prepare_kustomizations:
+                - apiVersion: kustomize.config.k8s.io/v1beta1
+                  kind: Kustomization
+                  namespace: openstack
+                  patches:
+                  - patch: |-
+                      apiVersion: core.openstack.org/v1beta1
+                      kind: OpenStackControlPlane
+                      metadata:
+                        name: unused
+                      spec:
+                        tls:
+                          podLevel:
+                            enabled: false
+                        memcached:
+                          templates:
+                            memcached:
+                              replicas: 3
+                    target:
+                      kind: OpenStackControlPlane
