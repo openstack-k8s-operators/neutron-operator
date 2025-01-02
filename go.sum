@@ -92,8 +92,8 @@ github.com/openstack-k8s-operators/lib-common/modules/test v0.5.1-0.202412161138
 github.com/openstack-k8s-operators/lib-common/modules/test v0.5.1-0.20241216113837-d172b3ac0f4e/go.mod h1:LV0jo5etIsGyINpmB37i4oWR8zU6ApIuh7fsqGGA41o=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.5.1-0.20241217172849-1709c6e07dea h1:DHdJuIgmMYl21K9w/qSeKt2L0zHqzk8SxbBOLdnmYyE=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.5.1-0.20241217172849-1709c6e07dea/go.mod h1:wyvGgWBf18AhYLXN7apmlZxpho8N9HCEWmihO/+Albc=
-github.com/openstack-k8s-operators/ovn-operator/api v0.5.1-0.20241219010012-02d4a8664afd h1:tLG4A4Zyk8wvp7sObIZoeUMhPDzDdjzUryEYK0EeZYw=
-github.com/openstack-k8s-operators/ovn-operator/api v0.5.1-0.20241219010012-02d4a8664afd/go.mod h1:6CgkHOKRSOjzHTn9efJvMs7ULwfOy4WsP2n4M7n2jws=
+github.com/openstack-k8s-operators/ovn-operator/api v0.5.1-0.20241223100447-a54ecbd6fcee h1:LEndCtmcp/NptkzZfBMqMvLbFg/BxKkmXn1NPRde6zk=
+github.com/openstack-k8s-operators/ovn-operator/api v0.5.1-0.20241223100447-a54ecbd6fcee/go.mod h1:CCwhhamz5YOMerxbKWNmeuLyogiAx6wUDaNu12HUBG8=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
