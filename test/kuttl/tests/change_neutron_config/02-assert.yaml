@@ -3,7 +3,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 commands:
   - script: |
-        $NEUTRON_KUTTL_DIR/../common/scripts/check_debug_in_neutron_pod_logs.sh
+        ../../common/scripts/check_debug_in_neutron_pod_logs.sh
   - script: |
         neutron_pod=$(oc get pods -n $NAMESPACE -l service=neutron --field-selector=status.phase=Running -o name|head -1)
         oc rsh -n $NAMESPACE ${neutron_pod} crudini --get /etc/neutron/neutron.conf.d/testcm.conf DEFAULT api_workers
