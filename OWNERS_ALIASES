@@ -6,7 +6,6 @@ aliases:
   - frenzyfriday
   - viroel
   network-approvers:
-  - booxter
   - karelyatin
   - slawqo
   openstack-approvers:
