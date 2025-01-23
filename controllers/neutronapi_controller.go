@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -210,11 +211,12 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 // fields to index to reconcile when change
 const (
-	passwordSecretField     = ".spec.secret"
-	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
-	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
-	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
-	tlsOVNField             = ".spec.tls.ovn.secretName"
+	passwordSecretField                 = ".spec.secret"
+	caBundleSecretNameField             = ".spec.tls.caBundleSecretName"
+	tlsAPIInternalField                 = ".spec.tls.api.internal.secretName"
+	tlsAPIPublicField                   = ".spec.tls.api.public.secretName"
+	tlsOVNField                         = ".spec.tls.ovn.secretName"
+	httpdCustomServiceConfigSecretField = ".spec.httpdCustomization.customServiceConfigSecret"
 )
 
 var allWatchFields = []string{
@@ -223,6 +225,7 @@ var allWatchFields = []string{
 	tlsAPIInternalField,
 	tlsAPIPublicField,
 	tlsOVNField,
+	httpdCustomServiceConfigSecretField,
 }
 
 // SetupWithManager -
@@ -283,6 +286,18 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			return nil
 		}
 		return []string{*cr.Spec.TLS.Ovn.SecretName}
+	}); err != nil {
+		return err
+	}
+
+	// index httpdOverrideSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &neutronv1beta1.NeutronAPI{}, httpdCustomServiceConfigSecretField, func(rawObj client.Object) []string {
+		// Extract the secret name from the spec, if one is provided
+		cr := rawObj.(*neutronv1beta1.NeutronAPI)
+		if cr.Spec.HttpdCustomization.CustomConfigSecret == nil {
+			return nil
+		}
+		return []string{*cr.Spec.HttpdCustomization.CustomConfigSecret}
 	}); err != nil {
 		return err
 	}
@@ -1545,6 +1560,14 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		return err
 	}
 
+	httpdOverrideSecret := &corev1.Secret{}
+	if instance.Spec.HttpdCustomization.CustomConfigSecret != nil && *instance.Spec.HttpdCustomization.CustomConfigSecret != "" {
+		httpdOverrideSecret, _, err = secret.GetSecret(ctx, h, *instance.Spec.HttpdCustomization.CustomConfigSecret, instance.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
 	templateParameters := make(map[string]interface{})
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
@@ -1598,6 +1621,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	}
 
 	// create httpd  vhost template parameters
+	customTemplates := map[string]string{}
 	httpdVhostConfig := map[string]interface{}{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]interface{}{}
@@ -1608,10 +1632,27 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 			endptConfig["SSLCertificateFile"] = fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String())
 			endptConfig["SSLCertificateKeyFile"] = fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String())
 		}
+
+		endptConfig["Override"] = false
+		if len(httpdOverrideSecret.Data) > 0 {
+			endptConfig["Override"] = true
+			for key, data := range httpdOverrideSecret.Data {
+				if len(data) > 0 {
+					customTemplates["httpd_custom_"+endpt.String()+"_"+key] = string(data)
+				}
+			}
+		}
 		httpdVhostConfig[endpt.String()] = endptConfig
 	}
 
 	templateParameters["VHosts"] = httpdVhostConfig
+
+	// Marshal the templateParameters map to YAML
+	yamlData, err := yaml.Marshal(templateParameters)
+	if err != nil {
+		return fmt.Errorf("Error marshalling to YAML: %w", err)
+	}
+	customData[common.TemplateParameters] = string(yamlData)
 
 	secrets := []util.Template{
 		{
@@ -1634,7 +1675,8 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 				"10-neutron-httpd.conf": "/neutronapi/httpd/10-neutron-httpd.conf",
 				"ssl.conf":              "/neutronapi/httpd/ssl.conf",
 			},
-			ConfigOptions: templateParameters,
+			ConfigOptions:  templateParameters,
+			StringTemplate: customTemplates,
 		},
 	}
 	return secret.EnsureSecrets(ctx, h, instance, secrets, envVars)

@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	//revive:disable-next-line:dot-imports
+	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
@@ -1456,6 +1457,73 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				}, timeout, interval).Should(Succeed())
 			})
 
+		})
+
+		When("A NeutronAPI is created with HttpdCustomization.CustomConfigSecret", func() {
+			BeforeEach(func() {
+				customServiceConfigSecretName := types.NamespacedName{Name: "foo", Namespace: namespace}
+				customConfig := []byte(`CustomParam "foo"
+	CustomKeystonePublicURL "{{ .KeystonePublicURL }}"`)
+				th.CreateSecret(
+					customServiceConfigSecretName,
+					map[string][]byte{
+						"bar.conf": customConfig,
+					},
+				)
+
+				spec["httpdCustomization"] = map[string]interface{}{
+					"customConfigSecret": customServiceConfigSecretName.Name,
+				}
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			})
+
+			It("it renders the custom template and adds it to the placement-config-data secret", func() {
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+				scrt := th.GetSecret(secret)
+				Expect(scrt).ShouldNot(BeNil())
+				Expect(scrt.Data).Should(HaveKey(common.TemplateParameters))
+				configData := string(scrt.Data[common.TemplateParameters])
+				keystonePublicURL := "http://keystone-public-openstack.testing"
+				Expect(configData).Should(ContainSubstring(fmt.Sprintf("KeystonePublicURL: %s", keystonePublicURL)))
+
+				secret = types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "httpd-config"),
+				}
+				scrt = th.GetSecret(secret)
+				Expect(scrt).ShouldNot(BeNil())
+				for _, cfg := range []string{"httpd_custom_internal_bar.conf", "httpd_custom_public_bar.conf"} {
+					Expect(scrt.Data).Should(HaveKey(cfg))
+					configData := string(scrt.Data[cfg])
+					Expect(configData).Should(ContainSubstring("CustomParam \"foo\""))
+					Expect(configData).Should(ContainSubstring(fmt.Sprintf("CustomKeystonePublicURL \"%s\"", keystonePublicURL)))
+				}
+			})
 		})
 
 		// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests

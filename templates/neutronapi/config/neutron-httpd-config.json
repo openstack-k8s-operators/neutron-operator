@@ -37,6 +37,13 @@
         "owner": "neutron:apache",
         "optional": true,
         "perm": "0644"
+      },
+      {
+        "source": "/var/lib/config-data/default/httpd_custom_*",
+        "dest": "/etc/httpd/conf/",
+        "owner": "apache",
+        "perm": "0444",
+        "optional": true
       }
     ],
     "permissions": [
