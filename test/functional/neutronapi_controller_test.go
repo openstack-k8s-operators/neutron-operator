@@ -69,6 +69,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		var ovnDbCertSecretName types.NamespacedName
 		var neutronDeploymentName types.NamespacedName
 		var neutronDBSyncJobName types.NamespacedName
+		var neutronAPITopologies []types.NamespacedName
 
 		BeforeEach(func() {
 			name = fmt.Sprintf("neutron-%s", uuid.New().String())
@@ -118,6 +119,16 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			neutronDBSyncJobName = types.NamespacedName{
 				Name:      neutronAPIName.Name + "-db-sync",
 				Namespace: namespace,
+			}
+			neutronAPITopologies = []types.NamespacedName{
+				{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-topology", neutronAPIName.Name),
+				},
+				{
+					Namespace: namespace,
+					Name:      fmt.Sprintf("%s-topology-alt", neutronAPIName.Name),
+				},
 			}
 		})
 
@@ -1358,6 +1369,87 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			})
 		})
 
+		When("A NeutronAPI is created with topologyRef", func() {
+			BeforeEach(func() {
+
+				// Build the topology Spec
+				topologySpec := GetSampleTopologySpec()
+				// Create Test Topologies
+				for _, t := range neutronAPITopologies {
+					CreateTopology(t, topologySpec)
+				}
+				spec["topologyRef"] = map[string]interface{}{
+					"name": neutronAPITopologies[0].Name,
+				}
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			})
+			It("sets topology in CR status", func() {
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(neutronAPITopologies[0].Name))
+				}, timeout, interval).Should(Succeed())
+			})
+			It("sets topology in resource specs", func() {
+				Eventually(func(g Gomega) {
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.Affinity).To(BeNil())
+				}, timeout, interval).Should(Succeed())
+			})
+			It("updates topology when the reference changes", func() {
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					neutron.Spec.TopologyRef.Name = neutronAPITopologies[1].Name
+					g.Expect(k8sClient.Update(ctx, neutron)).To(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					th.SimulateJobSuccess(neutronDBSyncJobName)
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(neutronAPITopologies[1].Name))
+				}, timeout, interval).Should(Succeed())
+			})
+			It("removes topologyRef from the spec", func() {
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					// Remove the TopologyRef from the existing Neutron .Spec
+					neutron.Spec.TopologyRef = nil
+					g.Expect(k8sClient.Update(ctx, neutron)).To(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					th.SimulateJobSuccess(neutronDBSyncJobName)
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology).Should(BeEmpty())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				}, timeout, interval).Should(Succeed())
+			})
+		})
 		When("A NeutronAPI is created with nodeSelector", func() {
 			BeforeEach(func() {
 				spec["nodeSelector"] = map[string]interface{}{
@@ -1455,7 +1547,6 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					g.Expect(th.GetJob(neutronDBSyncJobName).Spec.Template.Spec.NodeSelector).To(BeNil())
 				}, timeout, interval).Should(Succeed())
 			})
-
 		})
 
 		// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
@@ -1681,6 +1772,32 @@ var _ = Describe("NeutronAPI Webhook", func() {
 		)
 	})
 
+	It("rejects a wrong TopologyRef on a different namespace", func() {
+		spec := GetDefaultNeutronAPISpec()
+		// Inject a topologyRef that points to a different namespace
+		spec["topologyRef"] = map[string]interface{}{
+			"name":      "foo",
+			"namespace": "bar",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "neutron.openstack.org/v1beta1",
+			"kind":       "NeutronAPI",
+			"metadata": map[string]interface{}{
+				"name":      neutronAPIName.Name,
+				"namespace": neutronAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
+		)
+	})
+
 	When("A NeutronAPI instance is updated with unsupported fields", func() {
 		BeforeEach(func() {
 			spec := GetDefaultNeutronAPISpec()
@@ -1756,4 +1873,5 @@ var _ = Describe("NeutronAPI Webhook", func() {
 			)
 		})
 	})
+
 })
