@@ -55,7 +55,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/secret"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/topology"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
@@ -419,10 +418,10 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	}
 
 	// Remove finalizer on the Topology CR
-	if ctrlResult, err := topology.EnsureDeletedTopologyRef(
+	if ctrlResult, err := topologyv1.EnsureDeletedTopologyRef(
 		ctx,
 		helper,
-		&topology.TopoRef{
+		&topologyv1.TopoRef{
 			Name:      instance.Status.LastAppliedTopology,
 			Namespace: instance.Namespace,
 		},
@@ -1071,7 +1070,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 	// Handle Topology
 	//
-	lastTopologyRef := topology.TopoRef{
+	lastTopologyRef := topologyv1.TopoRef{
 		Name:      instance.Status.LastAppliedTopology,
 		Namespace: instance.Namespace,
 	}
@@ -1862,8 +1861,8 @@ func (r *NeutronAPIReconciler) ensureDB(
 func (r *NeutronAPIReconciler) ensureNeutronAPITopology(
 	ctx context.Context,
 	helper *helper.Helper,
-	tpRef *topology.TopoRef,
-	lastAppliedTopology *topology.TopoRef,
+	tpRef *topologyv1.TopoRef,
+	lastAppliedTopology *topologyv1.TopoRef,
 	finalizer string,
 	selector string,
 ) (*topologyv1.Topology, error) {
@@ -1881,7 +1880,7 @@ func (r *NeutronAPIReconciler) ensureNeutronAPITopology(
 	//    referenced topology (tpRef.Name != lastAppliedTopology.Name)
 	if (tpRef == nil && lastAppliedTopology.Name != "") ||
 		(tpRef != nil && tpRef.Name != lastAppliedTopology.Name) {
-		_, err = topology.EnsureDeletedTopologyRef(
+		_, err = topologyv1.EnsureDeletedTopologyRef(
 			ctx,
 			helper,
 			lastAppliedTopology,
@@ -1900,7 +1899,7 @@ func (r *NeutronAPIReconciler) ensureNeutronAPITopology(
 		// Build a defaultLabelSelector (service=neutronapi)
 		defaultLabelSelector := labels.GetAppLabelSelector(selector)
 		// Retrieve the referenced Topology
-		podTopology, _, err = topology.EnsureTopologyRef(
+		podTopology, _, err = topologyv1.EnsureTopologyRef(
 			ctx,
 			helper,
 			tpRef,
