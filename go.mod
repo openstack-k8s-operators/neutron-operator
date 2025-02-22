@@ -8,14 +8,14 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.5
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250210183624-a8bf66784d6d
-	github.com/openstack-k8s-operators/keystone-operator/api v0.5.1-0.20250203105048-182afa0c45d8
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250205143454-43504d7ad19a
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.5.1-0.20250205143454-43504d7ad19a
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.5.1-0.20250205143454-43504d7ad19a
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.5.1-0.20250130183307-cd27e92d7620
+	github.com/openstack-k8s-operators/infra-operator/apis v0.5.1-0.20250218115938-ae95bdfefded
+	github.com/openstack-k8s-operators/keystone-operator/api v0.5.1-0.20250220113356-66f9a1c66db4
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.5.1-0.20250220094812-174a6a440f37
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.5.1-0.20250220094812-174a6a440f37
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.5.1-0.20250220094812-174a6a440f37
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.5.1-0.20250218075707-b9dd6791d205
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/ovn-operator/api v0.5.1-0.20250206151814-623fdb36ba4c
+	github.com/openstack-k8s-operators/ovn-operator/api v0.5.1-0.20250218092018-75e8a0a0aa41
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.29.14
 	k8s.io/apimachinery v0.29.14
@@ -52,7 +52,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.5.1-0.20250205143454-43504d7ad19a // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.5.1-0.20250220094812-174a6a440f37 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
