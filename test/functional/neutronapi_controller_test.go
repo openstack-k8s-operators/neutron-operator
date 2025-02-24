@@ -1408,7 +1408,12 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			It("sets topology in CR status", func() {
 				Eventually(func(g Gomega) {
 					neutron := GetNeutronAPI(neutronAPIName)
-					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(neutronAPITopologies[0].Name))
+					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology.Name).To(Equal(neutronAPITopologies[0].Name))
 				}, timeout, interval).Should(Succeed())
 			})
 			It("sets topology in resource specs", func() {
@@ -1427,7 +1432,13 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Eventually(func(g Gomega) {
 					th.SimulateJobSuccess(neutronDBSyncJobName)
 					neutron := GetNeutronAPI(neutronAPIName)
-					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(neutronAPITopologies[1].Name))
+					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					th.SimulateJobSuccess(neutronDBSyncJobName)
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology.Name).To(Equal(neutronAPITopologies[1].Name))
 				}, timeout, interval).Should(Succeed())
 			})
 			It("removes topologyRef from the spec", func() {
@@ -1441,7 +1452,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Eventually(func(g Gomega) {
 					th.SimulateJobSuccess(neutronDBSyncJobName)
 					neutron := GetNeutronAPI(neutronAPIName)
-					g.Expect(neutron.Status.LastAppliedTopology).Should(BeEmpty())
+					g.Expect(neutron.Status.LastAppliedTopology).Should(BeNil())
 				}, timeout, interval).Should(Succeed())
 
 				Eventually(func(g Gomega) {
