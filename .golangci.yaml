@@ -12,3 +12,9 @@ linters:
     - err113
 run:
   timeout: 5m
+
+issues:
+  exclude-rules:
+    - path: '(.+)_test\.go'
+      linters:
+        - gosec
