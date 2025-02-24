@@ -11,4 +11,5 @@ var (
 	ErrEnsureFailed    = errors.New("failed to ensure")
 	ErrReconcileFailed = errors.New("failed to reconcile")
 	ErrKeyNotFound     = errors.New("key not found in")
+	ErrPodsInterfaces  = errors.New("not all pods have interfaces")
 )
