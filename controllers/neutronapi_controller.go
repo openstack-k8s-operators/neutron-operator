@@ -1030,7 +1030,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	serviceAnnotations, err := nad.EnsureNetworksAnnotation(nadList)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("%w network annotation from %s: %w", ErrCreateFailed,
+		return ctrl.Result{}, fmt.Errorf("failed create network annotation from %s: %w",
 			instance.Spec.NetworkAttachments, err)
 	}
 
@@ -1061,7 +1061,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	// Define a new Deployment object
 	inputHash, ok := instance.Status.Hash[common.InputHashName]
 	if !ok {
-		return ctrlResult, fmt.Errorf("%w input hash for Neutron deployment", ErrFetchFailed)
+		return ctrlResult, fmt.Errorf("%w input hash for Neutron deployment", util.ErrInvalidStatus)
 	}
 
 	//
@@ -1143,7 +1143,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 		instance.Status.NetworkAttachments = networkAttachmentStatus
 		if !networkReady {
-			err := fmt.Errorf("%w with ips as configured in NetworkAttachments: %s", ErrPodsInterfaces, instance.Spec.NetworkAttachments)
+			err := fmt.Errorf("%w with ips as configured in NetworkAttachments: %s", util.ErrPodsInterfaces, instance.Spec.NetworkAttachments)
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.NetworkAttachmentsReadyCondition,
 				condition.ErrorReason,
@@ -1229,7 +1229,7 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNMetadataAgentSecret(
 	if !instance.IsOVNEnabled() {
 		err := r.deleteExternalSecret(ctx, h, instance, getMetadataAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron Metadata Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron Metadata Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1237,7 +1237,7 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNMetadataAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getMetadataAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron Metadata Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron Metadata Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1246,14 +1246,14 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNMetadataAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getMetadataAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron Metadata Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron Metadata Agent external Secret: %w", err)
 		}
 		return nil
 	}
 
 	err = r.ensureExternalOVNMetadataAgentSecret(ctx, h, instance, sbEndpoint, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron Metadata Agent external Secret: %w", ErrEnsureFailed, err)
+		return fmt.Errorf("failed to ensure Neutron Metadata Agent external Secret: %w", err)
 	}
 	return nil
 }
@@ -1267,7 +1267,7 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNAgentSecret(
 	if !instance.IsOVNEnabled() {
 		err := r.deleteExternalSecret(ctx, h, instance, getOVNAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron OVN Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1275,7 +1275,7 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getOVNAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron OVN Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1284,7 +1284,7 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getOVNAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron OVN Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1293,7 +1293,7 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getOVNAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron OVN Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1302,14 +1302,14 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getOVNAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron OVN Agent external Secret: %w", err)
 		}
 		return nil
 	}
 
 	err = r.ensureExternalOVNAgentSecret(ctx, h, instance, nbEndpoint, sbEndpoint, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrEnsureFailed, err)
+		return fmt.Errorf("failed to ensure Neutron OVN Agent external Secret: %w", err)
 	}
 	return nil
 }
@@ -1325,7 +1325,7 @@ func (r *NeutronAPIReconciler) getTransportURL(
 	}
 	transportURL, ok := transportURLSecret.Data["transport_url"]
 	if !ok {
-		return "", fmt.Errorf("transport_url %w Transport Secret", ErrKeyNotFound)
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
 	}
 	return string(transportURL), nil
 }
@@ -1340,13 +1340,13 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getSriovAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron SR-IOV Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron SR-IOV Agent external Secret: %w", err)
 		}
 		return nil
 	}
 	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, transportURL, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron SR-IOV Agent external Secret: %w", ErrEnsureFailed, err)
+		return fmt.Errorf("failed to enusre Neutron SR-IOV Agent external Secret: %w", err)
 	}
 	return nil
 }
@@ -1361,7 +1361,7 @@ func (r *NeutronAPIReconciler) reconcileExternalDhcpAgentSecret(
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getDhcpAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron DHCP Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron DHCP Agent external Secret: %w", err)
 		}
 		return nil
 	}
@@ -1369,13 +1369,13 @@ func (r *NeutronAPIReconciler) reconcileExternalDhcpAgentSecret(
 	if !ok {
 		err = r.deleteExternalSecret(ctx, h, instance, getDhcpAgentSecretName(instance))
 		if err != nil {
-			return fmt.Errorf("%w Neutron DHCP Agent external Secret: %w", ErrDeleteFailed, err)
+			return fmt.Errorf("failed to delete Neutron DHCP Agent external Secret: %w", err)
 		}
 		return nil
 	}
 	err = r.ensureExternalDhcpAgentSecret(ctx, h, instance, string(transportURL), envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron DHCP Agent external Secret: %w", ErrDeleteFailed, err)
+		return fmt.Errorf("failed to delete Neutron DHCP Agent external Secret: %w", err)
 	}
 	return nil
 }
@@ -1392,11 +1392,11 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	// Generate one Secret per external service
 	err := r.reconcileExternalSriovAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron SR-IOV Agent external Secret: %w", ErrReconcileFailed, err)
+		return fmt.Errorf("failed to ensure Neutron SR-IOV Agent external Secret: %w", err)
 	}
 	err = r.reconcileExternalDhcpAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron DHCP Agent external Secret: %w", ErrReconcileFailed, err)
+		return fmt.Errorf("failed to ensure Neutron DHCP Agent external Secret: %w", err)
 	}
 	Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
 	return nil
@@ -1412,11 +1412,11 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNSecrets(
 	// Generate one Secret per external service
 	err := r.reconcileExternalOVNMetadataAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron Metadata Agent external Secret: %w", ErrReconcileFailed, err)
+		return fmt.Errorf("failed to ensure Neutron Metadata Agent external Secret: %w", err)
 	}
 	err = r.reconcileExternalOVNAgentSecret(ctx, h, instance, envVars)
 	if err != nil {
-		return fmt.Errorf("%w Neutron OVN Agent external Secret: %w", ErrReconcileFailed, err)
+		return fmt.Errorf("failed to ensure Neutron OVN Agent external Secret: %w", err)
 	}
 	Log.Info(fmt.Sprintf("Reconciled external OVN secrets for %s", instance.Name))
 	return nil
@@ -1438,7 +1438,7 @@ func (r *NeutronAPIReconciler) deleteExternalSecret(
 
 	err := h.GetClient().Delete(ctx, cm)
 	if err != nil && !k8s_errors.IsNotFound(err) {
-		return fmt.Errorf("%w external Secret %s: %w", ErrDeleteFailed, secretName, err)
+		return fmt.Errorf("failed to delete external Secret %s: %w", secretName, err)
 	}
 
 	// Remove hash
