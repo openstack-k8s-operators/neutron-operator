@@ -1346,7 +1346,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	}
 	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, transportURL, envVars)
 	if err != nil {
-		return fmt.Errorf("failed to enusre Neutron SR-IOV Agent external Secret: %w", err)
+		return fmt.Errorf("failed to ensure Neutron SR-IOV Agent external Secret: %w", err)
 	}
 	return nil
 }
