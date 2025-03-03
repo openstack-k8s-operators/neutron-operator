@@ -216,7 +216,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // fields to index to reconcile when change
 const (
 	passwordSecretField     = ".spec.secret"
-	caBundleSecretNameField = ".spec.tls.caBundleSecretName"
+	caBundleSecretNameField = ".spec.tls.caBundleSecretName" // #nosec
 	tlsAPIInternalField     = ".spec.tls.api.internal.secretName"
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	tlsOVNField             = ".spec.tls.ovn.secretName"
@@ -1061,7 +1061,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	// Define a new Deployment object
 	inputHash, ok := instance.Status.Hash[common.InputHashName]
 	if !ok {
-		return ctrlResult, fmt.Errorf("failed to fetch input hash for Neutron deployment")
+		return ctrlResult, fmt.Errorf("%w input hash for Neutron deployment", util.ErrInvalidStatus)
 	}
 
 	//
@@ -1143,7 +1143,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 		instance.Status.NetworkAttachments = networkAttachmentStatus
 		if !networkReady {
-			err := fmt.Errorf("not all pods have interfaces with ips as configured in NetworkAttachments: %s", instance.Spec.NetworkAttachments)
+			err := fmt.Errorf("%w with ips as configured in NetworkAttachments: %s", util.ErrPodsInterfaces, instance.Spec.NetworkAttachments)
 			instance.Status.Conditions.Set(condition.FalseCondition(
 				condition.NetworkAttachmentsReadyCondition,
 				condition.ErrorReason,
@@ -1325,7 +1325,7 @@ func (r *NeutronAPIReconciler) getTransportURL(
 	}
 	transportURL, ok := transportURLSecret.Data["transport_url"]
 	if !ok {
-		return "", fmt.Errorf("no transport_url key found in Transport Secret")
+		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
 	}
 	return string(transportURL), nil
 }
