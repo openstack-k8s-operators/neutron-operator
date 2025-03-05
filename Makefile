@@ -373,7 +373,7 @@ run-with-webhook: manifests generate fmt vet ## Run a controller from your host.
 	/bin/bash hack/run_with_local_webhook.sh
 
 CRD_SCHEMA_CHECKER_VERSION ?= release-4.16
-BRANCH ?= main
+BRANCH ?= 18.0-fr2
 
 PHONY: crd-schema-check
 crd-schema-check: manifests
