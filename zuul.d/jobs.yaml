@@ -26,6 +26,7 @@
       - ^tests?/kuttl/.*$
       - ^zuul.d/(?!(project)).*\.yaml
     vars:
+      cifmw_test_operator_index: quay.io/openstack-k8s-operators/test-operator-index:18.0-fr2-latest
       cifmw_tempest_container: openstack-tempest-all
       cifmw_run_test_role: tempest
       cifmw_tempest_tempestconf_profile:
