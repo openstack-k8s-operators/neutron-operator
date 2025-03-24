@@ -1805,7 +1805,7 @@ var _ = Describe("NeutronAPI Webhook", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(
 			ContainSubstring(
-				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
+				"spec.topologyRef.namespace: Invalid value: \"namespace\": Customizing namespace field is not supported"),
 		)
 	})
 

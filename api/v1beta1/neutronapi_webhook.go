@@ -33,7 +33,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 )
 
 // NeutronAPIDefaults -
@@ -126,11 +125,8 @@ func (r *NeutronAPISpecCore) ValidateCreate(basePath *field.Path, namespace stri
 
 	// When a TopologyRef CR is referenced, fail if a different Namespace is
 	// referenced because is not supported
-	if r.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(r.TopologyRef.Namespace, *basePath, namespace); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
+	allErrs = append(allErrs, r.ValidateTopology(basePath, namespace)...)
+
 	return allErrs
 }
 
@@ -173,11 +169,7 @@ func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath 
 
 	// When a TopologyRef CR is referenced, fail if a different Namespace is
 	// referenced because is not supported
-	if spec.TopologyRef != nil {
-		if err := topologyv1.ValidateTopologyNamespace(spec.TopologyRef.Namespace, *basePath, namespace); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
+	allErrs = append(allErrs, spec.ValidateTopology(basePath, namespace)...)
 
 	return allErrs
 }
