@@ -32,6 +32,7 @@ import (
 
 	"github.com/google/uuid"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -1370,16 +1371,26 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		})
 
 		When("A NeutronAPI is created with topologyRef", func() {
+			var topologyRef, topologyRefAlt *topologyv1.TopoRef
 			BeforeEach(func() {
+				// Define the two topology references used in this test
+				topologyRef = &topologyv1.TopoRef{
+					Name:      neutronAPITopologies[0].Name,
+					Namespace: neutronAPITopologies[0].Namespace,
+				}
+				topologyRefAlt = &topologyv1.TopoRef{
+					Name:      neutronAPITopologies[1].Name,
+					Namespace: neutronAPITopologies[1].Namespace,
+				}
 
-				// Build the topology Spec
-				topologySpec := GetSampleTopologySpec()
 				// Create Test Topologies
 				for _, t := range neutronAPITopologies {
+					// Build the topology Spec
+					topologySpec, _ := GetSampleTopologySpec(t.Name)
 					CreateTopology(t, topologySpec)
 				}
 				spec["topologyRef"] = map[string]interface{}{
-					"name": neutronAPITopologies[0].Name,
+					"name": topologyRef.Name,
 				}
 
 				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
@@ -1407,18 +1418,24 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			})
 			It("sets topology in CR status", func() {
 				Eventually(func(g Gomega) {
+					tp := GetTopology(types.NamespacedName{
+						Name:      topologyRef.Name,
+						Namespace: topologyRef.Namespace,
+					})
+					finalizers := tp.GetFinalizers()
+					g.Expect(finalizers).To(HaveLen(1))
 					neutron := GetNeutronAPI(neutronAPIName)
 					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
-				}, timeout, interval).Should(Succeed())
-
-				Eventually(func(g Gomega) {
-					neutron := GetNeutronAPI(neutronAPIName)
-					g.Expect(neutron.Status.LastAppliedTopology.Name).To(Equal(neutronAPITopologies[0].Name))
+					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(topologyRef))
+					g.Expect(finalizers).To(ContainElement(
+						fmt.Sprintf("openstack.org/neutronapi-%s", neutronAPIName.Name)))
 				}, timeout, interval).Should(Succeed())
 			})
 			It("sets topology in resource specs", func() {
 				Eventually(func(g Gomega) {
+					_, topologySpecObj := GetSampleTopologySpec(topologyRef.Name)
 					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.TopologySpreadConstraints).To(Equal(topologySpecObj))
 					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.Affinity).To(BeNil())
 				}, timeout, interval).Should(Succeed())
 			})
@@ -1431,16 +1448,28 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 				Eventually(func(g Gomega) {
 					th.SimulateJobSuccess(neutronDBSyncJobName)
+
+					tp := GetTopology(types.NamespacedName{
+						Name:      topologyRefAlt.Name,
+						Namespace: topologyRefAlt.Namespace,
+					})
+					finalizers := tp.GetFinalizers()
+					g.Expect(finalizers).To(HaveLen(1))
 					neutron := GetNeutronAPI(neutronAPIName)
 					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
-				}, timeout, interval).Should(Succeed())
-
-				Eventually(func(g Gomega) {
-					th.SimulateJobSuccess(neutronDBSyncJobName)
-					neutron := GetNeutronAPI(neutronAPIName)
-					g.Expect(neutron.Status.LastAppliedTopology.Name).To(Equal(neutronAPITopologies[1].Name))
+					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
+					g.Expect(finalizers).To(ContainElement(
+						fmt.Sprintf("openstack.org/neutronapi-%s", neutronAPIName.Name)))
+					// Verify the previous referenced topology has no finalizers
+					tp = GetTopology(types.NamespacedName{
+						Name:      topologyRef.Name,
+						Namespace: topologyRef.Namespace,
+					})
+					finalizers = tp.GetFinalizers()
+					g.Expect(finalizers).To(BeEmpty())
 				}, timeout, interval).Should(Succeed())
 			})
+
 			It("removes topologyRef from the spec", func() {
 				Eventually(func(g Gomega) {
 					neutron := GetNeutronAPI(neutronAPIName)
@@ -1458,6 +1487,18 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Eventually(func(g Gomega) {
 					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
 					g.Expect(th.GetDeployment(neutronDeploymentName).Spec.Template.Spec.Affinity).ToNot(BeNil())
+				}, timeout, interval).Should(Succeed())
+
+				// Verify the existing topologies have no finalizer anymore
+				Eventually(func(g Gomega) {
+					for _, topology := range neutronAPITopologies {
+						tp := GetTopology(types.NamespacedName{
+							Name:      topology.Name,
+							Namespace: topology.Namespace,
+						})
+						finalizers := tp.GetFinalizers()
+						g.Expect(finalizers).To(BeEmpty())
+					}
 				}, timeout, interval).Should(Succeed())
 			})
 		})
