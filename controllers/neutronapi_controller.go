@@ -1071,7 +1071,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		ctx,
 		helper,
 		instance.Spec.TopologyRef,
-		instance.GetLastAppliedTopologyRef(),
+		instance.Status.LastAppliedTopology,
 		instance.Name,
 		labels.GetLabelSelector(serviceLabels),
 	)
