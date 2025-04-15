@@ -1132,8 +1132,9 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrlResult, nil
 	}
 
-	if depl.GetDeployment().Generation == depl.GetDeployment().Status.ObservedGeneration {
-		instance.Status.ReadyCount = depl.GetDeployment().Status.ReadyReplicas
+	deploy := depl.GetDeployment()
+	if deploy.Generation == deploy.Status.ObservedGeneration {
+		instance.Status.ReadyCount = deploy.Status.ReadyReplicas
 
 		// verify if network attachment matches expectations
 		networkReady, networkAttachmentStatus, err := nad.VerifyNetworkStatusFromAnnotation(ctx, helper, instance.Spec.NetworkAttachments, serviceLabels, instance.Status.ReadyCount)
@@ -1155,11 +1156,23 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		}
 		instance.Status.Conditions.MarkTrue(condition.NetworkAttachmentsReadyCondition, condition.NetworkAttachmentsReadyMessage)
 
-		if instance.Status.ReadyCount == *instance.Spec.Replicas {
+		// Mark the Deployment as Ready only if the number of Replicas is equals
+		// to the Deployed instances (ReadyCount), and the the Status.Replicas
+		// match Status.ReadyReplicas. If a deployment update is in progress,
+		// Replicas > ReadyReplicas.
+		// In addition, make sure the controller sees the last Generation
+		// by comparing it with the ObservedGeneration.
+		if deployment.IsReady(deploy) {
 			instance.Status.Conditions.MarkTrue(
 				condition.DeploymentReadyCondition,
 				condition.DeploymentReadyMessage,
 			)
+		} else {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.DeploymentReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.DeploymentReadyRunningMessage))
 		}
 	}
 	// create Deployment - end

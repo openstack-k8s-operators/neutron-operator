@@ -965,6 +965,112 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			})
 		})
 
+		When("Deployment rollout is progressing", func() {
+			deplName := types.NamespacedName{}
+			BeforeEach(func() {
+				deplName = types.NamespacedName{
+					Namespace: namespace,
+					Name:      "neutron",
+				}
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+
+				DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(caBundleSecretName))
+				DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(internalCertSecretName))
+				DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(publicCertSecretName))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateTLSMemcachedReady(memcachedName)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBTLSDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+
+				th.SimulateDeploymentProgressing(deplName)
+			})
+
+			It("shows the deployment progressing in DeploymentReadyCondition", func() {
+				th.ExpectConditionWithDetails(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionFalse,
+					condition.RequestedReason,
+					condition.DeploymentReadyRunningMessage,
+				)
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionFalse,
+				)
+			})
+
+			It("still shows the deployment progressing in DeploymentReadyCondition when rollout hits ProgressDeadlineExceeded", func() {
+				th.SimulateDeploymentProgressDeadlineExceeded(deplName)
+				th.ExpectConditionWithDetails(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionFalse,
+					condition.RequestedReason,
+					condition.DeploymentReadyRunningMessage,
+				)
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionFalse,
+				)
+			})
+
+			It("reaches Ready when deployment rollout finished", func() {
+				th.ExpectConditionWithDetails(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionFalse,
+					condition.RequestedReason,
+					condition.DeploymentReadyRunningMessage,
+				)
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionFalse,
+				)
+
+				th.SimulateDeploymentReplicaReady(deplName)
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.DeploymentReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.ReadyCondition,
+					corev1.ConditionTrue,
+				)
+			})
+		})
+
 		When("NeutronAPI is created with networkAttachments", func() {
 			BeforeEach(func() {
 				spec["networkAttachments"] = []string{"internalapi"}
