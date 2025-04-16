@@ -56,7 +56,7 @@ IMG ?= quay.io/openstack-k8s-operators/neutron-operator:latest
 ENVTEST_K8S_VERSION = 1.29
 
 # Set minimum Go version
-GOTOOLCHAIN_VERSION ?= go1.21.0
+GOTOOLCHAIN_VERSION ?= go1.24.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -119,9 +119,10 @@ tidy: ## Run go mod tidy on every mod file in the repo
 	go mod tidy
 	cd ./api && go mod tidy
 
+GOLANGCI_LINT_VERSION ?= v2.4.0
 .PHONY: golangci-lint
 golangci-lint:
-	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.59.1
+	test -s $(LOCALBIN)/golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s $(GOLANGCI_LINT_VERSION)
 	$(LOCALBIN)/golangci-lint run --fix
 
 PROCS?=$(shell expr $(shell nproc --ignore 2) / 2)
