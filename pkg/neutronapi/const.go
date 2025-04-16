@@ -1,3 +1,4 @@
+// Package neutronapi contains Neutron API service management functionality.
 package neutronapi
 
 import (
@@ -19,8 +20,9 @@ const (
 	// is to be generated, e.g. "neutron_e5a4", "neutron_78bc", etc
 	DatabaseUsernamePrefix = "neutron"
 
-	// neutron:neutron
+	// NeutronUID is the UID for the neutron user (neutron:neutron)
 	NeutronUID int64 = 42435
+	// NeutronGID is the GID for the neutron group
 	NeutronGID int64 = 42435
 
 	// NeutronPublicPort -
@@ -37,16 +39,16 @@ const (
 	// by the neutron-operator
 	Neutron storage.PropagationType = "Neutron"
 
-	// Key in external Secret for Neutron OVN Metadata Agent with agent config
+	// NeutronOVNMetadataAgentSecretKey is the key in external Secret for Neutron OVN Metadata Agent with agent config
 	NeutronOVNMetadataAgentSecretKey = "10-neutron-metadata.conf"
 
-	// Key in external Secret for Neutron OVN Agent with agent config
+	// NeutronOVNAgentSecretKey is the key in external Secret for Neutron OVN Agent with agent config
 	NeutronOVNAgentSecretKey = "10-neutron-ovn.conf" // #nosec
 
-	// Key in external Secret for Neutron SR-IOV Agent with agent config
+	// NeutronSriovAgentSecretKey is the key in external Secret for Neutron SR-IOV Agent with agent config
 	NeutronSriovAgentSecretKey = "10-neutron-sriov.conf"
 
-	// Key in external Secret for Neutron DHCP Agent with agent config
+	// NeutronDhcpAgentSecretKey is the key in external Secret for Neutron DHCP Agent with agent config
 	NeutronDhcpAgentSecretKey = "10-neutron-dhcp.conf"
 )
 
