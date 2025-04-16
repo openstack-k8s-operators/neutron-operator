@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controllers contains the NeutronAPI controller for the neutron-operator.
 package controllers
 
 import (
@@ -69,7 +70,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// getlogger returns a logger object with a prefix of "conroller.name" and aditional controller context fields
+// GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *NeutronAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
 	return log.FromContext(ctx).WithName("Controllers").WithName("NeutronAPI")
 }
@@ -115,7 +116,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Fetch the NeutronAPI instance
 	instance := &neutronv1beta1.NeutronAPI{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -386,7 +387,7 @@ func (r *NeutronAPIReconciler) findObjectForSrc(ctx context.Context, src client.
 	listOps := &client.ListOptions{
 		Namespace: src.GetNamespace(),
 	}
-	err := r.Client.List(ctx, crList, listOps)
+	err := r.List(ctx, crList, listOps)
 	if err != nil {
 		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
@@ -527,7 +528,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
-					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName)))
+					condition.TLSInputReadyWaitingMessage, instance.Spec.TLS.CaBundleSecretName))
 				return ctrl.Result{}, nil
 			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -552,7 +553,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 				condition.TLSInputReadyCondition,
 				condition.RequestedReason,
 				condition.SeverityInfo,
-				fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+				condition.TLSInputReadyWaitingMessage, err.Error()))
 			return ctrl.Result{}, nil
 		}
 		instance.Status.Conditions.Set(condition.FalseCondition(
@@ -577,7 +578,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 					condition.TLSInputReadyCondition,
 					condition.RequestedReason,
 					condition.SeverityInfo,
-					fmt.Sprintf(condition.TLSInputReadyWaitingMessage, err.Error())))
+					condition.TLSInputReadyWaitingMessage, err.Error()))
 				return ctrl.Result{}, nil
 			}
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -1630,7 +1631,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	cmLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
 
 	var tlsCfg *tls.Service
-	if instance.Spec.TLS.Ca.CaBundleSecretName != "" {
+	if instance.Spec.TLS.CaBundleSecretName != "" {
 		tlsCfg = &tls.Service{}
 	}
 	// customData hold any customization for the service.
@@ -1811,7 +1812,7 @@ func (r *NeutronAPIReconciler) memcachedNamespaceMapFunc(ctx context.Context) ha
 		listOpts := []client.ListOption{
 			client.InNamespace(o.GetNamespace()),
 		}
-		if err := r.Client.List(context.Background(), neutrons, listOpts...); err != nil {
+		if err := r.List(context.Background(), neutrons, listOpts...); err != nil {
 			Log.Error(err, "Unable to retrieve Neutron CRs %w")
 			return nil
 		}
