@@ -221,3 +221,37 @@ func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.Topol
 	}
 	return topologySpec, topologySpecObj
 }
+
+// GetExtraMounts - Utility function that simulates extraMounts pointing
+// to a  secret
+func GetExtraMounts(nemName string, nemPath string) []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"name":   nemName,
+			"region": "az0",
+			"extraVol": []map[string]interface{}{
+				{
+					"extraVolType": nemName,
+					"propagation": []string{
+						"Neutron",
+					},
+					"volumes": []map[string]interface{}{
+						{
+							"name": nemName,
+							"secret": map[string]interface{}{
+								"secretName": nemName,
+							},
+						},
+					},
+					"mounts": []map[string]interface{}{
+						{
+							"name":      nemName,
+							"mountPath": nemPath,
+							"readOnly":  true,
+						},
+					},
+				},
+			},
+		},
+	}
+}
