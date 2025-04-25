@@ -1298,20 +1298,20 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 				// svc container ca cert
 				nSvcContainer := deployment.Spec.Template.Spec.Containers[0]
-				th.AssertVolumeMountExists(caBundleSecretName.Name, "tls-ca-bundle.pem", nSvcContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(caBundleSecretName.Name, "", "tls-ca-bundle.pem", nSvcContainer.VolumeMounts)
 				if isOVNEnabled {
-					th.AssertVolumeMountExists(ovnDbCertSecretName.Name, "tls.key", nSvcContainer.VolumeMounts)
-					th.AssertVolumeMountExists(ovnDbCertSecretName.Name, "tls.crt", nSvcContainer.VolumeMounts)
-					th.AssertVolumeMountExists(ovnDbCertSecretName.Name, "ca.crt", nSvcContainer.VolumeMounts)
+					th.AssertVolumeMountPathExists(ovnDbCertSecretName.Name, "", "tls.key", nSvcContainer.VolumeMounts)
+					th.AssertVolumeMountPathExists(ovnDbCertSecretName.Name, "", "tls.crt", nSvcContainer.VolumeMounts)
+					th.AssertVolumeMountPathExists(ovnDbCertSecretName.Name, "", "ca.crt", nSvcContainer.VolumeMounts)
 				}
 
 				// httpd container certs
 				nHttpdProxyContainer := deployment.Spec.Template.Spec.Containers[1]
-				th.AssertVolumeMountExists(publicCertSecretName.Name, "tls.key", nHttpdProxyContainer.VolumeMounts)
-				th.AssertVolumeMountExists(publicCertSecretName.Name, "tls.crt", nHttpdProxyContainer.VolumeMounts)
-				th.AssertVolumeMountExists(internalCertSecretName.Name, "tls.key", nHttpdProxyContainer.VolumeMounts)
-				th.AssertVolumeMountExists(internalCertSecretName.Name, "tls.crt", nHttpdProxyContainer.VolumeMounts)
-				th.AssertVolumeMountExists(caBundleSecretName.Name, "tls-ca-bundle.pem", nHttpdProxyContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(publicCertSecretName.Name, "", "tls.key", nHttpdProxyContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(publicCertSecretName.Name, "", "tls.crt", nHttpdProxyContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(internalCertSecretName.Name, "", "tls.key", nHttpdProxyContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(internalCertSecretName.Name, "", "tls.crt", nHttpdProxyContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(caBundleSecretName.Name, "", "tls-ca-bundle.pem", nHttpdProxyContainer.VolumeMounts)
 
 				Expect(nHttpdProxyContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
 				Expect(nHttpdProxyContainer.LivenessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
@@ -1608,6 +1608,55 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				}, timeout, interval).Should(Succeed())
 			})
 		})
+		When("A NeutronAPI is created with extraMounts", func() {
+			var neutronExtraMountsPath, neutronExtraMountsSecretName string
+			BeforeEach(func() {
+				neutronExtraMountsPath = "/var/log/foo"
+				neutronExtraMountsSecretName = "foo"
+				spec["extraMounts"] = GetExtraMounts(neutronExtraMountsSecretName, neutronExtraMountsPath)
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			})
+
+			It("Check extraMounts of the resulting Deployment", func() {
+				// Get Neutron Deployment
+				dp := th.GetDeployment(neutronDeploymentName)
+				// Check the resulting deployment fields
+				Expect(dp.Spec.Template.Spec.Volumes).To(HaveLen(3))
+				Expect(dp.Spec.Template.Spec.Containers).To(HaveLen(2))
+				// Get the neutron container
+				container := dp.Spec.Template.Spec.Containers[0]
+				// Fail if neutron doesn't have the right number of VolumeMounts
+				// entries
+				Expect(container.VolumeMounts).To(HaveLen(3))
+				// Inspect VolumeMounts and make sure we have the Foo MountPath
+				// provided through extraMounts
+				th.AssertVolumeMountPathExists(neutronExtraMountsSecretName,
+					neutronExtraMountsPath, "", container.VolumeMounts)
+			})
+		})
+
 		When("A NeutronAPI is created with nodeSelector", func() {
 			BeforeEach(func() {
 				spec["nodeSelector"] = map[string]interface{}{
