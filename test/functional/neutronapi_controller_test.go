@@ -39,7 +39,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -88,11 +87,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Namespace: namespace,
 				Name:      name,
 			}
-			memcachedSpec = memcachedv1.MemcachedSpec{
-				MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-					Replicas: ptr.To(int32(3)),
-				},
-			}
+			memcachedSpec = infra.GetDefaultMemcachedSpec()
 			memcachedName = types.NamespacedName{
 				Name:      "memcached",
 				Namespace: namespace,
@@ -1906,11 +1901,7 @@ var _ = Describe("NeutronAPI Webhook", func() {
 			Namespace: namespace,
 			Name:      name,
 		}
-		memcachedSpec = memcachedv1.MemcachedSpec{
-			MemcachedSpecCore: memcachedv1.MemcachedSpecCore{
-				Replicas: ptr.To(int32(3)),
-			},
-		}
+		memcachedSpec = infra.GetDefaultMemcachedSpec()
 		memcachedName = types.NamespacedName{
 			Name:      "memcached",
 			Namespace: namespace,
