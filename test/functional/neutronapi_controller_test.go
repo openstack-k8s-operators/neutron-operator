@@ -716,7 +716,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				neutronCfg := string(th.GetSecret(secret).Data["01-neutron.conf"])
 				if memcacheInstance.GetMemcachedTLSSupport() {
 					Expect(neutronCfg).Should(
-						ContainSubstring("backend = dogpile.cache.pymemcache"))
+						ContainSubstring("backend = oslo_cache.memcache_pool"))
 					Expect(neutronCfg).Should(
 						ContainSubstring(fmt.Sprintf("memcache_servers = %s", memcacheInstance.GetMemcachedServerListString())))
 				} else {
