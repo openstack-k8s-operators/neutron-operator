@@ -15,6 +15,7 @@ package neutronapi
 import (
 	"fmt"
 
+	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
@@ -41,6 +42,7 @@ func Deployment(
 	labels map[string]string,
 	annotations map[string]string,
 	topology *topologyv1.Topology,
+	memcached *memcachedv1.Memcached,
 ) (*appsv1.Deployment, error) {
 	// TODO(lucasagomes): Look into how to implement separated probes
 	// for the httpd and neutron-api containers. Right now the code uses
@@ -91,6 +93,12 @@ func Deployment(
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
 		apiVolumeMounts = append(apiVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 		httpdVolumeMounts = append(httpdVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
+	}
+
+	// add MTLS cert if defined
+	if memcached.Status.MTLSCert != "" {
+		volumes = append(volumes, memcached.CreateMTLSVolume())
+		apiVolumeMounts = append(apiVolumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
 	}
 
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
