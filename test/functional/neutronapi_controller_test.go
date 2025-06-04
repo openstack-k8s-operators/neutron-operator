@@ -593,6 +593,34 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 			})
 
+			It("updates the KeystoneAuthURL if keystone internal endpoint changes", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+
+				keystoneAPIName := keystone.CreateKeystoneAPI(namespace)
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+
+				newInternalEndpoint := "https://keystone-internal"
+
+				keystone.UpdateKeystoneAPIEndpoint(keystoneAPIName, "internal", newInternalEndpoint)
+				logger.Info("Reconfigured")
+
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+
+				Eventually(func(g Gomega) {
+					confSecret := th.GetSecret(secret)
+					g.Expect(confSecret).ShouldNot(BeNil())
+
+					conf := string(confSecret.Data["01-neutron.conf"])
+					g.Expect(string(conf)).Should(
+						ContainSubstring("auth_url = %s", newInternalEndpoint))
+				}, timeout, interval).Should(Succeed())
+			})
+
 			if isOVNEnabled {
 				It("should create an external Metadata Agent Secret with expected ovn_sb_connection set", func() {
 					dbs := CreateOVNDBClusters(namespace)
