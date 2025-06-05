@@ -80,8 +80,8 @@ github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 h1:J1wuGhVxpsHykZBa6
 github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094/go.mod h1:CxgbWAlvu2iQB0UmKTtRu1YfepRg1/vJ64n2DlIEVz4=
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250530085921-2b2be72badf4 h1:FmgzhJRoXETu1zY+WJItpw3MEq+uR/7Gx5yXtfMs3UI=
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250530085921-2b2be72badf4/go.mod h1:47iJk3vedZWnBkZyNyYij4ma2HjG4l2VCqKz3f+XDkQ=
-github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250528115713-faa7ebf8f7fc h1:gYSgcZ4cCz41GIElVe122d4ZzoUQZ8ag886Pvse6HVU=
-github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250528115713-faa7ebf8f7fc/go.mod h1:dgYQJbbVaRuP98yZZB3K1rNpqnF54I1HM1ZTaOzPKBY=
+github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250604143452-2260c431b9f1 h1:YQuJwgoQ9mEyzNq9/SgS3wPCtLG0wMQWH/caWAMZeSc=
+github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20250604143452-2260c431b9f1/go.mod h1:dgYQJbbVaRuP98yZZB3K1rNpqnF54I1HM1ZTaOzPKBY=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250508141203-be026d3164f7 h1:c3h1q3fDoit3NmvNL89xUL9A12bJivaTF+IOPEOAwLc=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20250508141203-be026d3164f7/go.mod h1:UwHXRIrMSPJD3lFqrA4oKmRXVLFQCRkLAj9x6KLEHiQ=
 github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20250508141203-be026d3164f7 h1:IybBq3PrxwdvzAF19TjdMCqbEVkX2p3gIkme/Fju6do=
