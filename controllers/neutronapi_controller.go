@@ -1137,7 +1137,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		instance.Status.LastAppliedTopology = nil
 	}
 
-	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology)
+	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -1671,6 +1671,13 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["MemcachedServersWithInet"] = mc.GetMemcachedServerListWithInetString()
 	templateParameters["MemcachedTLS"] = mc.GetMemcachedTLSSupport()
 	templateParameters["TimeOut"] = instance.Spec.APITimeout
+
+	// MTLS
+	if mc.GetMemcachedMTLSSecret() != "" {
+		templateParameters["MemcachedAuthCert"] = fmt.Sprint(memcachedv1.CertMountPath())
+		templateParameters["MemcachedAuthKey"] = fmt.Sprint(memcachedv1.KeyMountPath())
+		templateParameters["MemcachedAuthCa"] = fmt.Sprint(memcachedv1.CaMountPath())
+	}
 
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
