@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -675,7 +676,17 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 	apiEndpoints := make(map[string]string)
 
-	for endpointType, data := range neutronEndpoints {
+	// Sort endpoint types for deterministic iteration
+	var endpointTypes []service.Endpoint
+	for endpointType := range neutronEndpoints {
+		endpointTypes = append(endpointTypes, endpointType)
+	}
+	sort.SliceStable(endpointTypes, func(i, j int) bool {
+		return string(endpointTypes[i]) < string(endpointTypes[j])
+	})
+
+	for _, endpointType := range endpointTypes {
+		data := neutronEndpoints[endpointType]
 		endpointTypeStr := string(endpointType)
 		endpointName := neutronapi.ServiceName + "-" + endpointTypeStr
 
