@@ -743,14 +743,16 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 						ContainSubstring("backend = oslo_cache.memcache_pool"))
 					Expect(neutronCfg).Should(
 						ContainSubstring(fmt.Sprintf("memcache_servers = %s", memcacheInstance.GetMemcachedServerListString())))
+					Expect(neutronCfg).Should(
+						ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListString())))
 				} else {
 					Expect(neutronCfg).Should(
 						ContainSubstring("backend = dogpile.cache.memcached"))
 					Expect(neutronCfg).Should(
 						ContainSubstring(fmt.Sprintf("memcache_servers = %s", memcacheInstance.GetMemcachedServerListWithInetString())))
+					Expect(neutronCfg).Should(
+						ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListString())))
 				}
-				Expect(neutronCfg).Should(
-					ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListWithInetString())))
 			})
 
 			if isOVNEnabled {
