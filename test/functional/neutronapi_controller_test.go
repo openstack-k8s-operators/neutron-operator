@@ -385,6 +385,11 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		When("required dependency services are available", func() {
 			BeforeEach(func() {
 				spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
+				spec["notificationsBusInstance"] = "rabbitmq-br"
+				notificationsTransportURLName := types.NamespacedName{
+					Namespace: namespace,
+					Name:      "notifications-neutron-transport",
+				}
 				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
 				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
@@ -400,6 +405,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					),
 				)
 				SimulateTransportURLReady(apiTransportURLName)
+				SimulateTransportURLReady(notificationsTransportURLName)
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
 			})
@@ -438,7 +444,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				)
 			})
 
-			It("should create a Secret for 01-neutron.conf with api and rpc workers and my.cnf", func() {
+			It("should create a Secret for 01-neutron.conf with notifications, api and rpc workers and my.cnf", func() {
 				if isOVNEnabled {
 					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
 				}
@@ -479,6 +485,10 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				myCnf := configData.Data["my.cnf"]
 				Expect(myCnf).To(
 					ContainSubstring("[client]\nssl=0"))
+
+				// verify exernal notifications driver and transport_url key
+				Expect(conf).Should(
+					ContainSubstring("[oslo_messaging_notifications]\ndriver = messagingv2\ntransport_url ="))
 
 			})
 

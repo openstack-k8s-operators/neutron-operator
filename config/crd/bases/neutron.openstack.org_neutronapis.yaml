@@ -1178,7 +1178,6 @@ spec:
                 type: object
               notificationsBusInstance:
                 description: |-
-                  NotificationsBusInstance
                   NotificationsBusInstance is the name of the RabbitMqCluster CR to select
                   the Message Bus Service instance used by the neutron to publish external notifications.
                   If undefined, the value will be inherited from OpenStackControlPlane.
@@ -1577,6 +1576,11 @@ spec:
                   type: array
                 description: NetworkAttachments status of the deployment pods
                 type: object
+              notificationsTransportURLSecret:
+                description: |-
+                  NotificationsTransportURLSecret - Secret containing
+                  external notifications transportURL
+                type: string
               observedGeneration:
                 description: |-
                   ObservedGeneration - the most recent generation observed for this
