@@ -1576,6 +1576,11 @@ spec:
                   type: array
                 description: NetworkAttachments status of the deployment pods
                 type: object
+              notificationsTransportURLSecret:
+                description: |-
+                  NotificationsTransportURLSecret - Secret containing
+                  external notifications transportURL
+                type: string
               observedGeneration:
                 description: |-
                   ObservedGeneration - the most recent generation observed for this
