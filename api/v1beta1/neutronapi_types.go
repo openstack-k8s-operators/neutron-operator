@@ -156,7 +156,6 @@ type NeutronAPISpecCore struct {
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
 
-	// NotificationsBusInstance
 	// +kubebuilder:validation:Optional
 	// NotificationsBusInstance is the name of the RabbitMqCluster CR to select
 	// the Message Bus Service instance used by the neutron to publish external notifications.
@@ -224,6 +223,10 @@ type NeutronAPIStatus struct {
 
 	// LastAppliedTopology - the last applied Topology
 	LastAppliedTopology *topologyv1.TopoRef `json:"lastAppliedTopology,omitempty"`
+
+	// NotificationsTransportURLSecret - Secret containing
+	// external notifications transportURL
+	NotificationsTransportURLSecret *string `json:"notificationsTransportURLSecret,omitempty"`
 }
 
 // +kubebuilder:object:root=true
