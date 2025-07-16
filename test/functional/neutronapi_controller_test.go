@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2" //revive:disable:dot-imports
 	. "github.com/onsi/gomega"    //revive:disable:dot-imports
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,7 +31,6 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
 
-	"github.com/google/uuid"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
@@ -75,7 +75,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			name = fmt.Sprintf("neutron-%s", uuid.New().String())
 			apiTransportURLName = types.NamespacedName{
 				Namespace: namespace,
-				Name:      name + "-neutron-transport",
+				Name:      "rabbitmq-neutron-transport",
 			}
 
 			spec = GetDefaultNeutronAPISpec()
@@ -1275,6 +1275,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(caBundleSecretName))
 				DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(internalCertSecretName))
 				DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(publicCertSecretName))
+				logger.Info("XXX secret", "is", SecretName)
 				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
 				DeferCleanup(
 					mariadb.DeleteDBService,
@@ -1924,7 +1925,7 @@ var _ = Describe("NeutronAPI Webhook", func() {
 		name = fmt.Sprintf("neutron-%s", uuid.New().String())
 		apiTransportURLName = types.NamespacedName{
 			Namespace: namespace,
-			Name:      name + "-neutron-transport",
+			Name:      "rabbitmq-neutron-transport",
 		}
 
 		neutronAPIName = types.NamespacedName{
