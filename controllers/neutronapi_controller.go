@@ -346,7 +346,7 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 func (r *NeutronAPIReconciler) findObjectsForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NeutronAPI")
+	Log := r.GetLogger(ctx)
 
 	for _, field := range allWatchFields {
 		crList := &neutronv1beta1.NeutronAPIList{}
@@ -356,12 +356,12 @@ func (r *NeutronAPIReconciler) findObjectsForSrc(ctx context.Context, src client
 		}
 		err := r.List(ctx, crList, listOps)
 		if err != nil {
-			l.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
+			Log.Error(err, fmt.Sprintf("listing %s for field: %s - %s", crList.GroupVersionKind().Kind, field, src.GetNamespace()))
 			return requests
 		}
 
 		for _, item := range crList.Items {
-			l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+			Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 			requests = append(requests,
 				reconcile.Request{
@@ -380,7 +380,7 @@ func (r *NeutronAPIReconciler) findObjectsForSrc(ctx context.Context, src client
 func (r *NeutronAPIReconciler) findObjectForSrc(ctx context.Context, src client.Object) []reconcile.Request {
 	requests := []reconcile.Request{}
 
-	l := log.FromContext(ctx).WithName("Controllers").WithName("NeutronAPI")
+	Log := r.GetLogger(ctx)
 
 	crList := &neutronv1beta1.NeutronAPIList{}
 	listOps := &client.ListOptions{
@@ -388,12 +388,12 @@ func (r *NeutronAPIReconciler) findObjectForSrc(ctx context.Context, src client.
 	}
 	err := r.Client.List(ctx, crList, listOps)
 	if err != nil {
-		l.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
+		Log.Error(err, fmt.Sprintf("listing %s for namespace: %s", crList.GroupVersionKind().Kind, src.GetNamespace()))
 		return requests
 	}
 
 	for _, item := range crList.Items {
-		l.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
+		Log.Info(fmt.Sprintf("input source %s changed, reconcile: %s - %s", src.GetName(), item.GetName(), item.GetNamespace()))
 
 		requests = append(requests,
 			reconcile.Request{
@@ -1027,8 +1027,8 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
 	}
 	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
-	// run check memcached - end
 
+	// run check memcached - end
 	err = r.reconcileExternalSecrets(ctx, helper, instance, &secretVars)
 	if err != nil {
 		Log.Error(err, "Failed to reconcile external Secrets")
