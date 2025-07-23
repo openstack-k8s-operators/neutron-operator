@@ -26,7 +26,7 @@ spec:
   secret: osp-secret
   serviceUser: neutron
 status:
-  transportURLSecret: rabbitmq-transport-url-neutron-neutron-transport
+  transportURLSecret: rabbitmq-transport-url-neutron-rabbitmq-transport
   readyCount: 1
 ---
 apiVersion: apps/v1
