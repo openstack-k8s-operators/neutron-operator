@@ -89,6 +89,10 @@ spec:
                 description: DefaultConfigOverwrite - interface to overwrite default
                   config files like policy.yaml
                 type: object
+              enableFwaas:
+                default: false
+                description: EnableFwaas - enable NeutronFwaas service plugin
+                type: boolean
               extraMounts:
                 description: ExtraMounts containing conf files
                 items:
