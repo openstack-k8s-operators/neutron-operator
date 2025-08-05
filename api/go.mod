@@ -1,6 +1,6 @@
 module github.com/openstack-k8s-operators/neutron-operator/api
 
-go 1.21
+go 1.22
 
 require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20250730085055-1fad21f90c95
