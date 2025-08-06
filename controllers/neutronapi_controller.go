@@ -190,6 +190,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		condition.UnknownCondition(condition.ServiceAccountReadyCondition, condition.InitReason, condition.ServiceAccountReadyInitMessage),
 		condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
 		condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
+		condition.UnknownCondition(condition.NotificationBusInstanceReadyCondition, condition.InitReason, condition.NotificationBusInstanceReadyInitMessage),
 	)
 
 	instance.Status.Conditions.Init(&cl)
@@ -899,7 +900,8 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	// create RabbitMQ transportURL CR and get the actual URL from the associated secret that is created
 	//
 
-	transportURL, op, err := r.transportURLCreateOrUpdate(instance)
+	transportURL, _, err := r.transportURLCreateOrUpdate(
+		ctx, instance, neutronapi.ServiceName, instance.Spec.RabbitMqClusterName)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.RabbitMqTransportURLReadyCondition,
@@ -908,10 +910,6 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			condition.RabbitMqTransportURLReadyErrorMessage,
 			err.Error()))
 		return ctrl.Result{}, err
-	}
-
-	if op != controllerutil.OperationResultNone {
-		Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
 	}
 
 	instance.Status.TransportURLSecret = transportURL.Status.SecretName
@@ -926,6 +924,94 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			condition.RabbitMqTransportURLReadyRunningMessage))
 
 		return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
+	}
+
+	//
+	// notifications transporturl
+	//
+	notificationBusName := ""
+	if instance.Spec.NotificationsBusInstance != nil {
+		notificationBusName = *instance.Spec.NotificationsBusInstance
+	}
+
+	if notificationBusName != "" {
+		notificationTransportURL, _, err := r.transportURLCreateOrUpdate(
+			ctx, instance, notificationBusName+"-notifications", notificationBusName)
+
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NotificationBusInstanceReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.NotificationBusInstanceReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+
+		if !notificationTransportURL.IsReady() {
+			Log.Info(fmt.Sprintf("Waiting for Notifications TransportURL %s secret to be created", notificationTransportURL.Name))
+
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.NotificationBusInstanceReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.NotificationBusInstanceReadyRunningMessage))
+
+			return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
+		}
+
+		notificationsTransportURLSecretHash, result, err := secret.VerifySecret(
+			ctx,
+			types.NamespacedName{Namespace: instance.Namespace, Name: notificationTransportURL.Status.SecretName},
+			[]string{"transport_url"},
+			helper.GetClient(),
+			time.Duration(10)*time.Second,
+		)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.InputReadyErrorMessage,
+				err.Error()))
+			return result, err
+		} else if (result != ctrl.Result{}) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.InputReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				condition.InputReadyWaitingMessage))
+			return result, err
+		}
+
+		instance.Status.NotificationsTransportURLSecret = &notificationTransportURL.Status.SecretName
+		Log.Info(fmt.Sprintf("Notifications TransportURL %s secret created Successfully ", notificationTransportURL.Name))
+
+		secretVars[instance.Status.TransportURLSecret] = env.SetValue(notificationsTransportURLSecretHash)
+		instance.Status.Conditions.MarkTrue(condition.NotificationBusInstanceReadyCondition, condition.NotificationBusInstanceReadyMessage)
+	} else {
+		instance.Status.NotificationsTransportURLSecret = nil
+		instance.Status.Conditions.Remove(condition.NotificationBusInstanceReadyCondition)
+
+		// Ensure to delete the previous notifications transport url
+		transportURLList := &rabbitmqv1.TransportURLList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(instance.Namespace),
+		}
+
+		if err := r.Client.List(ctx, transportURLList, listOpts...); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		for _, url := range transportURLList.Items {
+			if strings.Contains(url.Name, "neutron") && strings.Contains(url.Name, "notifications") {
+				err = r.transportURLDeleted(ctx, instance, url.Name)
+				if err != nil {
+					Log.Error(err, fmt.Sprintf("Could not delete notification TransportURL %s", url.Name))
+					return ctrl.Result{}, err
+				}
+			}
+		}
 	}
 
 	//
@@ -1245,22 +1331,56 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	return ctrl.Result{}, nil
 }
 
-func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(instance *neutronv1beta1.NeutronAPI) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(
+	ctx context.Context,
+	instance *neutronv1beta1.NeutronAPI,
+	transporturlName string,
+	rabbitmqName string) (
+	*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
+	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-neutron-transport", instance.Name),
+			Name:      fmt.Sprintf("neutron-%s-transport", transporturlName),
 			Namespace: instance.Namespace,
 		},
 	}
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, transportURL, func() error {
-		transportURL.Spec.RabbitmqClusterName = instance.Spec.RabbitMqClusterName
+		transportURL.Spec.RabbitmqClusterName = rabbitmqName
 
 		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
 		return err
 	})
 
+	if op != controllerutil.OperationResultNone {
+		Log.Info(fmt.Sprintf("TransportURL %s successfully reconciled - operation: %s", transportURL.Name, string(op)))
+	}
+
 	return transportURL, op, err
+}
+
+func (r *NeutronAPIReconciler) transportURLDeleted(
+	ctx context.Context,
+	instance *neutronv1beta1.NeutronAPI,
+	transportURLName string,
+) error {
+	Log := r.GetLogger(ctx)
+	transportURL := &rabbitmqv1.TransportURL{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      transportURLName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	err := r.Client.Delete(ctx, transportURL)
+	if err != nil {
+		Log.Info(fmt.Sprintf("Could not delete TransportURL %s err: %s", transportURLName, err))
+		return err
+	}
+
+	Log.Info("Deleted transportURL", ":", transportURLName)
+
+	return nil
 }
 
 func getExternalSecretName(instance *neutronv1beta1.NeutronAPI, serviceName string) string {
@@ -1461,6 +1581,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSecrets(
 	if err != nil {
 		return fmt.Errorf("failed to reconcile Neutron DHCP Agent external Secret: %w", err)
 	}
+
 	Log.Info(fmt.Sprintf("Reconciled external secrets for %s", instance.Name))
 	return nil
 }
@@ -1682,6 +1803,20 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["MemcachedServersWithInet"] = mc.GetMemcachedServerListWithInetString()
 	templateParameters["MemcachedTLS"] = mc.GetMemcachedTLSSupport()
 	templateParameters["TimeOut"] = instance.Spec.APITimeout
+
+	if instance.Status.NotificationsTransportURLSecret != nil {
+		notificationsTransportURL, _, err := secret.GetDataFromSecret(
+			ctx, h, *instance.Status.NotificationsTransportURLSecret, time.Second, "transport_url")
+
+		if err != nil {
+			return err
+		}
+
+		templateParameters["NotificationsTransportURL"] = notificationsTransportURL
+
+	} else {
+		templateParameters["NotificationsTransportURL"] = nil
+	}
 
 	// MTLS
 	if mc.GetMemcachedMTLSSecret() != "" {
