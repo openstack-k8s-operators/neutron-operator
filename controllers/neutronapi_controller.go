@@ -1732,6 +1732,8 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 	}
 
+	templateParameters["EnableFwaas"] = instance.Spec.EnableFwaas
+
 	// create httpd  vhost template parameters
 	httpdVhostConfig := map[string]interface{}{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
