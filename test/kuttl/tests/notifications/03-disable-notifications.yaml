@@ -1,0 +1,7 @@
+# Disable notifications by removing notificationsBusInstance
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+spec:
+  notificationsBusInstance: null
