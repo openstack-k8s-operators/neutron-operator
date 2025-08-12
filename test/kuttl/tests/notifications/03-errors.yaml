@@ -1,0 +1,5 @@
+# Verify notifications transporturl was cleaned up
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: notifications-neutron-transport
