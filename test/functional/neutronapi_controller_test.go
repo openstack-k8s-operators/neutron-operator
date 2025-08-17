@@ -765,6 +765,49 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				}
 			})
 
+			It("should create a Secret for 01-neutron.conf with quorum queues config when transporturl has quorumqueues=true", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+
+				// Get the existing secret first to obtain the ResourceVersion
+				existingSecret := &corev1.Secret{}
+				secretKey := types.NamespacedName{
+					Name:      SecretName,
+					Namespace: namespace,
+				}
+				Expect(k8sClient.Get(ctx, secretKey, existingSecret)).Should(Succeed())
+
+				// Update the secret with quorumqueues=true
+				existingSecret.Data["quorumqueues"] = []byte("true")
+				Expect(k8sClient.Update(ctx, existingSecret)).Should(Succeed())
+
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+
+				// Wait for the configuration to be regenerated after the secret update
+				Eventually(func(g Gomega) {
+					configData := th.GetSecret(secret)
+					g.Expect(configData).ShouldNot(BeNil())
+					conf := string(configData.Data["01-neutron.conf"])
+					g.Expect(conf).Should(ContainSubstring("[oslo_messaging_rabbit]"))
+				}, timeout, interval).Should(Succeed())
+
+				configData := th.GetSecret(secret)
+				Expect(configData).ShouldNot(BeNil())
+				conf := string(configData.Data["01-neutron.conf"])
+
+				// Verify that the quorum queues configuration is present
+				Expect(conf).Should(ContainSubstring("[oslo_messaging_rabbit]"))
+				Expect(conf).Should(ContainSubstring("rabbit_quorum_queue=true"))
+				Expect(conf).Should(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				Expect(conf).Should(ContainSubstring("amqp_durable_queues=true"))
+			})
+
 			if isOVNEnabled {
 				It("should create an external OVN Agent Secret with expected ovn nb and sb connection set", func() {
 					dbs := CreateOVNDBClusters(namespace)
