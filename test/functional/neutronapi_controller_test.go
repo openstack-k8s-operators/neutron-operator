@@ -320,6 +320,96 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			})
 		})
 
+		When("TransportURL contains quorum queues configuration", func() {
+			BeforeEach(func() {
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				SimulateTransportURLReady(apiTransportURLName)
+			})
+
+			It("should create external SR-IOV Agent Secret with quorum queue settings when enabled", func() {
+				DeferCleanup(k8sClient.Delete, ctx, infra.CreateTransportURLSecret(namespace, SecretName, true))
+
+				externalSriovAgentSecret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-sriov-agent-neutron-config", neutronAPIName.Name),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(externalSriovAgentSecret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				secretData := th.GetSecret(externalSriovAgentSecret).Data[neutronapi.NeutronSriovAgentSecretKey]
+				configContent := string(secretData)
+
+				Expect(configContent).Should(ContainSubstring("rabbit_quorum_queue=true"))
+				Expect(configContent).Should(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				Expect(configContent).Should(ContainSubstring("amqp_durable_queues=true"))
+				Expect(configContent).Should(ContainSubstring("[oslo_messaging_rabbit]"))
+			})
+
+			It("should create external DHCP Agent Secret with quorum queue settings when enabled", func() {
+				DeferCleanup(k8sClient.Delete, ctx, infra.CreateTransportURLSecret(namespace, SecretName, true))
+
+				externalDhcpAgentSecret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-dhcp-agent-neutron-config", neutronAPIName.Name),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(externalDhcpAgentSecret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				secretData := th.GetSecret(externalDhcpAgentSecret).Data[neutronapi.NeutronDhcpAgentSecretKey]
+				configContent := string(secretData)
+
+				Expect(configContent).Should(ContainSubstring("rabbit_quorum_queue=true"))
+				Expect(configContent).Should(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				Expect(configContent).Should(ContainSubstring("amqp_durable_queues=true"))
+				Expect(configContent).Should(ContainSubstring("[oslo_messaging_rabbit]"))
+			})
+
+			It("should not include quorum queue settings when disabled", func() {
+				DeferCleanup(k8sClient.Delete, ctx, infra.CreateTransportURLSecret(namespace, SecretName, false))
+
+				externalSriovAgentSecret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-sriov-agent-neutron-config", neutronAPIName.Name),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(externalSriovAgentSecret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				secretData := th.GetSecret(externalSriovAgentSecret).Data[neutronapi.NeutronSriovAgentSecretKey]
+				configContent := string(secretData)
+
+				Expect(configContent).ShouldNot(ContainSubstring("rabbit_quorum_queue=true"))
+				Expect(configContent).ShouldNot(ContainSubstring("[oslo_messaging_rabbit]"))
+			})
+
+			It("should not include quorum queue settings when not configured", func() {
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+
+				externalDhcpAgentSecret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-dhcp-agent-neutron-config", neutronAPIName.Name),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(externalDhcpAgentSecret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				secretData := th.GetSecret(externalDhcpAgentSecret).Data[neutronapi.NeutronDhcpAgentSecretKey]
+				configContent := string(secretData)
+
+				Expect(configContent).ShouldNot(ContainSubstring("rabbit_quorum_queue=true"))
+				Expect(configContent).ShouldNot(ContainSubstring("[oslo_messaging_rabbit]"))
+			})
+		})
+
 		When("Memcached is available", func() {
 			BeforeEach(func() {
 				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
@@ -485,7 +575,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			It("should create a Secret for 01-neutron.conf with expected ml2 backend settings", func() {
 				var dbs []types.NamespacedName
 				if isOVNEnabled {
-					dbs := CreateOVNDBClusters(namespace)
+					dbs = CreateOVNDBClusters(namespace)
 					DeferCleanup(DeleteOVNDBClusters, dbs)
 				}
 				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
@@ -591,6 +681,53 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Expect(th.GetSecret(secret).Data["02-neutron-custom.conf"]).Should(
 					ContainSubstring("[DEFAULT]\ndebug=True"))
 
+			})
+		})
+
+		When("required dependency services are available with quorum queues enabled", func() {
+			BeforeEach(func() {
+				spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, infra.CreateTransportURLSecret(namespace, SecretName, true))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+			})
+
+			It("should create a Secret for 01-neutron.conf with quorum queue settings enabled", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(secret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				configData := string(th.GetSecret(secret).Data["01-neutron.conf"])
+
+				Expect(configData).Should(ContainSubstring("[oslo_messaging_rabbit]"))
+				Expect(configData).Should(ContainSubstring("rabbit_quorum_queue=true"))
+				Expect(configData).Should(ContainSubstring("rabbit_transient_quorum_queue=true"))
+				Expect(configData).Should(ContainSubstring("amqp_durable_queues=true"))
 			})
 
 			It("updates the KeystoneAuthURL if keystone internal endpoint changes", func() {

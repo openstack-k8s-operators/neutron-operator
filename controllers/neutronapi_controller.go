@@ -1393,6 +1393,22 @@ func (r *NeutronAPIReconciler) getTransportURL(
 	return string(transportURL), nil
 }
 
+func (r *NeutronAPIReconciler) isQuorumQueuesEnabled(
+	ctx context.Context,
+	h *helper.Helper,
+	instance *neutronv1beta1.NeutronAPI,
+) (bool, error) {
+	transportURLSecret, _, err := secret.GetSecret(ctx, h, instance.Status.TransportURLSecret, instance.Namespace)
+	if err != nil {
+		return false, err
+	}
+	quorumQueues, ok := transportURLSecret.Data["quorumqueues"]
+	if !ok {
+		return false, nil
+	}
+	return string(quorumQueues) == "true", nil
+}
+
 func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	ctx context.Context,
 	h *helper.Helper,
@@ -1594,6 +1610,11 @@ func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
 	}
 	templateParameters := make(map[string]interface{})
 	templateParameters["transportURL"] = transportURL
+	quorumQueues, err := r.isQuorumQueuesEnabled(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	secretName := getSriovAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
@@ -1611,6 +1632,11 @@ func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
 	}
 	templateParameters := make(map[string]interface{})
 	templateParameters["transportURL"] = transportURL
+	quorumQueues, err := r.isQuorumQueuesEnabled(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	secretName := getDhcpAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
@@ -1663,6 +1689,11 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		return err
 	}
 
+	quorumQueues, err := r.isQuorumQueuesEnabled(ctx, h, instance)
+	if err != nil {
+		return err
+	}
+
 	mc, err := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 	if err != nil {
 		return err
@@ -1682,6 +1713,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["MemcachedServersWithInet"] = mc.GetMemcachedServerListWithInetString()
 	templateParameters["MemcachedTLS"] = mc.GetMemcachedTLSSupport()
 	templateParameters["TimeOut"] = instance.Spec.APITimeout
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	// MTLS
 	if mc.GetMemcachedMTLSSecret() != "" {
