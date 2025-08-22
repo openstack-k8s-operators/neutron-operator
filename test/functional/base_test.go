@@ -35,10 +35,10 @@ import (
 const (
 	SecretName = "test-secret"
 
-	PublicCertSecretName   = "public-tls-certs"
-	InternalCertSecretName = "internal-tls-certs"
-	CABundleSecretName     = "combined-ca-bundle"
-	OVNDbCertSecretName    = "ovndb-tls-certs"
+	PublicCertSecretName   = "public-tls-certs"   // #nosec G101 -- Test constant, not a credential
+	InternalCertSecretName = "internal-tls-certs" // #nosec G101 -- Test constant, not a credential
+	CABundleSecretName     = "combined-ca-bundle" // #nosec G101 -- Test constant, not a credential
+	OVNDbCertSecretName    = "ovndb-tls-certs"    // #nosec G101 -- Test constant, not a credential
 
 	timeout  = time.Second * 10
 	interval = timeout / 100
