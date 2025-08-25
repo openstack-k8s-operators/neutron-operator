@@ -1,0 +1,15 @@
+# Verify notifications TransportURL is created and ready
+apiVersion: rabbitmq.openstack.org/v1beta1
+kind: TransportURL
+metadata:
+  name: notifications-neutron-transport
+status:
+  conditions:
+  - message: Setup complete
+    reason: Ready
+    status: "True"
+    type: Ready
+  - message: TransportURL completed
+    reason: Ready
+    status: "True"
+    type: TransportURLReady

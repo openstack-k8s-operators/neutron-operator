@@ -1,0 +1,8 @@
+# Verify external notification config
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+        oc wait --for=condition=Ready -n $NAMESPACE pod -l service=neutron --timeout=300s
+        neutron_pod=$(oc get pods -n $NAMESPACE -l service=neutron --field-selector=status.phase=Running -o name | head -1)
+        oc rsh -n $NAMESPACE ${neutron_pod} crudini --get /etc/neutron/neutron.conf.d/01-neutron.conf oslo_messaging_notifications driver | grep -q messagingv2
