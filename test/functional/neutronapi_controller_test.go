@@ -868,6 +868,31 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					}, timeout, interval).Should(Succeed())
 				})
 			}
+			It("should create a Secret for 01-neutron.conf without FWaaS configuration", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+
+				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(secret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				data := th.GetSecret(secret).Data["01-neutron.conf"]
+				conf := string(data)
+
+				// service_plugins should include firewall_v2
+				Expect(conf).ShouldNot(MatchRegexp("service_plugins = .*firewall_v2.*"))
+				Expect(conf).ShouldNot(ContainSubstring(
+					"service_provider = FIREWALL_V2:fwaas_db:neutron_fwaas.services.firewall.service_drivers.ovn.firewall_l3_driver.OVNFwaasDriver:default"))
+			})
 		})
 
 		When("DB is created", func() {
@@ -1903,6 +1928,60 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 						Name:      "neutron",
 					},
 				).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+		})
+
+		When("Neutron API is created with FWaaS enabled", func() {
+			BeforeEach(func() {
+				spec["enableFwaas"] = true
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPI)
+			})
+
+			It("should create a Secret for 01-neutron.conf with expected FWaaS configuration", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(secret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				data := th.GetSecret(secret).Data["01-neutron.conf"]
+				conf := string(data)
+
+				// service_plugins should include firewall_v2
+				Expect(conf).Should(MatchRegexp("service_plugins = .*firewall_v2.*"))
+
+				if isOVNEnabled {
+					Expect(conf).Should(ContainSubstring(
+						"service_provider = FIREWALL_V2:fwaas_db:neutron_fwaas.services.firewall.service_drivers.ovn.firewall_l3_driver.OVNFwaasDriver:default"))
+				} else {
+					Expect(conf).ShouldNot(ContainSubstring(
+						"service_provider = FIREWALL_V2:fwaas_db:neutron_fwaas.services.firewall.service_drivers.ovn.firewall_l3_driver.OVNFwaasDriver:default"))
+				}
+			})
+
 		})
 	}
 }
