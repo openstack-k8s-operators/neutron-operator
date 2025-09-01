@@ -1,0 +1,7 @@
+# check external notifications config
+apiVersion: neutron.openstack.org/v1beta1
+kind: NeutronAPI
+metadata:
+  name: neutron
+spec:
+  notificationsBusInstance: rabbitmq-br

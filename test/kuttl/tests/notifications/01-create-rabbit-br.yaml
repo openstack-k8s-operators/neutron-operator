@@ -1,0 +1,25 @@
+# Create rabbitmq-broadcaster for notifications and enable notifications
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq-br
+spec:
+  override:
+    statefulSet:
+      spec:
+        template:
+          spec:
+            securityContext: {}
+            containers: []
+            initContainers:
+            - name: setup-container
+              securityContext: {}
+  persistence:
+    storage: 1Gi
+  resources:
+    limits:
+      cpu: "0.5"
+      memory: 500Mi
+    requests:
+      cpu: "0.5"
+      memory: 500Mi

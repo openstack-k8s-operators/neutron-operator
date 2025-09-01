@@ -1,0 +1,6 @@
+# Verify the RabbitMQ cluster rabbitmq-br created for notifications is Ready
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: |
+      oc wait --for=condition=ReconcileSuccess rabbitmqcluster.rabbitmq.com rabbitmq-br -n $NAMESPACE --timeout=180s
