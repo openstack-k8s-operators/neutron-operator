@@ -1493,24 +1493,29 @@ func (r *NeutronAPIReconciler) reconcileExternalOVNAgentSecret(
 	return nil
 }
 
+// getTransportURL returns both the transport URL and quorum queues setting from the transport URL secret
 func (r *NeutronAPIReconciler) getTransportURL(
 	ctx context.Context,
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 	secretName *string,
-) (string, error) {
+) (string, bool, error) {
 	if secretName == nil || *secretName == "" {
-		return "", errTransportURLSecretNameNilOrEmpty
+		return "", false, errTransportURLSecretNameNilOrEmpty
 	}
 	transportURLSecret, _, err := secret.GetSecret(ctx, h, *secretName, instance.Namespace)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
+
 	transportURL, ok := transportURLSecret.Data["transport_url"]
 	if !ok {
-		return "", fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
+		return "", false, fmt.Errorf("transport_url %w Transport Secret", util.ErrNotFound)
 	}
-	return string(transportURL), nil
+
+	quorumQueues := string(transportURLSecret.Data["quorumqueues"]) == "true"
+
+	return string(transportURL), quorumQueues, nil
 }
 
 func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
@@ -1519,7 +1524,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	instance *neutronv1beta1.NeutronAPI,
 	envVars *map[string]env.Setter,
 ) error {
-	transportURL, err := r.getTransportURL(ctx, h, instance, &instance.Status.TransportURLSecret)
+	transportURL, quorumQueues, err := r.getTransportURL(ctx, h, instance, &instance.Status.TransportURLSecret)
 	if err != nil {
 		err = r.deleteExternalSecret(ctx, h, instance, getSriovAgentSecretName(instance))
 		if err != nil {
@@ -1527,7 +1532,7 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 		}
 		return nil
 	}
-	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, transportURL, envVars)
+	err = r.ensureExternalSriovAgentSecret(ctx, h, instance, transportURL, quorumQueues, envVars)
 	if err != nil {
 		return fmt.Errorf("failed to ensure Neutron SR-IOV Agent external Secret: %w", err)
 	}
@@ -1556,7 +1561,8 @@ func (r *NeutronAPIReconciler) reconcileExternalDhcpAgentSecret(
 		}
 		return nil
 	}
-	err = r.ensureExternalDhcpAgentSecret(ctx, h, instance, string(transportURL), envVars)
+	quorumQueues := string(transportURLSecret.Data["quorumqueues"]) == "true"
+	err = r.ensureExternalDhcpAgentSecret(ctx, h, instance, string(transportURL), quorumQueues, envVars)
 	if err != nil {
 		return fmt.Errorf("failed to ensure Neutron DHCP Agent external Secret: %w", err)
 	}
@@ -1708,6 +1714,7 @@ func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 	transportURL string,
+	quorumQueues bool,
 	envVars *map[string]env.Setter,
 ) error {
 	templates := map[string]string{
@@ -1715,6 +1722,7 @@ func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
 	}
 	templateParameters := make(map[string]interface{})
 	templateParameters["transportURL"] = transportURL
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	secretName := getSriovAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
@@ -1725,6 +1733,7 @@ func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
 	h *helper.Helper,
 	instance *neutronv1beta1.NeutronAPI,
 	transportURL string,
+	quorumQueues bool,
 	envVars *map[string]env.Setter,
 ) error {
 	templates := map[string]string{
@@ -1732,6 +1741,7 @@ func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
 	}
 	templateParameters := make(map[string]interface{})
 	templateParameters["transportURL"] = transportURL
+	templateParameters["QuorumQueues"] = quorumQueues
 
 	secretName := getDhcpAgentSecretName(instance)
 	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
@@ -1779,7 +1789,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		return err
 	}
 
-	transportURL, err := r.getTransportURL(ctx, h, instance, &instance.Status.TransportURLSecret)
+	transportURL, quorumQueues, err := r.getTransportURL(ctx, h, instance, &instance.Status.TransportURLSecret)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.InputReadyCondition,
@@ -1789,6 +1799,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		))
 		return err
 	}
+
 	mc, err := memcachedv1.GetMemcachedByName(ctx, h, instance.Spec.MemcachedInstance, instance.Namespace)
 	if err != nil {
 		return err
@@ -1808,8 +1819,9 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["MemcachedServersWithInet"] = mc.GetMemcachedServerListWithInetString()
 	templateParameters["MemcachedTLS"] = mc.GetMemcachedTLSSupport()
 	templateParameters["TimeOut"] = instance.Spec.APITimeout
+	templateParameters["QuorumQueues"] = quorumQueues
 
-	notificationsTransportURL, err := r.getTransportURL(ctx, h, instance, instance.Status.NotificationsTransportURLSecret)
+	notificationsTransportURL, _, err := r.getTransportURL(ctx, h, instance, instance.Status.NotificationsTransportURLSecret)
 	if err != nil && !errors.Is(err, errTransportURLSecretNameNilOrEmpty) {
 		// in case not configured yet.
 		return err
