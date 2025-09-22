@@ -218,11 +218,11 @@ var _ = BeforeSuite(func() {
 	dialer := &net.Dialer{Timeout: time.Second}
 	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
 	Eventually(func() error {
-		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true}) // #nosec G402 -- Test environment, TLS verification not required
 		if err != nil {
 			return err
 		}
-		conn.Close()
+		_ = conn.Close() // Ignore close error in test
 		return nil
 	}).Should(Succeed())
 })

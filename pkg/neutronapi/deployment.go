@@ -32,6 +32,7 @@ import (
 )
 
 const (
+	// ServiceCommand is the command used to start the Neutron service
 	ServiceCommand = "/usr/local/bin/kolla_start"
 )
 
