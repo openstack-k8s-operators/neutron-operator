@@ -64,19 +64,19 @@ func SimulateTransportURLReady(name types.NamespacedName) {
 	logger.Info("Simulated TransportURL ready", "on", name)
 }
 
-func GetDefaultNeutronAPISpec() map[string]interface{} {
-	return map[string]interface{}{
+func GetDefaultNeutronAPISpec() map[string]any {
+	return map[string]any{
 		"databaseInstance": "test-neutron-db-instance",
 		"secret":           SecretName,
 	}
 }
 
-func CreateNeutronAPI(namespace string, NeutronAPIName string, spec map[string]interface{}) client.Object {
+func CreateNeutronAPI(namespace string, NeutronAPIName string, spec map[string]any) client.Object {
 
-	raw := map[string]interface{}{
+	raw := map[string]any{
 		"apiVersion": "neutron.openstack.org/v1beta1",
 		"kind":       "NeutronAPI",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      NeutronAPIName,
 			"namespace": namespace,
 		},
@@ -188,16 +188,16 @@ func CreateNeutronAPISecret(namespace string, name string) *corev1.Secret {
 // want to avoid by default
 // 2. Usually a topologySpreadConstraints is used to take care about
 // multi AZ, which is not applicable in this context
-func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.TopologySpreadConstraint) {
+func GetSampleTopologySpec(label string) (map[string]any, []corev1.TopologySpreadConstraint) {
 	// Build the topology Spec
-	topologySpec := map[string]interface{}{
-		"topologySpreadConstraints": []map[string]interface{}{
+	topologySpec := map[string]any{
+		"topologySpreadConstraints": []map[string]any{
 			{
 				"maxSkew":           1,
 				"topologyKey":       corev1.LabelHostname,
 				"whenUnsatisfiable": "ScheduleAnyway",
-				"labelSelector": map[string]interface{}{
-					"matchLabels": map[string]interface{}{
+				"labelSelector": map[string]any{
+					"matchLabels": map[string]any{
 						"service":   neutronapi.ServiceName,
 						"component": label,
 					},
@@ -224,26 +224,26 @@ func GetSampleTopologySpec(label string) (map[string]interface{}, []corev1.Topol
 
 // GetExtraMounts - Utility function that simulates extraMounts pointing
 // to a  secret
-func GetExtraMounts(nemName string, nemPath string) []map[string]interface{} {
-	return []map[string]interface{}{
+func GetExtraMounts(nemName string, nemPath string) []map[string]any {
+	return []map[string]any{
 		{
 			"name":   nemName,
 			"region": "az0",
-			"extraVol": []map[string]interface{}{
+			"extraVol": []map[string]any{
 				{
 					"extraVolType": nemName,
 					"propagation": []string{
 						"Neutron",
 					},
-					"volumes": []map[string]interface{}{
+					"volumes": []map[string]any{
 						{
 							"name": nemName,
-							"secret": map[string]interface{}{
+							"secret": map[string]any{
 								"secretName": nemName,
 							},
 						},
 					},
-					"mounts": []map[string]interface{}{
+					"mounts": []map[string]any{
 						{
 							"name":      nemName,
 							"mountPath": nemPath,
