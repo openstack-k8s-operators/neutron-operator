@@ -62,7 +62,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		var memcachedSpec memcachedv1.MemcachedSpec
 		var memcachedName types.NamespacedName
 		var name string
-		var spec map[string]interface{}
+		var spec map[string]any
 		var caBundleSecretName types.NamespacedName
 		var internalCertSecretName types.NamespacedName
 		var publicCertSecretName types.NamespacedName
@@ -1309,17 +1309,17 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 		When("A NeutronAPI is created with TLS", func() {
 			BeforeEach(func() {
-				spec["tls"] = map[string]interface{}{
-					"api": map[string]interface{}{
-						"internal": map[string]interface{}{
+				spec["tls"] = map[string]any{
+					"api": map[string]any{
+						"internal": map[string]any{
 							"secretName": InternalCertSecretName,
 						},
-						"public": map[string]interface{}{
+						"public": map[string]any{
 							"secretName": PublicCertSecretName,
 						},
 					},
 					"caBundleSecretName": CABundleSecretName,
-					"ovn": map[string]interface{}{
+					"ovn": map[string]any{
 						"secretName": InternalCertSecretName,
 					},
 				}
@@ -1490,24 +1490,24 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 		When("A NeutronAPI is created with TLS and service override endpointURL set", func() {
 			BeforeEach(func() {
-				spec["tls"] = map[string]interface{}{
-					"api": map[string]interface{}{
-						"internal": map[string]interface{}{
+				spec["tls"] = map[string]any{
+					"api": map[string]any{
+						"internal": map[string]any{
 							"secretName": InternalCertSecretName,
 						},
-						"public": map[string]interface{}{
+						"public": map[string]any{
 							"secretName": PublicCertSecretName,
 						},
 					},
 					"caBundleSecretName": CABundleSecretName,
 				}
 
-				serviceOverride := map[string]interface{}{}
-				serviceOverride["public"] = map[string]interface{}{
+				serviceOverride := map[string]any{}
+				serviceOverride["public"] = map[string]any{
 					"endpointURL": "https://neutron-openstack.apps-crc.testing",
 				}
 
-				spec["override"] = map[string]interface{}{
+				spec["override"] = map[string]any{
 					"service": serviceOverride,
 				}
 
@@ -1573,7 +1573,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					topologySpec, _ := GetSampleTopologySpec(t.Name)
 					infra.CreateTopology(t, topologySpec)
 				}
-				spec["topologyRef"] = map[string]interface{}{
+				spec["topologyRef"] = map[string]any{
 					"name": topologyRef.Name,
 				}
 
@@ -1737,7 +1737,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 
 		When("A NeutronAPI is created with nodeSelector", func() {
 			BeforeEach(func() {
-				spec["nodeSelector"] = map[string]interface{}{
+				spec["nodeSelector"] = map[string]any{
 					"foo": "bar",
 				}
 
@@ -1996,17 +1996,17 @@ var _ = Describe("NeutronAPI Webhook", func() {
 
 	It("rejects with wrong NeutronAPI service override endpoint type", func() {
 		spec := GetDefaultNeutronAPISpec()
-		spec["override"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"internal": map[string]interface{}{},
-				"wrooong":  map[string]interface{}{},
+		spec["override"] = map[string]any{
+			"service": map[string]any{
+				"internal": map[string]any{},
+				"wrooong":  map[string]any{},
 			},
 		}
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "neutron.openstack.org/v1beta1",
 			"kind":       "NeutronAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      neutronAPIName.Name,
 				"namespace": neutronAPIName.Namespace,
 			},
@@ -2026,15 +2026,15 @@ var _ = Describe("NeutronAPI Webhook", func() {
 
 	It("rejects NeutronAPI with wrong field in defaultConfigOverwrite", func() {
 		spec := GetDefaultNeutronAPISpec()
-		spec["defaultConfigOverwrite"] = map[string]interface{}{
+		spec["defaultConfigOverwrite"] = map[string]any{
 			"policy.yaml": "support",
 			"policy.json": "not supported",
 		}
 
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "neutron.openstack.org/v1beta1",
 			"kind":       "NeutronAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      neutronAPIName.Name,
 				"namespace": neutronAPIName.Namespace,
 			},
@@ -2056,14 +2056,14 @@ var _ = Describe("NeutronAPI Webhook", func() {
 	It("rejects a wrong TopologyRef on a different namespace", func() {
 		spec := GetDefaultNeutronAPISpec()
 		// Inject a topologyRef that points to a different namespace
-		spec["topologyRef"] = map[string]interface{}{
+		spec["topologyRef"] = map[string]any{
 			"name":      "foo",
 			"namespace": "bar",
 		}
-		raw := map[string]interface{}{
+		raw := map[string]any{
 			"apiVersion": "neutron.openstack.org/v1beta1",
 			"kind":       "NeutronAPI",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      neutronAPIName.Name,
 				"namespace": neutronAPIName.Namespace,
 			},

@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -1644,7 +1645,7 @@ func (r *NeutronAPIReconciler) ensureExternalSecret(
 	instance *neutronv1beta1.NeutronAPI,
 	secretName string,
 	templates map[string]string,
-	templateParameters map[string]interface{},
+	templateParameters map[string]any,
 	envVars *map[string]env.Setter,
 ) error {
 	secretLabels := labels.GetLabels(instance, labels.GetGroupLabel(neutronapi.ServiceName), map[string]string{})
@@ -1682,7 +1683,7 @@ func (r *NeutronAPIReconciler) ensureExternalOVNMetadataAgentSecret(
 	templates := map[string]string{
 		neutronapi.NeutronOVNMetadataAgentSecretKey: "/ovn-metadata-agent.conf",
 	}
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 	templateParameters["SBConnection"] = sbEndpoint
 	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 
@@ -1701,7 +1702,7 @@ func (r *NeutronAPIReconciler) ensureExternalOVNAgentSecret(
 	templates := map[string]string{
 		neutronapi.NeutronOVNAgentSecretKey: "/ovn-agent.conf",
 	}
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 	templateParameters["NBConnection"] = nbEndpoint
 	templateParameters["SBConnection"] = sbEndpoint
 	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
@@ -1721,7 +1722,7 @@ func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
 	templates := map[string]string{
 		neutronapi.NeutronSriovAgentSecretKey: "/sriov-agent.conf",
 	}
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 	templateParameters["transportURL"] = transportURL
 	templateParameters["QuorumQueues"] = quorumQueues
 
@@ -1740,7 +1741,7 @@ func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
 	templates := map[string]string{
 		neutronapi.NeutronDhcpAgentSecretKey: "/dhcp-agent.conf",
 	}
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 	templateParameters["transportURL"] = transportURL
 	templateParameters["QuorumQueues"] = quorumQueues
 
@@ -1773,9 +1774,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		"02-neutron-custom.conf": instance.Spec.CustomServiceConfig,
 		"my.cnf":                 db.GetDatabaseClientConfig(tlsCfg), //(mschuppert) for now just get the default my.cnf
 	}
-	for key, data := range instance.Spec.DefaultConfigOverwrite {
-		customData[key] = data
-	}
+	maps.Copy(customData, instance.Spec.DefaultConfigOverwrite)
 
 	keystoneAPI, err := keystonev1.GetKeystoneAPI(ctx, h, instance.Namespace, map[string]string{})
 	if err != nil {
@@ -1811,7 +1810,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 		return err
 	}
 
-	templateParameters := make(map[string]interface{})
+	templateParameters := make(map[string]any)
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
@@ -1881,9 +1880,9 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	}
 
 	// create httpd  vhost template parameters
-	httpdVhostConfig := map[string]interface{}{}
+	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
-		endptConfig := map[string]interface{}{}
+		endptConfig := map[string]any{}
 		endptConfig["ServerName"] = fmt.Sprintf("neutron-%s.%s.svc", endpt.String(), instance.Namespace)
 		endptConfig["TLS"] = false // default TLS to false, and set it bellow to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {
