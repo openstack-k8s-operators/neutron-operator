@@ -1178,7 +1178,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					ConditionGetterFunc(NeutronAPIConditionGetter),
 					condition.NetworkAttachmentsReadyCondition,
 					corev1.ConditionFalse,
-					condition.RequestedReason,
+					condition.ErrorReason,
 					"NetworkAttachment resources missing: internalapi",
 				)
 			})
