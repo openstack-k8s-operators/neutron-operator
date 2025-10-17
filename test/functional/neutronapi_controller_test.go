@@ -1633,23 +1633,49 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Eventually(func(g Gomega) {
 					th.SimulateJobSuccess(neutronDBSyncJobName)
 
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
+					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
+
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+
+					th.ExpectCondition(
+						neutronAPIName,
+						ConditionGetterFunc(NeutronAPIConditionGetter),
+						condition.TopologyReadyCondition,
+						corev1.ConditionTrue,
+					)
+
 					tp := infra.GetTopology(types.NamespacedName{
 						Name:      topologyRefAlt.Name,
 						Namespace: topologyRefAlt.Namespace,
 					})
 					finalizers := tp.GetFinalizers()
 					g.Expect(finalizers).To(HaveLen(1))
-					neutron := GetNeutronAPI(neutronAPIName)
-					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
-					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
 					g.Expect(finalizers).To(ContainElement(
 						fmt.Sprintf("openstack.org/neutronapi-%s", neutronAPIName.Name)))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+
+					// Simulate deployment being ready with empty network attachments (since this test doesn't use them)
+					th.SimulateDeploymentReadyWithPods(neutronDeploymentName, map[string][]string{})
+
+					// Wait for neutron to be fully ready before checking topology finalizers
+					th.ExpectCondition(
+						neutronAPIName,
+						ConditionGetterFunc(NeutronAPIConditionGetter),
+						condition.ReadyCondition,
+						corev1.ConditionTrue,
+					)
 					// Verify the previous referenced topology has no finalizers
-					tp = infra.GetTopology(types.NamespacedName{
+					prevTopology := infra.GetTopology(types.NamespacedName{
 						Name:      topologyRef.Name,
 						Namespace: topologyRef.Namespace,
 					})
-					finalizers = tp.GetFinalizers()
+					finalizers := prevTopology.GetFinalizers()
 					g.Expect(finalizers).To(BeEmpty())
 				}, timeout, interval).Should(Succeed())
 			})
