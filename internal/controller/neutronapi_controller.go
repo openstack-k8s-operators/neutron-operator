@@ -234,6 +234,7 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	tlsOVNField             = ".spec.tls.ovn.secretName"
 	topologyField           = ".spec.topologyRef.Name"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" // #nosec
 )
 
 var allWatchFields = []string{
@@ -243,6 +244,7 @@ var allWatchFields = []string{
 	tlsAPIPublicField,
 	tlsOVNField,
 	topologyField,
+	authAppCredSecretField,
 }
 
 // SetupWithManager -
@@ -315,6 +317,18 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			return nil
 		}
 		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &neutronv1beta1.NeutronAPI{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*neutronv1beta1.NeutronAPI)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
 	}); err != nil {
 		return err
 	}
@@ -1853,6 +1867,28 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 	templateParameters["ServicePassword"] = servicePassword
+
+	templateParameters["UseApplicationCredentials"] = false
+	// Try to get Application Credential from the secret specified in the CR
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		secret := &corev1.Secret{}
+		key := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Auth.ApplicationCredentialSecret}
+		if err := r.Get(ctx, key, secret); err != nil {
+			if !k8s_errors.IsNotFound(err) {
+				h.GetLogger().Error(err, "Failed to get ApplicationCredential secret", "secret", key)
+				return err
+			}
+		} else {
+			acID, okID := secret.Data[keystonev1.ACIDSecretKey]
+			acSecret, okSecret := secret.Data[keystonev1.ACSecretSecretKey]
+			if okID && len(acID) > 0 && okSecret && len(acSecret) > 0 {
+				templateParameters["UseApplicationCredentials"] = true
+				templateParameters["ACID"] = string(acID)
+				templateParameters["ACSecret"] = string(acSecret)
+				h.GetLogger().Info("Using ApplicationCredentials auth", "secret", key)
+			}
+		}
+	}
 
 	// Database
 	databaseAccount := db.GetAccount()
