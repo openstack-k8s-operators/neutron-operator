@@ -245,6 +245,41 @@ var allWatchFields = []string{
 	topologyField,
 }
 
+// Application Credential secret watching function
+func (r *NeutronAPIReconciler) acSecretFn(_ context.Context, o client.Object) []reconcile.Request {
+	name := o.GetName()
+	ns := o.GetNamespace()
+	result := []reconcile.Request{}
+
+	// Only handle Secret objects
+	if _, isSecret := o.(*corev1.Secret); !isSecret {
+		return nil
+	}
+
+	// Check if this is a neutron AC secret by name pattern (ac-neutron-secret)
+	expectedSecretName := keystonev1.GetACSecretName(neutronapi.ServiceName)
+	if name == expectedSecretName {
+		// get all NeutronAPI CRs in this namespace
+		neutronAPIs := &neutronv1beta1.NeutronAPIList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(ns),
+		}
+		if err := r.List(context.Background(), neutronAPIs, listOpts...); err != nil {
+			return nil
+		}
+
+		for _, cr := range neutronAPIs.Items {
+			result = append(result, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				},
+			})
+		}
+	}
+	return result
+}
+
 // SetupWithManager -
 func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	// index passwordSecretField
@@ -341,6 +376,8 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Watches(&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.acSecretFn)).
 		Watches(&topologyv1.Topology{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSrc),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
@@ -500,6 +537,11 @@ func (r *NeutronAPIReconciler) reconcileInit(
 
 	// Create Secrets required as input for the Service and calculate an overall hash of hashes
 	//
+
+	// Verify Application Credentials if available
+	if result, err := keystonev1.VerifyApplicationCredentialsForService(ctx, r.Client, instance.Namespace, neutronapi.ServiceName, &secretVars, 10*time.Second); err != nil || result.RequeueAfter > 0 {
+		return result, err
+	}
 
 	//
 	// create Secret required for neutronapi and dbsync input. It contains minimal neutron config required
@@ -1853,6 +1895,18 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 	templateParameters["ServicePassword"] = servicePassword
+
+	templateParameters["UseApplicationCredentials"] = false
+	// Try to get Application Credential for this service
+	if acData, err := keystonev1.GetApplicationCredentialFromSecret(ctx, r.Client, instance.Namespace, neutronapi.ServiceName); err != nil {
+		h.GetLogger().Error(err, "Failed to get ApplicationCredential for service", "service", neutronapi.ServiceName)
+		return err
+	} else if acData != nil {
+		templateParameters["UseApplicationCredentials"] = true
+		templateParameters["ACID"] = acData.ID
+		templateParameters["ACSecret"] = acData.Secret
+		h.GetLogger().Info("Using ApplicationCredentials auth", "service", neutronapi.ServiceName)
+	}
 
 	// Database
 	databaseAccount := db.GetAccount()
