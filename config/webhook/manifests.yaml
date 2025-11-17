@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-neutron-openstack-org-v1beta1-neutronapi
   failurePolicy: Fail
-  name: mneutronapi.kb.io
+  name: mneutronapi-v1beta1.kb.io
   rules:
   - apiGroups:
     - neutron.openstack.org
@@ -38,7 +38,7 @@ webhooks:
       namespace: system
       path: /validate-neutron-openstack-org-v1beta1-neutronapi
   failurePolicy: Fail
-  name: vneutronapi.kb.io
+  name: vneutronapi-v1beta1.kb.io
   rules:
   - apiGroups:
     - neutron.openstack.org

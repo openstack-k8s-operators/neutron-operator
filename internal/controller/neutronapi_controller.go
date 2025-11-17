@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package controllers contains the NeutronAPI controller for the neutron-operator.
-package controllers
+// Package controller contains the NeutronAPI controller for the neutron-operator.
+package controller
 
 import (
 	"context"
@@ -62,7 +62,7 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
+	"github.com/openstack-k8s-operators/neutron-operator/internal/neutronapi"
 	ovnclient "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"

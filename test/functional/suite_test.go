@@ -52,7 +52,8 @@ import (
 	test "github.com/openstack-k8s-operators/lib-common/modules/test"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/neutron-operator/controllers"
+	"github.com/openstack-k8s-operators/neutron-operator/internal/controller"
+	webhookv1beta1 "github.com/openstack-k8s-operators/neutron-operator/internal/webhook/v1beta1"
 	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 
 	infra_test "github.com/openstack-k8s-operators/infra-operator/apis/test/helpers"
@@ -192,13 +193,13 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&neutronv1.NeutronAPI{}).SetupWebhookWithManager(k8sManager)
+	err = webhookv1beta1.SetupNeutronAPIWebhookWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
 	kclient, err := kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred(), "failed to create kclient")
 
-	err = (&controllers.NeutronAPIReconciler{
+	err = (&controller.NeutronAPIReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Kclient: kclient,

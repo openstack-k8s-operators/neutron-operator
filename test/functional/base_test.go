@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega" //revive:disable:dot-imports
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
-	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
+	"github.com/openstack-k8s-operators/neutron-operator/internal/neutronapi"
 	ovnv1 "github.com/openstack-k8s-operators/ovn-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
