@@ -29,9 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -51,17 +49,6 @@ func SetupNeutronAPIDefaults(defaults NeutronAPIDefaults) {
 	neutronAPIDefaults = defaults
 	neutronapilog.Info("NeutronAPI defaults initialized", "defaults", defaults)
 }
-
-// SetupWebhookWithManager sets up the webhook with the Manager
-func (r *NeutronAPI) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-neutron-openstack-org-v1beta1-neutronapi,mutating=true,failurePolicy=fail,sideEffects=None,groups=neutron.openstack.org,resources=neutronapis,verbs=create;update,versions=v1beta1,name=mneutronapi.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Defaulter = &NeutronAPI{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *NeutronAPI) Default() {
@@ -85,11 +72,6 @@ func (spec *NeutronAPISpecCore) Default() {
 		spec.APITimeout = neutronAPIDefaults.APITimeout
 	}
 }
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-neutron-openstack-org-v1beta1-neutronapi,mutating=false,failurePolicy=fail,sideEffects=None,groups=neutron.openstack.org,resources=neutronapis,verbs=create;update,versions=v1beta1,name=vneutronapi.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Validator = &NeutronAPI{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NeutronAPI) ValidateCreate() (admission.Warnings, error) {
@@ -221,11 +203,11 @@ func (spec *NeutronAPISpecCore) SetDefaultRouteAnnotations(annotations map[strin
 	valNeutronAPI, okNeutronAPI := annotations[neutronAnno]
 	valHAProxy, okHAProxy := annotations[haProxyAnno]
 	// Human operator set the HAProxy timeout manually
-	if (!okNeutronAPI && okHAProxy) {
+	if !okNeutronAPI && okHAProxy {
 		return
 	}
 	// Human operator modified the HAProxy timeout manually without removing the NeutronAPI flag
-	if (okNeutronAPI && okHAProxy && valNeutronAPI != valHAProxy) {
+	if okNeutronAPI && okHAProxy && valNeutronAPI != valHAProxy {
 		delete(annotations, neutronAnno)
 		return
 	}

@@ -3,5 +3,7 @@
     name: openstack-k8s-operators/neutron-operator
     github-check:
       jobs:
-        - openstack-k8s-operators-content-provider
+        - openstack-k8s-operators-content-provider:
+            vars:
+              cifmw_install_yamls_sdk_version: v1.41.1
         - neutron-operator-tempest-multinode

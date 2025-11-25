@@ -24,7 +24,7 @@
       - ^hack/.*$
       - ^tests?/functional/.*$
       - ^tests?/kuttl/.*$
-      - ^zuul.d/(?!(project)).*\.yaml
+      - ^zuul.d/jobs.yaml
     vars:
       cifmw_edpm_deploy_nova_compute_extra_config: |
         [DEFAULT]

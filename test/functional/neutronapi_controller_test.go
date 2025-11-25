@@ -45,7 +45,7 @@ import (
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 
-	"github.com/openstack-k8s-operators/neutron-operator/pkg/neutronapi"
+	"github.com/openstack-k8s-operators/neutron-operator/internal/neutronapi"
 )
 
 func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
