@@ -1957,6 +1957,60 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					},
 				).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
 		})
+
+		When("an ApplicationCredential is created for Neutron", func() {
+			BeforeEach(func() {
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+
+				// Create AC secret
+				acSecretName := fmt.Sprintf("ac-%s-secret", neutronapi.ServiceName)
+				acSecret := th.CreateSecret(
+					types.NamespacedName{Namespace: neutronAPIName.Namespace, Name: acSecretName},
+					map[string][]byte{
+						"AC_ID":     []byte("test-ac-id"),
+						"AC_SECRET": []byte("test-ac-secret"),
+					},
+				)
+				DeferCleanup(th.DeleteInstance, acSecret)
+			})
+
+			It("should render ApplicationCredential auth in 01-neutron.conf", func() {
+				configSecretName := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-config", neutronAPIName.Name),
+				}
+
+				Eventually(func(g Gomega) {
+					configSecret := th.GetSecret(configSecretName)
+					g.Expect(configSecret.Data).ShouldNot(BeNil())
+
+					conf := string(configSecret.Data["01-neutron.conf"])
+					g.Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+					g.Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+				}, timeout, interval).Should(Succeed())
+			})
+		})
 	}
 }
 
