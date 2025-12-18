@@ -4,4 +4,5 @@ kind: NeutronAPI
 metadata:
   name: neutron
 spec:
-  notificationsBusInstance: rabbitmq-br
+  notificationsBus:
+    cluster: rabbitmq-br
