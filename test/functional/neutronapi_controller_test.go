@@ -495,7 +495,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			It("should create a Secret for 01-neutron.conf with expected ml2 backend settings", func() {
 				var dbs []types.NamespacedName
 				if isOVNEnabled {
-					dbs := CreateOVNDBClusters(namespace)
+					dbs = CreateOVNDBClusters(namespace)
 					DeferCleanup(DeleteOVNDBClusters, dbs)
 				}
 				keystoneAPI := keystone.CreateKeystoneAPI(namespace)
@@ -1630,9 +1630,11 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					g.Expect(k8sClient.Update(ctx, neutron)).To(Succeed())
 				}, timeout, interval).Should(Succeed())
 
-				Eventually(func(g Gomega) {
-					th.SimulateJobSuccess(neutronDBSyncJobName)
+				// Simulate job success to trigger reconciliation
+				th.SimulateJobSuccess(neutronDBSyncJobName)
 
+				// Wait for the new topology to have the finalizer
+				Eventually(func(g Gomega) {
 					tp := infra.GetTopology(types.NamespacedName{
 						Name:      topologyRefAlt.Name,
 						Namespace: topologyRefAlt.Namespace,
@@ -1644,12 +1646,15 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(topologyRefAlt))
 					g.Expect(finalizers).To(ContainElement(
 						fmt.Sprintf("openstack.org/neutronapi-%s", neutronAPIName.Name)))
-					// Verify the previous referenced topology has no finalizers
-					tp = infra.GetTopology(types.NamespacedName{
+				}, timeout, interval).Should(Succeed())
+
+				// Verify the previous referenced topology has no finalizers
+				Eventually(func(g Gomega) {
+					tp := infra.GetTopology(types.NamespacedName{
 						Name:      topologyRef.Name,
 						Namespace: topologyRef.Namespace,
 					})
-					finalizers = tp.GetFinalizers()
+					finalizers := tp.GetFinalizers()
 					g.Expect(finalizers).To(BeEmpty())
 				}, timeout, interval).Should(Succeed())
 			})
