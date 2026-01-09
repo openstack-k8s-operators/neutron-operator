@@ -25,6 +25,7 @@ package v1beta1
 import (
 	"fmt"
 
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,6 +71,18 @@ func (spec *NeutronAPISpec) Default() {
 func (spec *NeutronAPISpecCore) Default() {
 	if spec.APITimeout == 0 {
 		spec.APITimeout = neutronAPIDefaults.APITimeout
+	}
+
+	rabbitmqv1.DefaultRabbitMqConfig(&spec.MessagingBus, spec.RabbitMqClusterName)
+
+	// Default NotificationsBus if NotificationsBusInstance is specified
+	if spec.NotificationsBusInstance != nil && *spec.NotificationsBusInstance != "" {
+		if spec.NotificationsBus == nil {
+			// Initialize empty NotificationsBus - credentials will be created dynamically
+			// to ensure separation from MessagingBus (RPC and notifications should never share credentials)
+			spec.NotificationsBus = &rabbitmqv1.RabbitMqConfig{}
+		}
+		rabbitmqv1.DefaultRabbitMqConfig(spec.NotificationsBus, *spec.NotificationsBusInstance)
 	}
 }
 
@@ -143,6 +156,21 @@ func (spec *NeutronAPISpec) ValidateUpdate(old NeutronAPISpec, basePath *field.P
 
 func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath *field.Path, namespace string) field.ErrorList {
 	var allErrs field.ErrorList
+
+	// Reject changes to deprecated RabbitMqClusterName field - users should use the new messagingBus.cluster field instead
+	if spec.RabbitMqClusterName != old.RabbitMqClusterName {
+		allErrs = append(allErrs, field.Forbidden(
+			basePath.Child("rabbitMqClusterName"),
+			"rabbitMqClusterName is deprecated and cannot be changed. Please use messagingBus.cluster instead"))
+	}
+
+	// Reject changes to deprecated NotificationsBusInstance field
+	if spec.NotificationsBusInstance != nil && old.NotificationsBusInstance != nil &&
+		*spec.NotificationsBusInstance != *old.NotificationsBusInstance {
+		allErrs = append(allErrs, field.Forbidden(
+			basePath.Child("notificationsBusInstance"),
+			"notificationsBusInstance is deprecated and cannot be changed. Please use notificationsBus.cluster instead"))
+	}
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), spec.Override.Service)...)

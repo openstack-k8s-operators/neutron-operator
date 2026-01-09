@@ -911,7 +911,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 
 	transportURL, _, err := r.transportURLCreateOrUpdate(
-		ctx, instance, instance.Name, instance.Spec.RabbitMqClusterName)
+		ctx, instance, instance.Name, instance.Spec.RabbitMqClusterName, instance.Spec.MessagingBus)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.RabbitMqTransportURLReadyCondition,
@@ -938,15 +938,13 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 	//
 	// notifications transporturl
+	// (the webhook defaults NotificationsBus from the deprecated NotificationsBusInstance field)
 	//
-	notificationBusName := ""
-	if instance.Spec.NotificationsBusInstance != nil {
-		notificationBusName = *instance.Spec.NotificationsBusInstance
-	}
-
-	if notificationBusName != "" {
+	if instance.Spec.NotificationsBus != nil && instance.Spec.NotificationsBus.Cluster != "" {
+		// Use NotificationsBus config (never fall back to MessagingBus to ensure separation)
+		notificationsRabbitMqConfig := *instance.Spec.NotificationsBus
 		notificationTransportURL, _, err := r.transportURLCreateOrUpdate(
-			ctx, instance, "notifications", notificationBusName)
+			ctx, instance, "notifications", instance.Spec.NotificationsBus.Cluster, notificationsRabbitMqConfig)
 
 		if err != nil {
 			instance.Status.Conditions.Set(condition.FalseCondition(
@@ -1344,6 +1342,7 @@ func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(
 	instance *neutronv1beta1.NeutronAPI,
 	transporturlName string,
 	rabbitmqName string,
+	rabbitMqConfig rabbitmqv1.RabbitMqConfig,
 ) (*rabbitmqv1.TransportURL, controllerutil.OperationResult, error) {
 	Log := r.GetLogger(ctx)
 	transportURL := &rabbitmqv1.TransportURL{
@@ -1355,6 +1354,11 @@ func (r *NeutronAPIReconciler) transportURLCreateOrUpdate(
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, transportURL, func() error {
 		transportURL.Spec.RabbitmqClusterName = rabbitmqName
+		if rabbitMqConfig.User != "" {
+			transportURL.Spec.Username = rabbitMqConfig.User
+		}
+		// Always set Vhost - empty string means use default "/" vhost
+		transportURL.Spec.Vhost = rabbitMqConfig.Vhost
 
 		err := controllerutil.SetControllerReference(instance, transportURL, r.Scheme)
 		return err
