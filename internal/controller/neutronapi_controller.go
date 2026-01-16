@@ -1827,6 +1827,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["ServiceUser"] = instance.Spec.ServiceUser
 	templateParameters["KeystoneInternalURL"] = keystoneInternalURL
 	templateParameters["KeystonePublicURL"] = keystonePublicURL
+	templateParameters["Region"] = keystoneAPI.GetRegion()
 	templateParameters["TransportURL"] = transportURL
 	templateParameters["MemcachedServers"] = mc.GetMemcachedServerListString()
 	templateParameters["MemcachedServersWithInet"] = mc.GetMemcachedServerListWithInetString()
