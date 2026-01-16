@@ -76,8 +76,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/onsi/ginkgo/v2 v2.27.1 h1:0LJC8MpUSQnfnp4n/3W3GdlmJP3ENGF0ZPzjQGLPP7s=
 github.com/onsi/ginkgo/v2 v2.27.1/go.mod h1:wmy3vCqiBjirARfVhAqFpYt8uvX0yaFe+GudAqqcCqA=
-github.com/onsi/gomega v1.38.2 h1:eZCjf2xjZAqe+LeWvKb5weQ+NcPwX84kqJ0cZNxok2A=
-github.com/onsi/gomega v1.38.2/go.mod h1:W2MJcYxRGV63b418Ai34Ud0hEdTVXq9NW9+Sx6uXf3k=
+github.com/onsi/gomega v1.39.0 h1:y2ROC3hKFmQZJNFeGAMeHZKkjBL65mIZcvrLQBF9k6Q=
+github.com/onsi/gomega v1.39.0/go.mod h1:ZCU1pkQcXDO5Sl9/VVEGlDyp+zm0m1cmeG5TOzLgdh4=
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20251030184102-82d2cbaafd35 h1:QFFGu93A+XCvDUxZIgfBE4gB5hEdVQAIw+E8dF1kP/E=
 github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20251030184102-82d2cbaafd35/go.mod h1:qq8BCRxTEmLRriUsQ4HeDUzqltWg32MQPDTMhgbBGK4=
 github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20251027074416-ab5c045dbe00 h1:Xih6tYYqiDVllo4fDGHqTPL+M2biO5YLOUmbiTqrW/I=
