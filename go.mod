@@ -18,9 +18,9 @@ require (
 	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20251029144102-54e2a6b7520d
 	go.uber.org/zap v1.27.0
 	gopkg.in/ini.v1 v1.67.0
-	k8s.io/api v0.31.13
-	k8s.io/apimachinery v0.31.13
-	k8s.io/client-go v0.31.13
+	k8s.io/api v0.31.14
+	k8s.io/apimachinery v0.31.14
+	k8s.io/client-go v0.31.14
 	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
 	sigs.k8s.io/controller-runtime v0.19.7
 )
