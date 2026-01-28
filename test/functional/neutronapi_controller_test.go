@@ -1680,14 +1680,27 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				}, timeout, interval).Should(Succeed())
 			})
 			It("updates topology when the reference changes", func() {
+				// Ensure original topology ref applied
+				Eventually(func(g Gomega) {
+					tp := infra.GetTopology(types.NamespacedName{
+						Name:      topologyRef.Name,
+						Namespace: topologyRef.Namespace,
+					})
+					finalizers := tp.GetFinalizers()
+					g.Expect(finalizers).To(HaveLen(1))
+					neutron := GetNeutronAPI(neutronAPIName)
+					g.Expect(neutron.Status.LastAppliedTopology).ToNot(BeNil())
+					g.Expect(neutron.Status.LastAppliedTopology).To(Equal(topologyRef))
+					g.Expect(finalizers).To(ContainElement(
+						fmt.Sprintf("openstack.org/neutronapi-%s", neutronAPIName.Name)))
+				}, timeout, interval).Should(Succeed())
+
+				// Update the topology ref
 				Eventually(func(g Gomega) {
 					neutron := GetNeutronAPI(neutronAPIName)
 					neutron.Spec.TopologyRef.Name = neutronAPITopologies[1].Name
 					g.Expect(k8sClient.Update(ctx, neutron)).To(Succeed())
 				}, timeout, interval).Should(Succeed())
-
-				// Simulate job success to trigger reconciliation
-				th.SimulateJobSuccess(neutronDBSyncJobName)
 
 				// Wait for the new topology to have the finalizer
 				Eventually(func(g Gomega) {
