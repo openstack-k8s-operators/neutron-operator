@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
@@ -77,7 +78,15 @@ type NeutronAPISpecCore struct {
 	// +kubebuilder:default=rabbitmq
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Neutron
-	RabbitMqClusterName string `json:"rabbitMqClusterName"`
+	RabbitMqClusterName string `json:"rabbitMqClusterName" deprecated:"messagingBus.cluster"`
+
+	// +kubebuilder:validation:Optional
+	// MessagingBus configuration (username, vhost, and cluster)
+	MessagingBus rabbitmqv1.RabbitMqConfig `json:"messagingBus,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NotificationsBus configuration (username, vhost, and cluster) for notifications
+	NotificationsBus *rabbitmqv1.RabbitMqConfig `json:"notificationsBus,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default=memcached
@@ -162,7 +171,7 @@ type NeutronAPISpecCore struct {
 	// If undefined, the value will be inherited from OpenStackControlPlane.
 	// An empty value "" leaves the notification drivers unconfigured and emitting no notifications at all.
 	// Avoid colocating it with RabbitMqClusterName used for RPC.
-	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty"`
+	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty" deprecated:"notificationsBus.cluster"`
 }
 
 type NeutronApiTLS struct {
