@@ -29,26 +29,25 @@
       cifmw_edpm_deploy_nova_compute_extra_config: |
         [DEFAULT]
         force_config_drive = false
-      cifmw_tempest_container: openstack-tempest-all
-      cifmw_run_test_role: tempest
-      cifmw_tempest_tempestconf_profile:
-          overrides:
-            compute-feature-enabled.vnc_console: true
-            validation.run_validation: true
-            # NOTE(gibi): This is a WA to force the publicURL as otherwise
-            # tempest gets configured with adminURL and that causes test
-            # instability.
-            identity.v3_endpoint_type: public
-            identity.v2_admin_endpoint_type: public
-      cifmw_tempest_tests_allowed:
-        - neutron_tempest_plugin.api
-        - neutron_tempest_plugin.scenario
+      cifmw_test_operator_tempest_container: openstack-tempest-all
+      cifmw_run_test_role: test_operator
+      cifmw_test_operator_tempest_network_attachments:
+        - ctlplane
+      cifmw_test_operator_tempest_tempestconf_config:
+          overrides: |
+            compute-feature-enabled.vnc_console true
+            validation.run_validation true
+            identity.v3_endpoint_type public
+            identity.v2_admin_endpoint_type public
+      cifmw_test_operator_tempest_include_list: |
+        neutron_tempest_plugin.api
+        neutron_tempest_plugin.scenario
         # To check metadata with and without config drive
-        - tempest.scenario.test_server_basic_ops.TestServerBasicOps.test_server_basic_ops
-      cifmw_tempest_tests_skipped:
+        tempest.scenario.test_server_basic_ops.TestServerBasicOps.test_server_basic_ops
+      cifmw_test_operator_tempest_exclude_list: |
         # https://review.opendev.org/892839
-        - neutron_tempest_plugin.scenario.test_mtu.NetworkWritableMtuTest
+        neutron_tempest_plugin.scenario.test_mtu.NetworkWritableMtuTest
         # missing https://review.opendev.org/882818 in antelope
-        - test_qos_dscp_create_and_update
+        test_qos_dscp_create_and_update
         # Limit job runtime
-        - NetworkSecGroupTest
+        NetworkSecGroupTest
