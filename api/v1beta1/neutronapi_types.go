@@ -74,11 +74,11 @@ type NeutronAPISpecCore struct {
 	// DatabaseAccount - optional MariaDBAccount CR name used for neutron DB, defaults to neutron
 	DatabaseAccount string `json:"databaseAccount"`
 
-	// +kubebuilder:validation:Required
-	// +kubebuilder:default=rabbitmq
+	// +kubebuilder:validation:Optional
 	// RabbitMQ instance name
 	// Needed to request a transportURL that is created and used in Neutron
-	RabbitMqClusterName string `json:"rabbitMqClusterName" deprecated:"messagingBus.cluster"`
+	// Deprecated: Use MessagingBus.Cluster instead
+	RabbitMqClusterName string `json:"rabbitMqClusterName,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// MessagingBus configuration (username, vhost, and cluster)

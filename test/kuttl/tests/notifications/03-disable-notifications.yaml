@@ -5,4 +5,3 @@ metadata:
   name: neutron
 spec:
   notificationsBus: null
-  notificationsBusInstance: null

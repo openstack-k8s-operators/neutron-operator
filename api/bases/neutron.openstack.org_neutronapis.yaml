@@ -1453,10 +1453,10 @@ spec:
                   e.g. to check logs
                 type: boolean
               rabbitMqClusterName:
-                default: rabbitmq
                 description: |-
                   RabbitMQ instance name
                   Needed to request a transportURL that is created and used in Neutron
+                  Deprecated: Use MessagingBus.Cluster instead
                 type: string
               replicas:
                 default: 1
@@ -1594,7 +1594,6 @@ spec:
             - containerImage
             - databaseInstance
             - memcachedInstance
-            - rabbitMqClusterName
             - secret
             type: object
           status:

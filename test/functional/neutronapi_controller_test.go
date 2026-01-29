@@ -138,7 +138,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
 				Expect(NeutronAPI.Spec.DatabaseInstance).Should(Equal("test-neutron-db-instance"))
 				Expect(NeutronAPI.Spec.DatabaseAccount).Should(Equal("neutron"))
-				Expect(NeutronAPI.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
+				Expect(NeutronAPI.Spec.MessagingBus.Cluster).Should(Equal("rabbitmq"))
 				Expect(NeutronAPI.Spec.MemcachedInstance).Should(Equal("memcached"))
 				Expect(*(NeutronAPI.Spec.Replicas)).Should(Equal(int32(1)))
 				Expect(NeutronAPI.Spec.ServiceUser).Should(Equal("neutron"))
@@ -386,8 +386,9 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		When("required dependency services are available", func() {
 			BeforeEach(func() {
 				spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
-				// Use deprecated field to test webhook defaulting
-				spec["notificationsBusInstance"] = "rabbitmq-br"
+				spec["notificationsBus"] = map[string]any{
+					"cluster": "rabbitmq-br",
+				}
 				notificationsTransportURLName := types.NamespacedName{
 					Namespace: namespace,
 					Name:      "notifications-neutron-transport",
