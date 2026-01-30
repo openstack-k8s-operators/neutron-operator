@@ -36,12 +36,14 @@ import (
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
+	keystonev1 "github.com/openstack-k8s-operators/keystone-operator/api/v1beta1"
 	condition "github.com/openstack-k8s-operators/lib-common/modules/common/condition"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
@@ -2030,6 +2032,148 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 						Name:      "neutron",
 					},
 				).Spec.Template.Spec.Containers[0].Env, "CONFIG_HASH", "")
+		})
+
+		When("an ApplicationCredential is created for Neutron", func() {
+			BeforeEach(func() {
+				acSecretName := fmt.Sprintf("ac-%s-secret", neutronapi.ServiceName)
+				acSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: neutronAPIName.Namespace,
+						Name:      acSecretName,
+					},
+					Data: map[string][]byte{
+						keystonev1.ACIDSecretKey:     []byte("test-ac-id"),
+						keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+					},
+				}
+				DeferCleanup(k8sClient.Delete, ctx, acSecret)
+				Expect(k8sClient.Create(ctx, acSecret)).To(Succeed())
+
+				// Set auth.applicationCredentialSecret in the spec
+				spec["auth"] = map[string]any{
+					"applicationCredentialSecret": acSecretName,
+				}
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			})
+
+			It("should render ApplicationCredential auth in 01-neutron.conf", func() {
+				configSecretName := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-config", neutronAPIName.Name),
+				}
+
+				Eventually(func(g Gomega) {
+					configSecret := th.GetSecret(configSecretName)
+					g.Expect(configSecret.Data).ShouldNot(BeNil())
+
+					conf := string(configSecret.Data["01-neutron.conf"])
+
+					// AC auth is configured
+					g.Expect(conf).To(ContainSubstring("auth_type = v3applicationcredential"))
+					g.Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+					g.Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+
+					// Password auth fields should not be present
+					g.Expect(conf).NotTo(ContainSubstring("auth_type = password"))
+					g.Expect(conf).NotTo(ContainSubstring("username ="))
+					g.Expect(conf).NotTo(ContainSubstring("password ="))
+					g.Expect(conf).NotTo(ContainSubstring("project_name ="))
+					g.Expect(conf).NotTo(ContainSubstring("user_domain_name ="))
+					g.Expect(conf).NotTo(ContainSubstring("project_domain_name ="))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("should update 01-neutron.conf when ApplicationCredential is rotated", func() {
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+
+				configSecretName := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-config", neutronAPIName.Name),
+				}
+				deploymentName := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      "neutron",
+				}
+
+				// Wait for initial deployment and get the original config hash
+				var originalConfigHash string
+				Eventually(func(g Gomega) {
+					configSecret := th.GetSecret(configSecretName)
+					g.Expect(configSecret.Data).ShouldNot(BeNil())
+					conf := string(configSecret.Data["01-neutron.conf"])
+					g.Expect(conf).To(ContainSubstring("application_credential_id = test-ac-id"))
+					g.Expect(conf).To(ContainSubstring("application_credential_secret = test-ac-secret"))
+
+					// Get deployment and config hash
+					deployment := &appsv1.Deployment{}
+					g.Expect(k8sClient.Get(ctx, deploymentName, deployment)).To(Succeed())
+					originalConfigHash = GetEnvVarValue(
+						deployment.Spec.Template.Spec.Containers[0].Env,
+						"CONFIG_HASH", "")
+					g.Expect(originalConfigHash).NotTo(BeEmpty())
+				}, timeout, interval).Should(Succeed())
+
+				// Simulate AC rotation by updating the secret with new credentials
+				acSecretName := fmt.Sprintf("ac-%s-secret", neutronapi.ServiceName)
+				Eventually(func(g Gomega) {
+					acSecret := th.GetSecret(types.NamespacedName{
+						Namespace: neutronAPIName.Namespace,
+						Name:      acSecretName,
+					})
+					acSecret.Data[keystonev1.ACIDSecretKey] = []byte("rotated-ac-id")
+					acSecret.Data[keystonev1.ACSecretSecretKey] = []byte("rotated-ac-secret")
+					g.Expect(k8sClient.Update(ctx, &acSecret)).To(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					configSecret := th.GetSecret(configSecretName)
+					g.Expect(configSecret.Data).ShouldNot(BeNil())
+					conf := string(configSecret.Data["01-neutron.conf"])
+
+					// New credentials should be present
+					g.Expect(conf).To(ContainSubstring("application_credential_id = rotated-ac-id"))
+					g.Expect(conf).To(ContainSubstring("application_credential_secret = rotated-ac-secret"))
+
+					// Old credentials should NOT be present
+					g.Expect(conf).NotTo(ContainSubstring("application_credential_id = test-ac-id"))
+					g.Expect(conf).NotTo(ContainSubstring("application_credential_secret = test-ac-secret"))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					deployment := &appsv1.Deployment{}
+					g.Expect(k8sClient.Get(ctx, deploymentName, deployment)).To(Succeed())
+					newConfigHash := GetEnvVarValue(
+						deployment.Spec.Template.Spec.Containers[0].Env,
+						"CONFIG_HASH", "")
+					g.Expect(newConfigHash).NotTo(BeEmpty())
+					g.Expect(newConfigHash).NotTo(Equal(originalConfigHash))
+				}, timeout, interval).Should(Succeed())
+			})
 		})
 	}
 }

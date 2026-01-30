@@ -73,7 +73,11 @@ import (
 )
 
 // errTransportURLSecretNameNilOrEmpty
-var errTransportURLSecretNameNilOrEmpty = errors.New("transport_url secret name is nil or empty")
+var (
+	errTransportURLSecretNameNilOrEmpty = errors.New("transport_url secret name is nil or empty")
+	ErrACSecretNotFound                 = errors.New("ApplicationCredential secret not found")
+	ErrACSecretMissingKeys              = errors.New("ApplicationCredential secret missing required keys")
+)
 
 // GetLogger returns a logger object with a prefix of "controller.name" and additional controller context fields
 func (r *NeutronAPIReconciler) GetLogger(ctx context.Context) logr.Logger {
@@ -234,6 +238,7 @@ const (
 	tlsAPIPublicField       = ".spec.tls.api.public.secretName"
 	tlsOVNField             = ".spec.tls.ovn.secretName"
 	topologyField           = ".spec.topologyRef.Name"
+	authAppCredSecretField  = ".spec.auth.applicationCredentialSecret" // #nosec
 )
 
 var allWatchFields = []string{
@@ -243,6 +248,7 @@ var allWatchFields = []string{
 	tlsAPIPublicField,
 	tlsOVNField,
 	topologyField,
+	authAppCredSecretField,
 }
 
 // SetupWithManager -
@@ -315,6 +321,18 @@ func (r *NeutronAPIReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			return nil
 		}
 		return []string{cr.Spec.TopologyRef.Name}
+	}); err != nil {
+		return err
+	}
+
+	// index authAppCredSecretField
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &neutronv1beta1.NeutronAPI{}, authAppCredSecretField, func(rawObj client.Object) []string {
+		// Extract the application credential secret name from the spec, if one is provided
+		cr := rawObj.(*neutronv1beta1.NeutronAPI)
+		if cr.Spec.Auth.ApplicationCredentialSecret == "" {
+			return nil
+		}
+		return []string{cr.Spec.Auth.ApplicationCredentialSecret}
 	}); err != nil {
 		return err
 	}
@@ -1854,6 +1872,29 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	// Other OpenStack services
 	servicePassword := string(ospSecret.Data[instance.Spec.PasswordSelectors.Service])
 	templateParameters["ServicePassword"] = servicePassword
+
+	templateParameters["UseApplicationCredentials"] = false
+	// Try to get Application Credential from the secret specified in the CR
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		acSecretObj, _, err := secret.GetSecret(ctx, h, instance.Spec.Auth.ApplicationCredentialSecret, instance.Namespace)
+		if err != nil {
+			if k8s_errors.IsNotFound(err) {
+				h.GetLogger().Info("ApplicationCredential secret not found, waiting", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+				return fmt.Errorf("%w: %s", ErrACSecretNotFound, instance.Spec.Auth.ApplicationCredentialSecret)
+			}
+			h.GetLogger().Error(err, "Failed to get ApplicationCredential secret", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			return err
+		}
+		acID, okID := acSecretObj.Data[keystonev1.ACIDSecretKey]
+		acSecretData, okSecret := acSecretObj.Data[keystonev1.ACSecretSecretKey]
+		if !okID || len(acID) == 0 || !okSecret || len(acSecretData) == 0 {
+			h.GetLogger().Info("ApplicationCredential secret missing required keys", "secret", instance.Spec.Auth.ApplicationCredentialSecret)
+			return fmt.Errorf("%w: %s", ErrACSecretMissingKeys, instance.Spec.Auth.ApplicationCredentialSecret)
+		}
+		templateParameters["UseApplicationCredentials"] = true
+		templateParameters["ACID"] = string(acID)
+		templateParameters["ACSecret"] = string(acSecretData)
+	}
 
 	// Database
 	databaseAccount := db.GetAccount()
