@@ -140,7 +140,7 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				NeutronAPI := GetNeutronAPI(neutronAPIName)
 				Expect(NeutronAPI.Spec.DatabaseInstance).Should(Equal("test-neutron-db-instance"))
 				Expect(NeutronAPI.Spec.DatabaseAccount).Should(Equal("neutron"))
-				Expect(NeutronAPI.Spec.RabbitMqClusterName).Should(Equal("rabbitmq"))
+				Expect(NeutronAPI.Spec.MessagingBus.Cluster).Should(Equal("rabbitmq"))
 				Expect(NeutronAPI.Spec.MemcachedInstance).Should(Equal("memcached"))
 				Expect(*(NeutronAPI.Spec.Replicas)).Should(Equal(int32(1)))
 				Expect(NeutronAPI.Spec.ServiceUser).Should(Equal("neutron"))
@@ -388,7 +388,9 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 		When("required dependency services are available", func() {
 			BeforeEach(func() {
 				spec["customServiceConfig"] = "[DEFAULT]\ndebug=True"
-				spec["notificationsBusInstance"] = "rabbitmq-br"
+				spec["notificationsBus"] = map[string]any{
+					"cluster": "rabbitmq-br",
+				}
 				notificationsTransportURLName := types.NamespacedName{
 					Namespace: namespace,
 					Name:      "notifications-neutron-transport",
@@ -2370,6 +2372,333 @@ var _ = Describe("NeutronAPI Webhook", func() {
 						"Invalid value: \"foo.json\": " +
 						"Only the following keys are valid: policy.yaml"),
 			)
+		})
+	})
+
+	When("NeutronAPI is created with custom RabbitMQ vhost and user", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"user":    "custom-user",
+				"vhost":   "custom-vhost",
+			}
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should create TransportURL with custom user and vhost", func() {
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(apiTransportURLName)
+				g.Expect(transportURL.Spec.Username).To(Equal("custom-user"))
+				g.Expect(transportURL.Spec.Vhost).To(Equal("custom-vhost"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NeutronAPI is created with only custom RabbitMQ user", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"user":    "custom-user-only",
+			}
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should create TransportURL with custom user only", func() {
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(apiTransportURLName)
+				g.Expect(transportURL.Spec.Username).To(Equal("custom-user-only"))
+				g.Expect(transportURL.Spec.Vhost).To(Equal(""))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NeutronAPI is created with only custom RabbitMQ vhost", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"vhost":   "custom-vhost-only",
+			}
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should create TransportURL with custom vhost only", func() {
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(apiTransportURLName)
+				g.Expect(transportURL.Spec.Username).To(Equal(""))
+				g.Expect(transportURL.Spec.Vhost).To(Equal("custom-vhost-only"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NeutronAPI RabbitMQ configuration is updated", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"user":    "initial-user",
+				"vhost":   "initial-vhost",
+			}
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should update TransportURL when RabbitMQ config is changed", func() {
+			// Update the NeutronAPI CR with new RabbitMQ configuration
+			Eventually(func(g Gomega) {
+				neutronAPI := GetNeutronAPI(neutronAPIName)
+				neutronAPI.Spec.MessagingBus.User = "updated-user"
+				neutronAPI.Spec.MessagingBus.Vhost = "updated-vhost"
+				g.Expect(k8sClient.Update(ctx, neutronAPI)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Verify the TransportURL is updated
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(apiTransportURLName)
+				g.Expect(transportURL.Spec.Username).To(Equal("updated-user"))
+				g.Expect(transportURL.Spec.Vhost).To(Equal("updated-vhost"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NeutronAPI is created with custom RabbitMQ config and notifications bus", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"user":    "custom-user",
+				"vhost":   "custom-vhost",
+			}
+			spec["notificationsBus"] = map[string]interface{}{
+				"cluster": "rabbitmq-notifications",
+			}
+			notificationsTransportURLName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "notifications-neutron-transport",
+			}
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			SimulateTransportURLReady(notificationsTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should NOT inherit MessagingBus config for NotificationsBus (ensure separation)", func() {
+			notificationsTransportURLName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "notifications-neutron-transport",
+			}
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(notificationsTransportURLName)
+				// User and vhost should be empty (not inherited) to ensure separation
+				g.Expect(transportURL.Spec.Username).To(Equal(""))
+				g.Expect(transportURL.Spec.Vhost).To(Equal(""))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NeutronAPI is created with different RabbitMQ configs for main and notifications", func() {
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"user":    "main-user",
+				"vhost":   "main-vhost",
+			}
+			spec["notificationsBus"] = map[string]any{
+				"cluster": "rabbitmq-notifications",
+				"user":    "notif-user",
+				"vhost":   "notif-vhost",
+			}
+			notificationsTransportURLName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "notifications-neutron-transport",
+			}
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			SimulateTransportURLReady(notificationsTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should use different configs for main and notifications TransportURLs", func() {
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(apiTransportURLName)
+				g.Expect(transportURL.Spec.Username).To(Equal("main-user"))
+				g.Expect(transportURL.Spec.Vhost).To(Equal("main-vhost"))
+			}, timeout, interval).Should(Succeed())
+
+			notificationsTransportURLName := types.NamespacedName{
+				Namespace: namespace,
+				Name:      "notifications-neutron-transport",
+			}
+			Eventually(func(g Gomega) {
+				transportURL := infra.GetTransportURL(notificationsTransportURLName)
+				g.Expect(transportURL.Spec.Username).To(Equal("notif-user"))
+				g.Expect(transportURL.Spec.Vhost).To(Equal("notif-vhost"))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	When("NeutronAPI starts with notifications enabled and then disables them", func() {
+		var notificationsTransportURLName types.NamespacedName
+
+		BeforeEach(func() {
+			spec := GetDefaultNeutronAPISpec()
+			spec["messagingBus"] = map[string]any{
+				"cluster": "rabbitmq",
+				"user":    "main-user",
+				"vhost":   "main-vhost",
+			}
+			spec["notificationsBus"] = map[string]any{
+				"cluster": "rabbitmq-notifications",
+				"user":    "notif-user",
+				"vhost":   "notif-vhost",
+			}
+
+			notificationsTransportURLName = types.NamespacedName{
+				Namespace: namespace,
+				Name:      "notifications-neutron-transport",
+			}
+
+			DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+			infra.SimulateMemcachedReady(memcachedName)
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					namespace,
+					GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			SimulateTransportURLReady(apiTransportURLName)
+			SimulateTransportURLReady(notificationsTransportURLName)
+			mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+			mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+		})
+
+		It("should initially have notifications enabled", func() {
+			Eventually(func(g Gomega) {
+				neutron := GetNeutronAPI(neutronAPIName)
+				g.Expect(neutron.Status.NotificationsTransportURLSecret).ToNot(BeNil())
+				g.Expect(*neutron.Status.NotificationsTransportURLSecret).ToNot(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should disable notifications when notificationsBus is removed", func() {
+			// Verify notifications are initially enabled
+			neutron := GetNeutronAPI(neutronAPIName)
+			Expect(neutron.Status.NotificationsTransportURLSecret).ToNot(BeNil())
+			Expect(*neutron.Status.NotificationsTransportURLSecret).ToNot(BeEmpty())
+
+			// Update the NeutronAPI spec to remove notificationsBus
+			Eventually(func(g Gomega) {
+				neutron := GetNeutronAPI(neutronAPIName)
+				neutron.Spec.NotificationsBus = nil
+				neutron.Spec.NotificationsBusInstance = nil
+				g.Expect(k8sClient.Update(ctx, neutron)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Wait for notifications to be disabled
+			Eventually(func(g Gomega) {
+				neutron := GetNeutronAPI(neutronAPIName)
+				g.Expect(neutron.Status.NotificationsTransportURLSecret).To(BeNil())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 

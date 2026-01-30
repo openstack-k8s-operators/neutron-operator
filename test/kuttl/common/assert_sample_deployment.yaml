@@ -21,7 +21,8 @@ spec:
   passwordSelectors:
     service: NeutronPassword
   preserveJobs: false
-  rabbitMqClusterName: rabbitmq
+  messagingBus:
+    cluster: rabbitmq
   replicas: 1
   secret: osp-secret
   serviceUser: neutron
