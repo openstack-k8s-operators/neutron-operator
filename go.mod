@@ -6,16 +6,16 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/uuid v1.6.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/onsi/ginkgo/v2 v2.27.3
+	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260123105816-865d02e287a9
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260120112029-cd452f0497ba
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20251230215914-6ba873b49a35
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20251230215914-6ba873b49a35
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20251230215914-6ba873b49a35
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260120155328-e04f52e73f01
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260128074606-03b808364e4a
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260126175636-114b4c65a959
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260128142552-e2c25eccae5a
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260128142552-e2c25eccae5a
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260128142552-e2c25eccae5a
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260127154438-ff95971883bb
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260123103328-a3b535ccba6e
+	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260126160735-3254731d17a8
 	go.uber.org/zap v1.27.1
 	gopkg.in/ini.v1 v1.67.0
 	k8s.io/api v0.31.14
