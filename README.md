@@ -241,3 +241,19 @@ or in Visual Studio Code by defining the following in your settings.json:
     "KUBEBUILDER_ASSETS":"<location of kubebuilder-envtest installation>"
 },
 ```
+
+## Run kuttl test
+The easiest way is to run kuttl test in fresh system with crc deployed with
+
+- **create enough pv's**
+`PV_NUM=30 make crc_storage`
+- make your changes in neutron-operator
+- add required kuttl tests
+- start webhook `make run-with-webhook`
+
+- navigate to install_yamls
+- run kuttl tests
+`make neutron_kuttl_run OPERATOR_BASE_DIR=/home/stack/repos NAMESPACE=neutron-kuttl-tests`
+
+- To run a single test
+`make neutron_kuttl_run OPERATOR_BASE_DIR=/home/stack/repos NAMESPACE=neutron-kuttl-tests KUTTL_ARGS="--test notifications"`
