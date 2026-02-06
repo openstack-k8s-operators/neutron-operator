@@ -201,7 +201,13 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
 		condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
 		condition.UnknownCondition(condition.NotificationBusInstanceReadyCondition, condition.InitReason, condition.NotificationBusInstanceReadyInitMessage),
+		// Custom conditions for NeutronAPI
+		condition.UnknownCondition(neutronv1beta1.NeutronDhcpAgentConfigReady, condition.InitReason, neutronv1beta1.NeutronDhcpAgentConfigInitMessage),
+		condition.UnknownCondition(neutronv1beta1.NeutronSriovAgentConfigReady, condition.InitReason, neutronv1beta1.NeutronSriovAgentConfigInitMessage),
 	)
+	if instance.IsOVNEnabled() {
+		cl = append(cl, *condition.UnknownCondition(neutronv1beta1.NeutronOvnMetadataConfigReady, condition.InitReason, neutronv1beta1.NeutronOvnMetadataConfigInitMessage))
+	}
 
 	instance.Status.Conditions.Init(&cl)
 	instance.Status.ObservedGeneration = instance.Generation
@@ -1573,6 +1579,9 @@ func (r *NeutronAPIReconciler) reconcileExternalSriovAgentSecret(
 	if err != nil {
 		return fmt.Errorf("failed to ensure Neutron SR-IOV Agent external Secret: %w", err)
 	}
+	instance.Status.Conditions.MarkTrue(
+		neutronv1beta1.NeutronSriovAgentConfigReady, condition.ServiceConfigReadyMessage,
+	)
 	return nil
 }
 
@@ -1723,7 +1732,15 @@ func (r *NeutronAPIReconciler) ensureExternalOVNMetadataAgentSecret(
 	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 
 	secretName := getMetadataAgentSecretName(instance)
-	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+	err := r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+	if err != nil {
+		return fmt.Errorf("failed to ensure Neutron OVN Metadata Agent external Secret: %w", err)
+	}
+	instance.Status.Conditions.MarkTrue(
+		neutronv1beta1.NeutronOvnMetadataConfigReady, condition.ServiceConfigReadyMessage,
+	)
+
+	return nil
 }
 
 func (r *NeutronAPIReconciler) ensureExternalOVNAgentSecret(
@@ -1743,7 +1760,15 @@ func (r *NeutronAPIReconciler) ensureExternalOVNAgentSecret(
 	templateParameters["OVNDB_TLS"] = instance.Spec.TLS.Ovn.Enabled()
 
 	secretName := getOVNAgentSecretName(instance)
-	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+	err := r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+	if err != nil {
+		return fmt.Errorf("failed to ensure Neutron OVN Agent external Config: %w", err)
+	}
+	instance.Status.Conditions.MarkTrue(
+		neutronv1beta1.NeutronOvnAgentConfigReady, condition.ServiceConfigReadyMessage,
+	)
+
+	return nil
 }
 
 func (r *NeutronAPIReconciler) ensureExternalSriovAgentSecret(
@@ -1781,7 +1806,15 @@ func (r *NeutronAPIReconciler) ensureExternalDhcpAgentSecret(
 	templateParameters["QuorumQueues"] = quorumQueues
 
 	secretName := getDhcpAgentSecretName(instance)
-	return r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+	err := r.ensureExternalSecret(ctx, h, instance, secretName, templates, templateParameters, envVars)
+	if err != nil {
+		return fmt.Errorf("failed to ensure Neutron DHCP Agent external Config: %w", err)
+	}
+	instance.Status.Conditions.MarkTrue(
+		neutronv1beta1.NeutronDhcpAgentConfigReady, condition.ServiceConfigReadyMessage,
+	)
+
+	return nil
 }
 
 // generateServiceSecrets - create secrets which service configuration
