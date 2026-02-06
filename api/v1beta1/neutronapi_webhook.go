@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
+	common_webhook "github.com/openstack-k8s-operators/lib-common/modules/common/webhook"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -71,34 +72,45 @@ func (spec *NeutronAPISpecCore) Default() {
 	if spec.APITimeout == 0 {
 		spec.APITimeout = neutronAPIDefaults.APITimeout
 	}
+
+	// Default MessagingBus.Cluster if not set
+	// Migration from deprecated fields is handled by openstack-operator
+	if spec.MessagingBus.Cluster == "" {
+		spec.MessagingBus.Cluster = "rabbitmq"
+	}
+
+	// NotificationsBus.Cluster is not defaulted - it must be explicitly set if NotificationsBus is configured
+	// This ensures users make a conscious choice about which cluster to use for notifications
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *NeutronAPI) ValidateCreate() (admission.Warnings, error) {
 	neutronapilog.Info("validate create", "name", r.Name)
 
+	var allWarns []string
 	allErrs := field.ErrorList{}
 	basePath := field.NewPath("spec")
 
-	if err := r.Spec.ValidateCreate(basePath, r.Namespace); err != nil {
-		allErrs = append(allErrs, err...)
-	}
+	warns, errs := r.Spec.ValidateCreate(basePath, r.Namespace)
+	allWarns = append(allWarns, warns...)
+	allErrs = append(allErrs, errs...)
 
 	if len(allErrs) != 0 {
-		return nil, apierrors.NewInvalid(GroupVersion.WithKind("NeutronAPI").GroupKind(), r.Name, allErrs)
+		return allWarns, apierrors.NewInvalid(GroupVersion.WithKind("NeutronAPI").GroupKind(), r.Name, allErrs)
 	}
 
-	return nil, nil
+	return allWarns, nil
 }
 
 // ValidateCreate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an NeutronAPI spec.
-func (r *NeutronAPISpec) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+func (r *NeutronAPISpec) ValidateCreate(basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	return r.NeutronAPISpecCore.ValidateCreate(basePath, namespace)
 }
 
-func (r *NeutronAPISpecCore) ValidateCreate(basePath *field.Path, namespace string) field.ErrorList {
+func (r *NeutronAPISpecCore) ValidateCreate(basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	var allErrs field.ErrorList
+	var allWarns []string
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
@@ -109,7 +121,7 @@ func (r *NeutronAPISpecCore) ValidateCreate(basePath *field.Path, namespace stri
 	// referenced because is not supported
 	allErrs = append(allErrs, r.ValidateTopology(basePath, namespace)...)
 
-	return allErrs
+	return allWarns, allErrs
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -121,28 +133,35 @@ func (r *NeutronAPI) ValidateUpdate(old runtime.Object) (admission.Warnings, err
 		return nil, apierrors.NewInternalError(fmt.Errorf("unable to convert existing object"))
 	}
 
+	var allWarns []string
 	allErrs := field.ErrorList{}
 	basePath := field.NewPath("spec")
 
-	if err := r.Spec.ValidateUpdate(oldNeutronAPI.Spec, basePath, r.Namespace); err != nil {
-		allErrs = append(allErrs, err...)
-	}
+	warns, errs := r.Spec.ValidateUpdate(oldNeutronAPI.Spec, basePath, r.Namespace)
+	allWarns = append(allWarns, warns...)
+	allErrs = append(allErrs, errs...)
 
 	if len(allErrs) != 0 {
-		return nil, apierrors.NewInvalid(GroupVersion.WithKind("NeutronAPI").GroupKind(), r.Name, allErrs)
+		return allWarns, apierrors.NewInvalid(GroupVersion.WithKind("NeutronAPI").GroupKind(), r.Name, allErrs)
 	}
 
-	return nil, nil
+	return allWarns, nil
 }
 
 // ValidateUpdate - Exported function wrapping non-exported validate functions,
 // this function can be called externally to validate an neutron spec.
-func (spec *NeutronAPISpec) ValidateUpdate(old NeutronAPISpec, basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NeutronAPISpec) ValidateUpdate(old NeutronAPISpec, basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	return spec.NeutronAPISpecCore.ValidateUpdate(old.NeutronAPISpecCore, basePath, namespace)
 }
 
-func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath *field.Path, namespace string) field.ErrorList {
+func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath *field.Path, namespace string) ([]string, field.ErrorList) {
 	var allErrs field.ErrorList
+	var allWarns []string
+
+	// Validate deprecated fields using reflection-based validation
+	warns, errs := spec.validateDeprecatedFieldsUpdate(old, basePath)
+	allWarns = append(allWarns, warns...)
+	allErrs = append(allErrs, errs...)
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), spec.Override.Service)...)
@@ -153,7 +172,65 @@ func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath 
 	// referenced because is not supported
 	allErrs = append(allErrs, spec.ValidateTopology(basePath, namespace)...)
 
-	return allErrs
+	return allWarns, allErrs
+}
+
+// getDeprecatedFields returns the centralized list of deprecated fields for NeutronAPISpecCore
+func (spec *NeutronAPISpecCore) getDeprecatedFields(old *NeutronAPISpecCore) []common_webhook.DeprecatedFieldUpdate {
+	// Get new field value (handle nil NotificationsBus)
+	var newNotifBusCluster *string
+	if spec.NotificationsBus != nil {
+		newNotifBusCluster = &spec.NotificationsBus.Cluster
+	}
+
+	deprecatedFields := []common_webhook.DeprecatedFieldUpdate{
+		{
+			DeprecatedFieldName: "rabbitMqClusterName",
+			NewFieldPath:        []string{"messagingBus", "cluster"},
+			NewDeprecatedValue:  &spec.RabbitMqClusterName,
+			NewValue:            &spec.MessagingBus.Cluster,
+		},
+		{
+			DeprecatedFieldName: "notificationsBusInstance",
+			NewFieldPath:        []string{"notificationsBus", "cluster"},
+			NewDeprecatedValue:  spec.NotificationsBusInstance,
+			NewValue:            newNotifBusCluster,
+		},
+	}
+
+	// If old spec is provided (UPDATE operation), add old values
+	if old != nil {
+		deprecatedFields[0].OldDeprecatedValue = &old.RabbitMqClusterName
+		deprecatedFields[1].OldDeprecatedValue = old.NotificationsBusInstance
+	}
+
+	return deprecatedFields
+}
+
+// validateDeprecatedFieldsCreate validates deprecated fields during CREATE operations
+func (spec *NeutronAPISpecCore) validateDeprecatedFieldsCreate(basePath *field.Path) ([]string, field.ErrorList) {
+	// Get deprecated fields list (without old values for CREATE)
+	deprecatedFieldsUpdate := spec.getDeprecatedFields(nil)
+
+	// Convert to DeprecatedField list for CREATE validation
+	deprecatedFields := make([]common_webhook.DeprecatedField, len(deprecatedFieldsUpdate))
+	for i, df := range deprecatedFieldsUpdate {
+		deprecatedFields[i] = common_webhook.DeprecatedField{
+			DeprecatedFieldName: df.DeprecatedFieldName,
+			NewFieldPath:        df.NewFieldPath,
+			DeprecatedValue:     df.NewDeprecatedValue,
+			NewValue:            df.NewValue,
+		}
+	}
+
+	return common_webhook.ValidateDeprecatedFieldsCreate(deprecatedFields, basePath), nil
+}
+
+// validateDeprecatedFieldsUpdate validates deprecated fields during UPDATE operations
+func (spec *NeutronAPISpecCore) validateDeprecatedFieldsUpdate(old NeutronAPISpecCore, basePath *field.Path) ([]string, field.ErrorList) {
+	// Get deprecated fields list with old values
+	deprecatedFields := spec.getDeprecatedFields(&old)
+	return common_webhook.ValidateDeprecatedFieldsUpdate(deprecatedFields, basePath)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
