@@ -201,6 +201,7 @@ func (r *NeutronAPIReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		condition.UnknownCondition(condition.RoleReadyCondition, condition.InitReason, condition.RoleReadyInitMessage),
 		condition.UnknownCondition(condition.RoleBindingReadyCondition, condition.InitReason, condition.RoleBindingReadyInitMessage),
 		condition.UnknownCondition(condition.NotificationBusInstanceReadyCondition, condition.InitReason, condition.NotificationBusInstanceReadyInitMessage),
+		condition.UnknownCondition(neutronv1beta1.NeutronExternalConfigsReady, condition.InitReason, neutronv1beta1.NeutronExternalConfigsInitMessage),
 	)
 
 	instance.Status.Conditions.Init(&cl)
@@ -1137,17 +1138,37 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	instance.Status.Conditions.MarkTrue(condition.MemcachedReadyCondition, condition.MemcachedReadyMessage)
 
 	// run check memcached - end
+
+	//
+	// reconcile external secrets and mark condition
+	//
 	err = r.reconcileExternalSecrets(ctx, helper, instance, &secretVars)
 	if err != nil {
 		Log.Error(err, "Failed to reconcile external Secrets")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			neutronv1beta1.NeutronExternalConfigsReady,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			fmt.Sprintf(neutronv1beta1.NeutronExternalConfigsErrorMessage, "failed to reconcile external Secrets"),
+			err.Error()))
 		return ctrl.Result{}, err
 	}
 
 	err = r.reconcileExternalOVNSecrets(ctx, helper, instance, &secretVars)
 	if err != nil {
 		Log.Error(err, "Failed to reconcile external OVN Secrets")
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			neutronv1beta1.NeutronExternalConfigsReady,
+			condition.ErrorReason,
+			condition.SeverityWarning,
+			fmt.Sprintf(neutronv1beta1.NeutronExternalConfigsErrorMessage, "failed to reconcile external OVN Secrets"),
+			err.Error()))
 		return ctrl.Result{}, err
 	}
+	instance.Status.Conditions.MarkTrue(
+		neutronv1beta1.
+			NeutronExternalConfigsReady, condition.ServiceConfigReadyMessage,
+	)
 
 	//
 	// TODO check when/if Init, Update, or Upgrade should/could be skipped
