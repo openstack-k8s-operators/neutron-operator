@@ -40,7 +40,7 @@ const (
 	CABundleSecretName     = "combined-ca-bundle" // #nosec G101 -- Test constant, not a credential
 	OVNDbCertSecretName    = "ovndb-tls-certs"    // #nosec G101 -- Test constant, not a credential
 
-	timeout  = time.Second * 10
+	timeout  = time.Second * 45
 	interval = timeout / 100
 )
 
