@@ -26,6 +26,47 @@
       - ^tests?/kuttl/.*$
       - ^zuul.d/jobs.yaml
     vars:
+      cifmw_install_yamls_vars_patch_openstack_img:
+        OPENSTACK_IMG: quay.io/rh-ee-vfisarov/openstack-operator-index:appcred-support-latest
+      cifmw_edpm_prepare_kustomizations:
+        - apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          namespace: openstack
+          patches:
+          - patch: |-
+              apiVersion: core.openstack.org/v1beta1
+              kind: OpenStackControlPlane
+              metadata:
+                name: unused
+              spec:
+                applicationCredential:
+                  enabled: true
+                barbican:
+                  applicationCredential:
+                    enabled: true
+                cinder:
+                  applicationCredential:
+                    enabled: true
+                glance:
+                  applicationCredential:
+                    enabled: false
+                swift:
+                  applicationCredential:
+                    enabled: true
+                neutron:
+                  applicationCredential:
+                    enabled: true
+                placement:
+                  applicationCredential:
+                    enabled: true
+                nova:
+                  applicationCredential:
+                    enabled: true
+                telemetry:
+                  applicationCredentialCeilometer:
+                    enabled: true
+            target:
+              kind: OpenStackControlPlane
       cifmw_edpm_deploy_nova_compute_extra_config: |
         [DEFAULT]
         force_config_drive = false
