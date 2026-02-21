@@ -132,8 +132,8 @@ github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.202602050830
 github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260205083029-d03e9df035ef/go.mod h1:sqKTKvYhSzu4Opnjx/J+zzetXKRqYrhxsfvrST/NjoU=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260212144335-e804f5700fea h1:DKM4Go+yFATWkODprXImZOquMBiGegnSIvAfhu7mVWg=
 github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260212144335-e804f5700fea/go.mod h1:dAC9Uj2p6iXzPf5y6yWY4Mza6q64kwKt/hV26PSfG20=
-github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260212125557-7e80b1bf090b h1:6J8FjsikTxzXhNuWFq+3s8aXX7/7g4Gcbmf8FlEew4s=
-github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260212125557-7e80b1bf090b/go.mod h1:FL+eA0gj1amCYPDYmqd70YDl7G0hXWznYEgxO8fkioY=
+github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260217081532-1146206f0451 h1:Q1Zx7G1xcIEOpFzvNs9NzaxvYIX68g3QyERneuDwkkk=
+github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260217081532-1146206f0451/go.mod h1:pGjUJPAosckpCdEk7GFJxi0EIejeUeA94wMwY/wnI/k=
 github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20250929174222-a0d328fa4dec h1:saovr368HPAKHN0aRPh8h8n9s9dn3d8Frmfua0UYRlc=
 github.com/openstack-k8s-operators/rabbitmq-cluster-operator/v2 v2.6.1-0.20250929174222-a0d328fa4dec/go.mod h1:Nh2NEePLjovUQof2krTAg4JaAoLacqtPTZQXK6izNfg=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
