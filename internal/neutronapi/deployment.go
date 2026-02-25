@@ -134,6 +134,21 @@ func Deployment(
 		apiVolumeMounts = append(apiVolumeMounts, svc.CreateVolumeMounts("ovndb")...)
 	}
 
+	podAnnotations := map[string]string{}
+
+	// keep existing annotations first
+	for k, v := range annotations {
+		podAnnotations[k] = v
+	}
+
+	// overlay user-provided annotations
+	for _, ann := range instance.Spec.PodAnnotations {
+		if ann.Name == "" {
+			continue
+		}
+		podAnnotations[ann.Name] = ann.Value
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ServiceName,
@@ -146,7 +161,7 @@ func Deployment(
 			Replicas: instance.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: annotations,
+					Annotations: podAnnotations,
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{

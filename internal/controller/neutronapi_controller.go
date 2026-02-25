@@ -492,6 +492,19 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	); err != nil {
 		return ctrlResult, err
 	}
+	// Remove consumer finalizer from AC secrets NeutronAPI was consuming.
+	// Check both status and spec to handle the edge case where the reconciler
+	// crashed after adding the finalizer but before updating the status.
+	for _, secretName := range []string{
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+	} {
+		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+			secretName, neutronapi.ACConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
 	Log.Info("Reconciled Service delete successfully")
@@ -647,6 +660,23 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 
 	// Create Secrets - end
+
+	// Manage consumer finalizer, the AC data was already read and rendered to the service config secret
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" || instance.Status.ApplicationCredentialSecret != "" {
+		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
+			instance.Spec.Auth.ApplicationCredentialSecret,
+			instance.Status.ApplicationCredentialSecret,
+			neutronapi.ACConsumerFinalizer); err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ServiceConfigReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
+	instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
