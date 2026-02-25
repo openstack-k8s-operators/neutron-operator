@@ -492,6 +492,19 @@ func (r *NeutronAPIReconciler) reconcileDelete(ctx context.Context, instance *ne
 	); err != nil {
 		return ctrlResult, err
 	}
+	// Remove consumer finalizer from AC secrets NeutronAPI was consuming.
+	// Check both status and spec to handle the edge case where the reconciler
+	// crashed after adding the finalizer but before updating the status.
+	for _, secretName := range []string{
+		instance.Status.ApplicationCredentialSecret,
+		instance.Spec.Auth.ApplicationCredentialSecret,
+	} {
+		if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+			secretName, neutronapi.ACConsumerFinalizer); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Service is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(instance, helper.GetFinalizer())
 	Log.Info("Reconciled Service delete successfully")
@@ -647,6 +660,24 @@ func (r *NeutronAPIReconciler) reconcileInit(
 	}
 
 	// Create Secrets - end
+
+	// Add consumer finalizer to the new AC secret early, before deployment.
+	// The old secret's finalizer is removed later (after all services deploy)
+	// so that rapid rotations don't revoke a credential still in use by pods.
+	if instance.Spec.Auth.ApplicationCredentialSecret != "" {
+		if err := keystonev1.ManageACSecretFinalizer(ctx, helper, instance.Namespace,
+			instance.Spec.Auth.ApplicationCredentialSecret,
+			"",
+			neutronapi.ACConsumerFinalizer); err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				condition.ServiceConfigReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				condition.ServiceConfigReadyErrorMessage,
+				err.Error()))
+			return ctrl.Result{}, err
+		}
+	}
 
 	instance.Status.Conditions.MarkTrue(condition.ServiceConfigReadyCondition, condition.ServiceConfigReadyMessage)
 
@@ -1376,6 +1407,25 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			return ctrl.Result{}, err
 		}
 	}
+	// Manage the old AC secret's finalizer and status tracking.
+	// On rotation (old != new), only remove the old secret's finalizer after
+	// all sub-services are ready with the new credentials. This prevents
+	// premature revocation during rapid rotations.
+	isRotation := instance.Status.ApplicationCredentialSecret != "" && instance.Status.ApplicationCredentialSecret != instance.Spec.Auth.ApplicationCredentialSecret
+
+	if isRotation {
+		allServicesReady := instance.Status.Conditions.AllSubConditionIsTrue()
+		if allServicesReady {
+			if err := keystonev1.RemoveACSecretConsumerFinalizer(ctx, helper, instance.Namespace,
+				instance.Status.ApplicationCredentialSecret, neutronapi.ACConsumerFinalizer); err != nil {
+				return ctrl.Result{}, err
+			}
+			instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+		}
+	} else {
+		instance.Status.ApplicationCredentialSecret = instance.Spec.Auth.ApplicationCredentialSecret
+	}
+
 	// We reached the end of the Reconcile, update the Ready condition based on
 	// the sub conditions
 	if instance.Status.Conditions.AllSubConditionIsTrue() {
