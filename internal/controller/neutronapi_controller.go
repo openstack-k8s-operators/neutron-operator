@@ -955,6 +955,12 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
 	}
 
+	// transportURLFields are not pure password fields. We do not associate a
+	// password validator and we only verify that the entry exists in the
+	// secret
+	transportValidateFields := map[string]secret.Validator{
+		"transport_url": secret.NoOpValidator{},
+	}
 	//
 	// notifications transporturl
 	// (the webhook defaults NotificationsBus from the deprecated NotificationsBusInstance field)
@@ -986,11 +992,10 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 
 			return ctrl.Result{RequeueAfter: time.Duration(10) * time.Second}, nil
 		}
-
-		notificationsTransportURLSecretHash, result, err := secret.VerifySecret(
+		notificationsTransportURLSecretHash, result, err := secret.VerifySecretFields(
 			ctx,
 			types.NamespacedName{Namespace: instance.Namespace, Name: notificationTransportURL.Status.SecretName},
-			[]string{"transport_url"},
+			transportValidateFields,
 			helper.GetClient(),
 			time.Duration(10)*time.Second,
 		)
@@ -1034,10 +1039,10 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	// check for required TransportURL secret holding transport URL string
 	//
 
-	transportURLSecretHash, result, err := secret.VerifySecret(
+	transportURLSecretHash, result, err := secret.VerifySecretFields(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Status.TransportURLSecret},
-		[]string{"transport_url"},
+		transportValidateFields,
 		helper.GetClient(),
 		time.Duration(10)*time.Second,
 	)
@@ -1069,10 +1074,15 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 	//
 	// check for required OpenStack secret holding passwords for service/admin user and add hash to the vars map,
 	//
-	ospSecretHash, result, err := secret.VerifySecret(
+	// Associate to PasswordSelectors.Service field a password validator to
+	// ensure pwd invalid detected patterns are rejected.
+	validateFields := map[string]secret.Validator{
+		instance.Spec.PasswordSelectors.Service: secret.PasswordValidator{},
+	}
+	ospSecretHash, result, err := secret.VerifySecretFields(
 		ctx,
 		types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.Secret},
-		[]string{instance.Spec.PasswordSelectors.Service},
+		validateFields,
 		helper.GetClient(),
 		time.Duration(10)*time.Second,
 	)
