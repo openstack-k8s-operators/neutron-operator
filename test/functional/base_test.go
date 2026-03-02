@@ -255,3 +255,14 @@ func GetExtraMounts(nemName string, nemPath string) []map[string]any {
 		},
 	}
 }
+
+// CreateNeutronAPIInvalidSecret creates a secret with an invalid password for testing
+func CreateNeutronAPIInvalidSecret(namespace string, name string) *corev1.Secret {
+	return th.CreateSecret(
+		types.NamespacedName{Namespace: namespace, Name: name},
+		map[string][]byte{
+			"NeutronPassword": []byte("c^sometext02%text%text02$someText&"),
+			"transport_url":   []byte("rabbit://user@svc:1234"),
+		},
+	)
+}

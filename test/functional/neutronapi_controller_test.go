@@ -224,6 +224,31 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			})
 		})
 
+		When("A NeutronAPI instance is created with an invalid password", func() {
+			BeforeEach(func() {
+				// Create the secret containing the wrong password with the expected secret name
+				DeferCleanup(k8sClient.Delete, ctx,
+					CreateNeutronAPIInvalidSecret(namespace, SecretName))
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+			})
+
+			It("rejects the password and reports InputReadyCondition as False", func() {
+				expectedErrMsg := "Input data error occurred password does not meet the requirements"
+
+				th.ExpectConditionWithDetails(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.InputReadyCondition,
+					corev1.ConditionFalse,
+					condition.ErrorReason,
+					expectedErrMsg,
+				)
+			})
+		})
+
 		When("the proper secret is provided, TransportURL and Memcached are Created", func() {
 			BeforeEach(func() {
 				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
