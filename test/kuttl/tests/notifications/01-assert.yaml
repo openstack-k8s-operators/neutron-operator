@@ -3,4 +3,4 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestAssert
 commands:
   - script: |
-      oc wait --for=condition=ReconcileSuccess rabbitmqcluster.rabbitmq.com rabbitmq-br -n $NAMESPACE --timeout=180s
+      oc wait --for=condition=Ready rabbitmq.rabbitmq.openstack.org rabbitmq-br -n $NAMESPACE --timeout=180s
