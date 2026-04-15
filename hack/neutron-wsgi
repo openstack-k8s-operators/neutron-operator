@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+#PBR Generated from 'wsgi_scripts'
+import threading
+from neutron import server
+from neutron.server import api
+
+application = None
+lock = threading.Lock()
+with lock:
+    if application is None:
+        application = server.boot_server(api.api_server)

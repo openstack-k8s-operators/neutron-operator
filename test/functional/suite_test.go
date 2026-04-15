@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -88,6 +89,9 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	// Force eventlet strategy for all tests to avoid binary detection issues
+	_ = os.Setenv("NEUTRON_DEPLOYMENT_STRATEGY", "eventlet")
+
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	ctx, cancel = context.WithCancel(context.TODO())
@@ -242,6 +246,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
+	_ = os.Unsetenv("NEUTRON_DEPLOYMENT_STRATEGY")
 	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())

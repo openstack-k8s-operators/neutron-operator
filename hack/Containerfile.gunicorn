@@ -1,0 +1,14 @@
+FROM quay.rdoproject.org/podified-master-centos10/openstack-base:current-tested
+USER root
+RUN rpm -e  --nodeps centos-stream-repos centos-gpg-keys python-tcib-containers
+RUN dnf install --nogpgcheck --repofrompath=tmp,https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os --enablerepo=tmp centos-stream-repos centos-gpg-keys -y
+RUN dnf install --nogpgcheck -y --repofrompath=tmp,https://trunk.rdoproject.org/centos10-master/component/podified/consistent/ --enablerepo=tmp python-tcib-containers
+RUN dnf install iputils net-tools python3-unbound python3-openvswitch openvswitch -y
+RUN bash /usr/local/bin/uid_gid_manage neutron
+RUN cp /usr/share/tcib/container-images/kolla/neutron-base/neutron_sudoers /etc/sudoers.d/neutron_sudoers
+RUN chmod 440 /etc/sudoers.d/neutron_sudoers
+RUN curl -O https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py
+RUN dnf remove -y python3-six
+RUN pip install -c https://releases.openstack.org/constraints/upper/master neutron neutron-fwaas tap-as-a-service networking-baremetal networking-generic-switch PyMySQL python-memcached
+RUN pip install -c https://releases.openstack.org/constraints/upper/master gunicorn
+USER neutron
