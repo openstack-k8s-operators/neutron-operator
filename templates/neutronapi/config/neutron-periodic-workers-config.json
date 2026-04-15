@@ -1,0 +1,93 @@
+{
+  "command": "neutron-periodic-workers",
+  "permissions": [
+    {
+      "path": "/etc/neutron/plugins",
+      "owner": "neutron:neutron",
+      "mode": "0755",
+      "recurse": true
+    },
+    {
+      "path": "/etc/neutron/plugins/ml2",
+      "owner": "neutron:neutron",
+      "mode": "0755"
+    }
+  ],
+  "config_files": [
+    {
+      "source": "/var/lib/config-data/default/01-neutron.conf",
+      "dest": "/etc/neutron/neutron.conf.d/01-neutron.conf",
+      "owner": "root:neutron",
+      "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/default/02-neutron-custom.conf",
+      "dest": "/etc/neutron/neutron.conf.d/02-neutron-custom.conf",
+      "owner": "root:neutron",
+      "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/default/01-neutron.conf",
+      "dest": "/etc/neutron/neutron.conf",
+      "owner": "root:neutron",
+      "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/default/01-neutron.conf",
+      "dest": "/etc/neutron/plugins/ml2/ml2_conf.ini",
+      "owner": "root:neutron",
+      "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/default/api-paste.ini",
+      "dest": "/etc/neutron/api-paste.ini",
+      "owner": "root:neutron",
+      "perm": "0640"
+    },
+    {
+      "source": "/var/lib/config-data/default/policy.yaml",
+      "dest": "/etc/neutron/policy.yaml",
+      "owner": "root:neutron",
+      "perm": "0640",
+      "optional": true
+    },
+    {
+      "source": "/var/lib/config-data/default/my.cnf",
+      "dest": "/etc/my.cnf",
+      "owner": "neutron",
+      "perm": "0644"
+    },
+    {
+      "source": "/var/lib/config-data/tls/certs/*",
+      "dest": "/etc/pki/tls/certs/",
+      "owner": "neutron:neutron",
+      "perm": "0640",
+      "optional": true,
+      "merge": true
+    },
+    {
+      "source": "/var/lib/config-data/tls/private/*",
+      "dest": "/etc/pki/tls/private/",
+      "owner": "neutron:neutron",
+      "perm": "0640",
+      "optional": true,
+      "merge": true
+    },
+    {
+      "source": "/var/lib/config-data/mtls/certs/*",
+      "dest": "/etc/pki/tls/certs/",
+      "owner": "neutron:neutron",
+      "perm": "0640",
+      "optional": true,
+      "merge": true
+    },
+    {
+      "source": "/var/lib/config-data/mtls/private/*",
+      "dest": "/etc/pki/tls/private/",
+      "owner": "neutron:neutron",
+      "perm": "0640",
+      "optional": true,
+      "merge": true
+     }
+  ]
+}

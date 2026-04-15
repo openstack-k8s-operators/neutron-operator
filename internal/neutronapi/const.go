@@ -29,6 +29,8 @@ const (
 	NeutronPublicPort int32 = 9696
 	// NeutronInternalPort -
 	NeutronInternalPort int32 = 9696
+	// NeutronInternalAPIPort - internal port used by neutron-server and uwsgi
+	NeutronInternalAPIPort int32 = 9697
 
 	// NeutronExtraVolTypeUndefined can be used to label an extraMount which
 	// is not associated with a specific backend
