@@ -177,6 +177,21 @@ type NeutronAPISpecCore struct {
 	// An empty value "" leaves the notification drivers unconfigured and emitting no notifications at all.
 	// Avoid colocating it with RabbitMqClusterName used for RPC.
 	NotificationsBusInstance *string `json:"notificationsBusInstance,omitempty" deprecated:"notificationsBus.cluster"`
+
+	// +kubebuilder:validation:Optional
+	// +listType=map
+	// +listMapKey=name
+	// PodAnnotations are added to the Neutron API Deployment pod template.
+	PodAnnotations []PodAnnotation `json:"podAnnotations,omitempty"`
+}
+
+// PodAnnotation is a single key/value pair that will be applied to the Neutron API
+// Deployment PodTemplate as an annotation.
+type PodAnnotation struct {
+	// Name is the annotation key.
+	Name string `json:"name"`
+	// Value is the annotation value.
+	Value string `json:"value"`
 }
 
 type NeutronApiTLS struct {
@@ -236,6 +251,12 @@ type NeutronAPIStatus struct {
 
 	// NetworkAttachments status of the deployment pods
 	NetworkAttachments map[string][]string `json:"networkAttachments,omitempty"`
+
+	// ApplicationCredentialSecret - the AC secret NeutronAPI is currently
+	// consuming and protecting with the openstack.org/neutronapi-ac-consumer
+	// finalizer. Tracked so the controller can remove its finalizer from the
+	// old secret when the openstack-operator rotates the reference.
+	ApplicationCredentialSecret string `json:"applicationCredentialSecret,omitempty"`
 
 	// ObservedGeneration - the most recent generation observed for this
 	// service. If the observed generation is less than the spec generation,

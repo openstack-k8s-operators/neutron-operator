@@ -1455,6 +1455,28 @@ spec:
                       from the Secret
                     type: string
                 type: object
+              podAnnotations:
+                description: PodAnnotations are added to the Neutron API Deployment
+                  pod template.
+                items:
+                  description: |-
+                    PodAnnotation is a single key/value pair that will be applied to the Neutron API
+                    Deployment PodTemplate as an annotation.
+                  properties:
+                    name:
+                      description: Name is the annotation key.
+                      type: string
+                    value:
+                      description: Value is the annotation value.
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               preserveJobs:
                 default: false
                 description: PreserveJobs - do not delete jobs after they finished
@@ -1607,6 +1629,13 @@ spec:
           status:
             description: NeutronAPIStatus defines the observed state of NeutronAPI
             properties:
+              applicationCredentialSecret:
+                description: |-
+                  ApplicationCredentialSecret - the AC secret NeutronAPI is currently
+                  consuming and protecting with the openstack.org/neutronapi-ac-consumer
+                  finalizer. Tracked so the controller can remove its finalizer from the
+                  old secret when the openstack-operator rotates the reference.
+                type: string
               conditions:
                 description: Conditions
                 items:
