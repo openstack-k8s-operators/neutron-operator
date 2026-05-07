@@ -1289,7 +1289,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		instance.Status.LastAppliedTopology = nil
 	}
 
-	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached)
+	deplDef, err := neutronapi.Deployment(ctx, r.Client, instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -1985,17 +1985,35 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 
 	templateParameters["VHosts"] = httpdVhostConfig
 
+	// Detect deployment strategy to create appropriate templates
+	detector := neutronapi.NewStrategyDetector(r.Client)
+	strategy, err := detector.DetectStrategy(ctx, instance)
+	if err != nil {
+		return fmt.Errorf("failed to detect deployment strategy for config generation: %w", err)
+	}
+
+	// Add deployment type to template parameters
+	templateParameters["DeploymentType"] = strategy.GetDeploymentType()
+
+	// Create base config secret with strategy-specific additional templates
+	strategyTemplates := strategy.GetConfigTemplates()
 	secrets := []util.Template{
 		{
-			Name:          fmt.Sprintf("%s-config", instance.Name),
-			Namespace:     instance.Namespace,
-			Type:          util.TemplateTypeConfig,
-			InstanceType:  instance.Kind,
-			CustomData:    customData,
-			Labels:        cmLabels,
-			ConfigOptions: templateParameters,
+			Name:               fmt.Sprintf("%s-config", instance.Name),
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       instance.Kind,
+			CustomData:         customData,
+			Labels:             cmLabels,
+			ConfigOptions:      templateParameters,
+			AdditionalTemplate: strategyTemplates,
 		},
-		{
+	}
+
+	// Add strategy-specific secrets
+	if strategy.GetDeploymentType() == "eventlet" || strategy.GetDeploymentType() == "httpd" {
+		// Add httpd config secret for strategies that use httpd
+		secrets = append(secrets, util.Template{
 			Name:         fmt.Sprintf("%s-httpd-config", instance.Name),
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeNone,
@@ -2007,8 +2025,9 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 				"ssl.conf":              "/neutronapi/httpd/ssl.conf",
 			},
 			ConfigOptions: templateParameters,
-		},
+		})
 	}
+
 	return secret.EnsureSecrets(ctx, h, instance, secrets, envVars)
 }
 
