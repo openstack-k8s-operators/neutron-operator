@@ -2004,9 +2004,9 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 			AdditionalTemplate: map[string]string{
 				"httpd.conf":            "/neutronapi/httpd/httpd.conf",
 				"10-neutron-httpd.conf": "/neutronapi/httpd/10-neutron-httpd.conf",
-				"ssl.conf":              "/neutronapi/httpd/ssl.conf",
 			},
-			ConfigOptions: templateParameters,
+			CommonTemplates: []string{"ssl.conf"},
+			ConfigOptions:   templateParameters,
 		},
 	}
 	return secret.EnsureSecrets(ctx, h, instance, secrets, envVars)
