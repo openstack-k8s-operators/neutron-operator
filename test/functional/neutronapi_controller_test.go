@@ -2202,6 +2202,145 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				}, timeout, interval).Should(Succeed())
 			})
 		})
+
+		When("ApplicationCredential consumer finalizer is managed", func() {
+			var acSecretName string
+
+			BeforeEach(func() {
+				acSecretName = "ac-neutron-a1b2c-secret" //nolint:gosec // G101
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      acSecretName,
+					},
+					Data: map[string][]byte{
+						keystonev1.ACIDSecretKey:     []byte("a1b2ctest-ac-id"),
+						keystonev1.ACSecretSecretKey: []byte("test-ac-secret"),
+					},
+				}
+				DeferCleanup(k8sClient.Delete, ctx, secret)
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+				spec["auth"] = map[string]any{
+					"applicationCredentialSecret": acSecretName,
+				}
+
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMemcachedReady(memcachedName)
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+			})
+
+			It("should add the consumer finalizer to the AC secret", func() {
+				Eventually(func(g Gomega) {
+					secret := th.GetSecret(types.NamespacedName{
+						Namespace: namespace,
+						Name:      acSecretName,
+					})
+					g.Expect(secret.Finalizers).To(
+						ContainElement(neutronapi.ACConsumerFinalizer))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("should track the consumed AC secret in status", func() {
+				Eventually(func(g Gomega) {
+					n := GetNeutronAPI(neutronAPIName)
+					g.Expect(n.Status.ApplicationCredentialSecret).To(Equal(acSecretName))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("should move the finalizer from the old to the new secret on rotation", func() {
+				Eventually(func(g Gomega) {
+					secret := th.GetSecret(types.NamespacedName{
+						Namespace: namespace,
+						Name:      acSecretName,
+					})
+					g.Expect(secret.Finalizers).To(
+						ContainElement(neutronapi.ACConsumerFinalizer))
+				}, timeout, interval).Should(Succeed())
+
+				newACSecretName := "ac-neutron-x9y8z-secret" //nolint:gosec // G101
+				newSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      newACSecretName,
+					},
+					Data: map[string][]byte{
+						keystonev1.ACIDSecretKey:     []byte("x9y8zrotated-ac-id"),
+						keystonev1.ACSecretSecretKey: []byte("rotated-ac-secret"),
+					},
+				}
+				DeferCleanup(k8sClient.Delete, ctx, newSecret)
+				Expect(k8sClient.Create(ctx, newSecret)).To(Succeed())
+
+				Eventually(func(g Gomega) {
+					n := GetNeutronAPI(neutronAPIName)
+					n.Spec.Auth.ApplicationCredentialSecret = newACSecretName
+					g.Expect(k8sClient.Update(ctx, n)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					secret := th.GetSecret(types.NamespacedName{
+						Namespace: namespace,
+						Name:      newACSecretName,
+					})
+					g.Expect(secret.Finalizers).To(
+						ContainElement(neutronapi.ACConsumerFinalizer))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					secret := th.GetSecret(types.NamespacedName{
+						Namespace: namespace,
+						Name:      acSecretName,
+					})
+					g.Expect(secret.Finalizers).NotTo(
+						ContainElement(neutronapi.ACConsumerFinalizer))
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					n := GetNeutronAPI(neutronAPIName)
+					g.Expect(n.Status.ApplicationCredentialSecret).To(Equal(newACSecretName))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("should remove the consumer finalizer from AC secret on CR deletion", func() {
+				Eventually(func(g Gomega) {
+					secret := th.GetSecret(types.NamespacedName{
+						Namespace: namespace,
+						Name:      acSecretName,
+					})
+					g.Expect(secret.Finalizers).To(
+						ContainElement(neutronapi.ACConsumerFinalizer))
+				}, timeout, interval).Should(Succeed())
+
+				th.DeleteInstance(GetNeutronAPI(neutronAPIName))
+
+				secret := th.GetSecret(types.NamespacedName{
+					Namespace: namespace,
+					Name:      acSecretName,
+				})
+				Expect(secret.Finalizers).NotTo(
+					ContainElement(neutronapi.ACConsumerFinalizer))
+			})
+		})
 	}
 }
 
