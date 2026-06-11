@@ -224,6 +224,11 @@ spec:
 The data defined in `/var/lib/neutron/third_party/partner1` will be mounted
 to the resulting neutronAPI pod.
 
+## Customize httpd
+
+- [Customize httpd](config/samples/httpd-overrides): inject custom httpd
+  configuration through extraMounts interface
+
 # Design
 *TBD*
 
