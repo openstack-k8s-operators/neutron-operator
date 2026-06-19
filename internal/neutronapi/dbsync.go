@@ -14,7 +14,7 @@ func DbSyncJob(
 	labels map[string]string,
 	annotations map[string]string,
 ) *batchv1.Job {
-	dbSyncExtraMounts := []neutronv1beta1.NeutronExtraVolMounts{}
+	dbSyncExtraMounts := cr.Spec.ExtraMounts
 
 	volumes := GetVolumes(cr.Name, dbSyncExtraMounts, DbsyncPropagation)
 	volumeMounts := GetVolumeMounts("db-sync", dbSyncExtraMounts, DbsyncPropagation)
