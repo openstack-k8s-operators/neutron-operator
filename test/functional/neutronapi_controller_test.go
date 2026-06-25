@@ -561,10 +561,11 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				cfg, err := ini.Load([]byte(configData))
 				Expect(err).ShouldNot(HaveOccurred(), "Should be able to parse config as INI")
 
-				// Verify region_name in [keystone_authtoken]
+				// Verify region_name and service_type in [keystone_authtoken]
 				section := cfg.Section("keystone_authtoken")
 				Expect(section).ShouldNot(BeNil(), "Should find [keystone_authtoken] section")
 				Expect(section.Key("region_name").String()).Should(Equal(testRegion))
+				Expect(section.Key("service_type").String()).Should(Equal("network"))
 
 				// Verify region_name in [nova]
 				section = cfg.Section("nova")
