@@ -1,0 +1,14 @@
+name: Lints
+
+on: [pull_request]
+
+jobs:
+  check-go-mod-replace-lines:
+    name: check for replace lines in go.mod files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: check for replace lines in go.mod files
+        run: |
+          ! egrep --invert-match -e '^replace.*/api => \./api|^replace.*//allow-merging$'  `find . -name 'go.mod'` | egrep -e 'go.mod:replace'
