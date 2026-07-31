@@ -20,8 +20,11 @@ import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
+	"github.com/openstack-k8s-operators/lib-common/modules/users"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -31,10 +34,14 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-const (
-	// ServiceCommand is the command used to start the Neutron service
-	ServiceCommand = "/usr/local/bin/kolla_start"
-)
+// NeutronAPICommand is the command used to run the native neutron-server
+// process (the neutron-api container).
+const NeutronAPICommand = "neutron-server --config-file /usr/share/neutron/neutron-dist.conf " +
+	"--config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d"
+
+// NeutronHttpdCommand is the command used to run the httpd reverse-proxy
+// (the neutron-httpd container).
+const NeutronHttpdCommand = "httpd -DFOREGROUND"
 
 // Deployment func
 func Deployment(
@@ -61,7 +68,8 @@ func Deployment(
 		PeriodSeconds:       30,
 		InitialDelaySeconds: 5,
 	}
-	args := []string{"-c", ServiceCommand}
+	apiArgs := []string{"-c", NeutronAPICommand}
+	httpdArgs := []string{"-c", NeutronHttpdCommand}
 
 	//
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -81,12 +89,12 @@ func Deployment(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 
 	// create Volume and VolumeMounts
-	volumes := GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
-	apiVolumeMounts := GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation)
+	volumes := append(GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation), volume.WritableDirVolume(volume.RunHttpdVolumeName))
+	policyOverwrite := len(instance.Spec.DefaultConfigOverwrite["policy.yaml"]) > 0
+	apiVolumeMounts := GetVolumeMounts(instance.Spec.ExtraMounts, NeutronAPIPropagation, policyOverwrite)
 	httpdVolumeMounts := GetHttpdVolumeMount()
 
 	// add CA cert if defined
@@ -99,7 +107,9 @@ func Deployment(
 	// add MTLS cert if defined
 	if memcached.Status.MTLSCert != "" {
 		volumes = append(volumes, memcached.CreateMTLSVolume())
-		apiVolumeMounts = append(apiVolumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
+		certMountPath := memcachedv1.CertPathDst
+		keyMountPath := memcachedv1.KeyPathDst
+		apiVolumeMounts = append(apiVolumeMounts, memcached.CreateMTLSVolumeMounts(&certMountPath, &keyMountPath)...)
 	}
 
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
@@ -128,7 +138,12 @@ func Deployment(
 	if instance.IsOVNEnabled() && instance.Spec.TLS.Ovn.Enabled() {
 		svc := tls.Service{
 			SecretName: *instance.Spec.TLS.Ovn.SecretName,
-			CaMount:    ptr.To("/var/lib/config-data/tls/certs/ovndbca.crt"),
+			// ovn_{nb,sb}_certificate/private_key/ca_cert in 01-neutron.conf
+			// point directly here -- mount at the final paths, not the
+			// kolla-era staging paths CertMount/KeyMount default to.
+			CertMount: ptr.To("/etc/pki/tls/certs/ovndb.crt"),
+			KeyMount:  ptr.To("/etc/pki/tls/private/ovndb.key"),
+			CaMount:   ptr.To("/etc/pki/tls/certs/ovndbca.crt"),
 		}
 		volumes = append(volumes, svc.CreateVolume("ovndb"))
 		apiVolumeMounts = append(apiVolumeMounts, svc.CreateVolumeMounts("ovndb")...)
@@ -150,17 +165,16 @@ func Deployment(
 					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
-					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup: ptr.To(NeutronUID),
-					},
-					ServiceAccountName: instance.RbacResourceName(),
+					SecurityContext:              pod.RestrictivePodSecurityContext(users.NeutronUID, users.NeutronGID),
+					ServiceAccountName:           instance.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
 					Containers: []corev1.Container{
 						{
 							Name:                     ServiceName + "-api",
 							Command:                  []string{"/bin/bash"},
-							Args:                     args,
+							Args:                     apiArgs,
 							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          getNeutronSecurityContext(),
+							SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:             apiVolumeMounts,
 							Resources:                instance.Spec.Resources,
@@ -170,9 +184,9 @@ func Deployment(
 						{
 							Name:                     ServiceName + "-httpd",
 							Command:                  []string{"/bin/bash"},
-							Args:                     args,
+							Args:                     httpdArgs,
 							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          getNeutronSecurityContext(),
+							SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:             httpdVolumeMounts,
 							Resources:                instance.Spec.Resources,
