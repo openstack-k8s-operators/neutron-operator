@@ -20,11 +20,6 @@ const (
 	// is to be generated, e.g. "neutron_e5a4", "neutron_78bc", etc
 	DatabaseUsernamePrefix = "neutron"
 
-	// NeutronUID is the UID for the neutron user (neutron:neutron)
-	NeutronUID int64 = 42435
-	// NeutronGID is the GID for the neutron group
-	NeutronGID int64 = 42435
-
 	// NeutronPublicPort -
 	NeutronPublicPort int32 = 9696
 	// NeutronInternalPort -
