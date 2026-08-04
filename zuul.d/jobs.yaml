@@ -49,5 +49,36 @@
         neutron_tempest_plugin.scenario.test_mtu.NetworkWritableMtuTest
         # missing https://review.opendev.org/882818 in antelope
         test_qos_dscp_create_and_update
-        # Limit job runtime
-        NetworkSecGroupTest
+        # Needs docker setup
+        NetworkMultipleGWTest
+
+- job:
+    name: neutron-operator-tempest-multinode-eventlet
+    parent: neutron-operator-tempest-multinode
+
+- job:
+    name: neutron-operator-tempest-multinode-uwsgi
+    parent: neutron-operator-tempest-multinode
+    vars:
+      cifmw_update_containers_custom_images:
+        neutronAPIImage: quay.io/ykarel/openstack-neutron-server:uwsgi
+        testTempestImage: quay.rdoproject.org/podified-master-centos10/openstack-tempest-all:current-tested
+      cifmw_test_operator_tempest_image: quay.rdoproject.org/podified-master-centos10/openstack-tempest-all
+      cifmw_test_operator_tempest_image_tag: current-tested
+
+- job:
+    name: neutron-operator-tempest-multinode-httpd
+    parent: neutron-operator-tempest-multinode
+    vars:
+      cifmw_update_containers_custom_images:
+        neutronAPIImage: quay.io/ykarel/openstack-neutron-server:httpd
+        testTempestImage: quay.rdoproject.org/podified-master-centos10/openstack-tempest-all:current-tested
+      cifmw_test_operator_tempest_image: quay.rdoproject.org/podified-master-centos10/openstack-tempest-all
+      cifmw_test_operator_tempest_image_tag: current-tested
+
+- job:
+    name: neutron-operator-tempest-multinode-gunicorn
+    parent: neutron-operator-tempest-multinode
+    vars:
+      cifmw_update_containers_custom_images:
+        neutronAPIImage: quay.io/ykarel/openstack-neutron-server:gunicorn
