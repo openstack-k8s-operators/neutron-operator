@@ -2,11 +2,18 @@ package neutronapi
 
 import (
 	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/pod"
+	"github.com/openstack-k8s-operators/lib-common/modules/serviceuser"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
+
+// DbSyncCommand - direct neutron-db-manage command without kolla wrapper
+const DbSyncCommand = "neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf " +
+	"--config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d upgrade heads"
 
 // DbSyncJob func
 func DbSyncJob(
@@ -17,7 +24,7 @@ func DbSyncJob(
 	dbSyncExtraMounts := cr.Spec.ExtraMounts
 
 	volumes := GetVolumes(cr.Name, dbSyncExtraMounts, DbsyncPropagation)
-	volumeMounts := GetVolumeMounts("db-sync", dbSyncExtraMounts, DbsyncPropagation)
+	volumeMounts := GetVolumeMounts(dbSyncExtraMounts, DbsyncPropagation, false)
 
 	// add CA cert if defined
 	if cr.Spec.TLS.CaBundleSecretName != "" {
@@ -26,7 +33,7 @@ func DbSyncJob(
 	}
 
 	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
+	args := []string{"-c", DbSyncCommand}
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -38,13 +45,17 @@ func DbSyncJob(
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					ServiceAccountName: cr.RbacResourceName(),
+					RestartPolicy:                corev1.RestartPolicyOnFailure,
+					ServiceAccountName:           cr.RbacResourceName(),
+					AutomountServiceAccountToken: ptr.To(false),
+					SecurityContext:              pod.RestrictivePodSecurityContext(serviceuser.NeutronUID, serviceuser.NeutronGID),
 					Containers: []corev1.Container{
 						{
 							Name:            cr.Name + "-db-sync",
+							Command:         []string{"/bin/bash"},
+							Args:            args,
 							Image:           cr.Spec.ContainerImage,
-							SecurityContext: getNeutronSecurityContext(),
+							SecurityContext: pod.RestrictiveSecurityContext(serviceuser.NeutronUID, serviceuser.NeutronGID),
 							Env:             env.MergeEnvs([]corev1.EnvVar{}, envVars),
 							VolumeMounts:    volumeMounts,
 						},

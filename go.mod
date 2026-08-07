@@ -11,6 +11,7 @@ require (
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260730060158-27ac5ce68f29
 	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260727152316-e841be643d15
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260725150835-623a52fe0391
+	github.com/openstack-k8s-operators/lib-common/modules/serviceuser v0.0.0-00010101000000-000000000000
 	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260725150835-623a52fe0391
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260725150835-623a52fe0391
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260728091439-b5039a181b44
@@ -137,3 +138,7 @@ replace k8s.io/code-generator => k8s.io/code-generator v0.33.13 //allow-merging
 replace k8s.io/component-base => k8s.io/component-base v0.33.13 //allow-merging
 
 replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250627150254-e9823e99808e //allow-merging
+
+replace github.com/openstack-k8s-operators/lib-common/modules/common => github.com/stuggi/lib-common/modules/common v0.0.0-20260807111253-08c9a0504119
+
+replace github.com/openstack-k8s-operators/lib-common/modules/serviceuser => github.com/stuggi/lib-common/modules/serviceuser v0.0.0-20260807111253-08c9a0504119

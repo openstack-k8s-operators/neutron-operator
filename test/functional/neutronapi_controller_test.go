@@ -1114,18 +1114,18 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					},
 				)
 				Expect(int(*deployment.Spec.Replicas)).To(Equal(1))
-				Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(2))
+				Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(3))
 				Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 				nSvcContainer := deployment.Spec.Template.Spec.Containers[0]
 				Expect(nSvcContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-				Expect(nSvcContainer.VolumeMounts).To(HaveLen(2))
+				Expect(nSvcContainer.VolumeMounts).To(HaveLen(3))
 				Expect(nSvcContainer.Image).To(Equal(util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", neutronv1.NeutronAPIContainerImage)))
 
 				nHttpdProxyContainer := deployment.Spec.Template.Spec.Containers[1]
 				Expect(nHttpdProxyContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 				Expect(nHttpdProxyContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
-				Expect(nHttpdProxyContainer.VolumeMounts).To(HaveLen(2))
+				Expect(nHttpdProxyContainer.VolumeMounts).To(HaveLen(4))
 				Expect(nHttpdProxyContainer.Image).To(Equal(util.GetEnvVar("RELATED_IMAGE_NEUTRON_API_IMAGE_URL_DEFAULT", neutronv1.NeutronAPIContainerImage)))
 			})
 		})
@@ -1825,13 +1825,13 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				// Get Neutron Deployment
 				dp := th.GetDeployment(neutronDeploymentName)
 				// Check the resulting deployment fields
-				Expect(dp.Spec.Template.Spec.Volumes).To(HaveLen(3))
+				Expect(dp.Spec.Template.Spec.Volumes).To(HaveLen(4))
 				Expect(dp.Spec.Template.Spec.Containers).To(HaveLen(2))
 				// Get the neutron container
 				container := dp.Spec.Template.Spec.Containers[0]
 				// Fail if neutron doesn't have the right number of VolumeMounts
 				// entries
-				Expect(container.VolumeMounts).To(HaveLen(3))
+				Expect(container.VolumeMounts).To(HaveLen(4))
 				// Inspect VolumeMounts and make sure we have the Foo MountPath
 				// provided through extraMounts
 				th.AssertVolumeMountPathExists(neutronExtraMountsSecretName,
