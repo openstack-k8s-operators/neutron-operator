@@ -55,12 +55,25 @@ func SetExternalDBEndpoint(name types.NamespacedName, endpoint string) {
 func SimulateTransportURLReady(name types.NamespacedName) {
 	Eventually(func(g Gomega) {
 		transport := infra.GetTransportURL(name)
-		// To avoid another secret creation and cleanup
 		transport.Status.SecretName = SecretName
 		transport.Status.Conditions.MarkTrue("TransportURLReady", "Ready")
 		g.Expect(k8sClient.Status().Update(ctx, transport)).To(Succeed())
-
 	}, timeout, interval).Should(Succeed())
+
+	// Ensure the transport URL secret exists so ManageSecretConsumerFinalizer
+	// can find it. If the secret already exists (e.g., the test created it
+	// with password data), this is a no-op.
+	transportSecret := &corev1.Secret{}
+	err := k8sClient.Get(ctx, types.NamespacedName{
+		Namespace: name.Namespace, Name: SecretName}, transportSecret)
+	if err != nil {
+		th.CreateSecret(
+			types.NamespacedName{Namespace: name.Namespace, Name: SecretName},
+			map[string][]byte{
+				"transport_url": []byte("rabbit://" + name.Name + "/fake"),
+			},
+		)
+	}
 	logger.Info("Simulated TransportURL ready", "on", name)
 }
 

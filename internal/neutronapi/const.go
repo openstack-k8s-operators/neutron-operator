@@ -46,6 +46,11 @@ const (
 	// NeutronDhcpAgentSecretKey is the key in external Secret for Neutron DHCP Agent with agent config
 	NeutronDhcpAgentSecretKey = "10-neutron-dhcp.conf"
 
+	// TransportConsumerFinalizer is added to transport secrets that
+	// NeutronAPI is actively consuming, preventing premature deletion
+	// during credential rotation.
+	TransportConsumerFinalizer = "openstack.org/neutron-transport-consumer"
+
 	// ACConsumerFinalizer is added to AC secrets that neutron is actively consuming
 	ACConsumerFinalizer = "openstack.org/neutronapi-ac-consumer"
 )
