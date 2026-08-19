@@ -1,10 +1,13 @@
 package neutronapi
 
 import (
+	"github.com/openstack-k8s-operators/lib-common/modules/common/volume"
 	"github.com/openstack-k8s-operators/lib-common/modules/storage"
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 )
+
+var configMode int32 = 0440
 
 // GetVolumes -
 // TODO: merge to GetVolumes when other controllers also switched to current config
@@ -16,7 +19,8 @@ func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, sv
 			Name: "config",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: name + "-config",
+					DefaultMode: &configMode,
+					SecretName:  name + "-config",
 				},
 			},
 		},
@@ -24,7 +28,8 @@ func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, sv
 			Name: "httpd-config",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: name + "-httpd-config",
+					DefaultMode: &configMode,
+					SecretName:  name + "-httpd-config",
 				},
 			},
 		},
@@ -45,20 +50,42 @@ func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, sv
 
 }
 
-// GetVolumeMounts - Neutron API VolumeMounts
-func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
+// GetVolumeMounts - Neutron API/db-sync VolumeMounts
+func GetVolumeMounts(
+	extraVol []neutronv1beta1.NeutronExtraVolMounts,
+	svc []storage.PropagationType,
+	policyOverwrite bool,
+) []corev1.VolumeMount {
 	res := []corev1.VolumeMount{
 		{
 			Name:      "config",
-			MountPath: "/var/lib/config-data/default",
+			MountPath: "/etc/neutron/neutron.conf.d/01-neutron.conf",
+			SubPath:   "01-neutron.conf",
 			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   serviceName + "-config.json",
+			MountPath: "/etc/neutron/neutron.conf.d/02-neutron-custom.conf",
+			SubPath:   "02-neutron-custom.conf",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "config",
+			MountPath: "/etc/my.cnf",
+			SubPath:   "my.cnf",
+			ReadOnly:  true,
+		},
+	}
+	// policy.yaml is only present in the config Secret when the user
+	// overwrites it via spec.defaultConfigOverwrite -- mounting it
+	// unconditionally would break every NeutronAPI that doesn't set it.
+	if policyOverwrite {
+		res = append(res, corev1.VolumeMount{
+			Name:      "config",
+			MountPath: "/etc/neutron/policy.yaml",
+			SubPath:   "policy.yaml",
+			ReadOnly:  true,
+		})
 	}
 	for _, exv := range extraVol {
 		for _, vol := range exv.Propagate(svc) {
@@ -74,14 +101,22 @@ func GetHttpdVolumeMount() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      "httpd-config",
-			MountPath: "/var/lib/config-data/default",
+			MountPath: "/etc/httpd/conf/httpd.conf",
+			SubPath:   "httpd.conf",
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config",
-			MountPath: "/var/lib/kolla/config_files/config.json",
-			SubPath:   "neutron-httpd-config.json",
+			Name:      "httpd-config",
+			MountPath: "/etc/httpd/conf.d/10-neutron.conf",
+			SubPath:   "10-neutron-httpd.conf",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "httpd-config",
+			MountPath: "/etc/httpd/conf.d/ssl.conf",
+			SubPath:   "ssl.conf",
+			ReadOnly:  true,
+		},
+		volume.WritableDirVolumeMount(volume.RunHttpdVolumeName, volume.RunHttpdMountPath),
 	}
 }

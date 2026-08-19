@@ -33,30 +33,43 @@ spec:
       containers:
       - args:
         - -c
-        - /usr/local/bin/kolla_start
+        - neutron-server --config-file /usr/share/neutron/neutron-dist.conf --config-file
+          /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d
         volumeMounts:
-        - mountPath: /var/lib/config-data/default
+        - mountPath: /etc/neutron/neutron.conf.d/01-neutron.conf
           name: config
           readOnly: true
-        - mountPath: /var/lib/kolla/config_files/config.json
+          subPath: 01-neutron.conf
+        - mountPath: /etc/neutron/neutron.conf.d/02-neutron-custom.conf
           name: config
           readOnly: true
-          subPath: neutron-api-config.json
+          subPath: 02-neutron-custom.conf
+        - mountPath: /etc/my.cnf
+          name: config
+          readOnly: true
+          subPath: my.cnf
         - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
           name: combined-ca-bundle
           readOnly: true
           subPath: tls-ca-bundle.pem
       - args:
         - -c
-        - /usr/local/bin/kolla_start
+        - httpd -DFOREGROUND
         volumeMounts:
-        - mountPath: /var/lib/config-data/default
+        - mountPath: /etc/httpd/conf/httpd.conf
           name: httpd-config
           readOnly: true
-        - mountPath: /var/lib/kolla/config_files/config.json
-          name: config
+          subPath: httpd.conf
+        - mountPath: /etc/httpd/conf.d/10-neutron.conf
+          name: httpd-config
           readOnly: true
-          subPath: neutron-httpd-config.json
+          subPath: 10-neutron-httpd.conf
+        - mountPath: /etc/httpd/conf.d/ssl.conf
+          name: httpd-config
+          readOnly: true
+          subPath: ssl.conf
+        - mountPath: /run/httpd
+          name: run-httpd
         - mountPath: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
           name: combined-ca-bundle
           readOnly: true
@@ -80,12 +93,14 @@ spec:
       volumes:
       - name: config
         secret:
-          defaultMode: 420
+          defaultMode: 288
           secretName: neutron-config
       - name: httpd-config
         secret:
-          defaultMode: 420
+          defaultMode: 288
           secretName: neutron-httpd-config
+      - emptyDir: {}
+        name: run-httpd
       - name: combined-ca-bundle
         secret:
           defaultMode: 292
