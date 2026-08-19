@@ -13,13 +13,13 @@ limitations under the License.
 package neutronapi
 
 import (
+	"context"
 	"fmt"
 
 	memcachedv1 "github.com/openstack-k8s-operators/infra-operator/apis/memcached/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/affinity"
-	"github.com/openstack-k8s-operators/lib-common/modules/common/env"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/service"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/tls"
 	neutronv1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
@@ -27,8 +27,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -38,6 +38,8 @@ const (
 
 // Deployment func
 func Deployment(
+	ctx context.Context,
+	client client.Client,
 	instance *neutronv1.NeutronAPI,
 	configHash string,
 	labels map[string]string,
@@ -45,63 +47,27 @@ func Deployment(
 	topology *topologyv1.Topology,
 	memcached *memcachedv1.Memcached,
 ) (*appsv1.Deployment, error) {
-	// TODO(lucasagomes): Look into how to implement separated probes
-	// for the httpd and neutron-api containers. Right now the code uses
-	// the same liveness and readiness probes for both containers which
-	// only checks the port 9696 (NeutronPublicPort) which is the port
-	// that httpd is listening to. Ideally, we should also include a
-	// probe on port 9697 which is the port that neutron-api binds to
-	livenessProbe := &corev1.Probe{
-		TimeoutSeconds:      30,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
-	}
-	readinessProbe := &corev1.Probe{
-		TimeoutSeconds:      30,
-		PeriodSeconds:       30,
-		InitialDelaySeconds: 5,
-	}
-	args := []string{"-c", ServiceCommand}
-
-	//
-	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-	//
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: "/",
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NeutronPublicPort)},
-	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: "/",
-		Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(NeutronPublicPort)},
+	// Detect deployment strategy based on container image
+	detector := NewStrategyDetector(client)
+	strategy, err := detector.DetectStrategy(ctx, instance)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect deployment strategy: %w", err)
 	}
 
-	if instance.Spec.TLS.API.Enabled(service.EndpointPublic) {
-		livenessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-		readinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
-	}
-
-	envVars := map[string]env.Setter{}
-	envVars["KOLLA_CONFIG_STRATEGY"] = env.SetValue("COPY_ALWAYS")
-	envVars["CONFIG_HASH"] = env.SetValue(configHash)
-
-	// create Volume and VolumeMounts
-	volumes := GetVolumes(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation)
-	apiVolumeMounts := GetVolumeMounts("neutron-api", instance.Spec.ExtraMounts, NeutronAPIPropagation)
-	httpdVolumeMounts := GetHttpdVolumeMount()
+	// create Volume and VolumeMounts with strategy awareness
+	volumes := GetVolumesForStrategy(instance.Name, instance.Spec.ExtraMounts, NeutronAPIPropagation, strategy.GetDeploymentType())
 
 	// add CA cert if defined
 	if instance.Spec.TLS.CaBundleSecretName != "" {
 		volumes = append(volumes, instance.Spec.TLS.CreateVolume())
-		apiVolumeMounts = append(apiVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
-		httpdVolumeMounts = append(httpdVolumeMounts, instance.Spec.TLS.CreateVolumeMounts(nil)...)
 	}
 
 	// add MTLS cert if defined
 	if memcached.Status.MTLSCert != "" {
 		volumes = append(volumes, memcached.CreateMTLSVolume())
-		apiVolumeMounts = append(apiVolumeMounts, memcached.CreateMTLSVolumeMounts(nil, nil)...)
 	}
 
+	// Handle TLS certificates for API endpoints
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			var tlsEndptCfg tls.GenericService
@@ -116,22 +82,40 @@ func Deployment(
 			if err != nil {
 				return nil, err
 			}
-			// httpd container is not using kolla, mount the certs to its dst
-			svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
-			svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+			// For eventlet strategy, httpd container needs specific cert mount paths
+			if strategy.GetDeploymentType() == "eventlet" {
+				svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+				svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+			}
+			// For uwsgi, gunicorn, and httpd strategies, container needs specific cert mount paths
+			if strategy.GetDeploymentType() == "uwsgi" || strategy.GetDeploymentType() == "gunicorn" || strategy.GetDeploymentType() == "httpd" {
+				svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+				svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+			}
 
 			volumes = append(volumes, svc.CreateVolume(endpt.String()))
-			httpdVolumeMounts = append(httpdVolumeMounts, svc.CreateVolumeMounts(endpt.String())...)
 		}
 	}
 
+	// Add OVN TLS if enabled
 	if instance.IsOVNEnabled() && instance.Spec.TLS.Ovn.Enabled() {
 		svc := tls.Service{
 			SecretName: *instance.Spec.TLS.Ovn.SecretName,
 			CaMount:    ptr.To("/var/lib/config-data/tls/certs/ovndbca.crt"),
 		}
 		volumes = append(volumes, svc.CreateVolume("ovndb"))
-		apiVolumeMounts = append(apiVolumeMounts, svc.CreateVolumeMounts("ovndb")...)
+	}
+
+	// Generate strategy-specific containers
+	containers, err := strategy.GetContainers(instance, configHash, volumes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate containers: %w", err)
+	}
+
+	// Apply TLS volume mounts to containers based on strategy
+	err = applyTLSMountsToContainers(instance, memcached, strategy, containers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply TLS mounts: %w", err)
 	}
 
 	deployment := &appsv1.Deployment{
@@ -154,34 +138,8 @@ func Deployment(
 						FSGroup: ptr.To(NeutronUID),
 					},
 					ServiceAccountName: instance.RbacResourceName(),
-					Containers: []corev1.Container{
-						{
-							Name:                     ServiceName + "-api",
-							Command:                  []string{"/bin/bash"},
-							Args:                     args,
-							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          getNeutronSecurityContext(),
-							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             apiVolumeMounts,
-							Resources:                instance.Spec.Resources,
-							LivenessProbe:            livenessProbe,
-							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-						},
-						{
-							Name:                     ServiceName + "-httpd",
-							Command:                  []string{"/bin/bash"},
-							Args:                     args,
-							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          getNeutronSecurityContext(),
-							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             httpdVolumeMounts,
-							Resources:                instance.Spec.Resources,
-							ReadinessProbe:           readinessProbe,
-							LivenessProbe:            livenessProbe,
-							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-						},
-					},
-					Volumes: volumes,
+					Containers:         containers,
+					Volumes:            volumes,
 				},
 			},
 		},
@@ -207,4 +165,113 @@ func Deployment(
 	}
 
 	return deployment, nil
+}
+
+// applyTLSMountsToContainers adds TLS-related volume mounts to containers based on strategy
+func applyTLSMountsToContainers(
+	instance *neutronv1.NeutronAPI,
+	memcached *memcachedv1.Memcached,
+	strategy DeploymentStrategy,
+	containers []corev1.Container,
+) error {
+	// Apply CA certificate mounts to all containers if defined
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		caMounts := instance.Spec.TLS.CreateVolumeMounts(nil)
+		for i := range containers {
+			containers[i].VolumeMounts = append(containers[i].VolumeMounts, caMounts...)
+		}
+	}
+
+	// Apply MTLS certificate mounts to all containers if defined
+	if memcached.Status.MTLSCert != "" {
+		mtlsMounts := memcached.CreateMTLSVolumeMounts(nil, nil)
+		for i := range containers {
+			containers[i].VolumeMounts = append(containers[i].VolumeMounts, mtlsMounts...)
+		}
+	}
+
+	// Apply TLS API endpoint mounts based on strategy
+	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
+		if instance.Spec.TLS.API.Enabled(endpt) {
+			var tlsEndptCfg tls.GenericService
+			switch endpt {
+			case service.EndpointPublic:
+				tlsEndptCfg = instance.Spec.TLS.API.Public
+			case service.EndpointInternal:
+				tlsEndptCfg = instance.Spec.TLS.API.Internal
+			}
+
+			svc, err := tlsEndptCfg.ToService()
+			if err != nil {
+				return err
+			}
+
+			var tlsMounts []corev1.VolumeMount
+			if strategy.GetDeploymentType() == "eventlet" {
+				// For eventlet strategy, apply TLS certs to httpd container
+				svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+				svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+				tlsMounts = svc.CreateVolumeMounts(endpt.String())
+
+				// Apply only to httpd container
+				for i := range containers {
+					if containers[i].Name == ServiceName+"-httpd" {
+						containers[i].VolumeMounts = append(containers[i].VolumeMounts, tlsMounts...)
+					}
+				}
+			} else if strategy.GetDeploymentType() == "uwsgi" {
+				// For uwsgi strategy, apply TLS certs to uwsgi container
+				svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+				svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+				tlsMounts = svc.CreateVolumeMounts(endpt.String())
+
+				// Apply only to uwsgi container
+				for i := range containers {
+					if containers[i].Name == ServiceName+"-uwsgi" {
+						containers[i].VolumeMounts = append(containers[i].VolumeMounts, tlsMounts...)
+					}
+				}
+			} else if strategy.GetDeploymentType() == "gunicorn" {
+				// For gunicorn strategy, apply TLS certs to gunicorn container
+				svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+				svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+				tlsMounts = svc.CreateVolumeMounts(endpt.String())
+
+				// Apply only to gunicorn container
+				for i := range containers {
+					if containers[i].Name == ServiceName+"-gunicorn" {
+						containers[i].VolumeMounts = append(containers[i].VolumeMounts, tlsMounts...)
+					}
+				}
+			} else if strategy.GetDeploymentType() == "httpd" {
+				// For httpd strategy, apply TLS certs to httpd container
+				svc.CertMount = ptr.To(fmt.Sprintf("/etc/pki/tls/certs/%s.crt", endpt.String()))
+				svc.KeyMount = ptr.To(fmt.Sprintf("/etc/pki/tls/private/%s.key", endpt.String()))
+				tlsMounts = svc.CreateVolumeMounts(endpt.String())
+
+				// Apply only to httpd container
+				for i := range containers {
+					if containers[i].Name == ServiceName+"-httpd" {
+						containers[i].VolumeMounts = append(containers[i].VolumeMounts, tlsMounts...)
+					}
+				}
+			}
+		}
+	}
+
+	// Apply OVN TLS mounts to relevant containers if enabled
+	if instance.IsOVNEnabled() && instance.Spec.TLS.Ovn.Enabled() {
+		svc := tls.Service{
+			SecretName: *instance.Spec.TLS.Ovn.SecretName,
+			CaMount:    ptr.To("/var/lib/config-data/tls/certs/ovndbca.crt"),
+		}
+		ovnMounts := svc.CreateVolumeMounts("ovndb")
+
+		// Apply to all containers that need neutron config access
+		for i := range containers {
+			containers[i].VolumeMounts = append(containers[i].VolumeMounts, ovnMounts...)
+		}
+	}
+
+	return nil
 }

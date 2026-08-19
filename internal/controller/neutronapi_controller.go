@@ -116,6 +116,7 @@ type NeutronAPIReconciler struct {
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update;patch
 // service account permissions that are needed to grant permission to the above
 // +kubebuilder:rbac:groups="security.openshift.io",resourceNames=anyuid,resources=securitycontextconstraints,verbs=use
+// +kubebuilder:rbac:groups="",resources=pods,verbs=create;delete;get;list;patch;update;watch;patch
 // +kubebuilder:rbac:groups=topology.openstack.org,resources=topologies,verbs=get;list;watch;update
 
 // Reconcile - neutron api
@@ -940,6 +941,11 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 			Resources:     []string{"securitycontextconstraints"},
 			Verbs:         []string{"use"},
 		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods"},
+			Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+		},
 	}
 	rbacResult, err := common_rbac.ReconcileRbac(ctx, helper, instance, rbacRules)
 	if err != nil {
@@ -1314,7 +1320,7 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		instance.Status.LastAppliedTopology = nil
 	}
 
-	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached)
+	deplDef, err := neutronapi.Deployment(ctx, r.Client, instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -2029,17 +2035,35 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 
 	templateParameters["VHosts"] = httpdVhostConfig
 
+	// Detect deployment strategy to create appropriate templates
+	detector := neutronapi.NewStrategyDetector(r.Client)
+	strategy, err := detector.DetectStrategy(ctx, instance)
+	if err != nil {
+		return fmt.Errorf("failed to detect deployment strategy for config generation: %w", err)
+	}
+
+	// Add deployment type to template parameters
+	templateParameters["DeploymentType"] = strategy.GetDeploymentType()
+
+	// Create base config secret with strategy-specific additional templates
+	strategyTemplates := strategy.GetConfigTemplates()
 	secrets := []util.Template{
 		{
-			Name:          fmt.Sprintf("%s-config", instance.Name),
-			Namespace:     instance.Namespace,
-			Type:          util.TemplateTypeConfig,
-			InstanceType:  instance.Kind,
-			CustomData:    customData,
-			Labels:        cmLabels,
-			ConfigOptions: templateParameters,
+			Name:               fmt.Sprintf("%s-config", instance.Name),
+			Namespace:          instance.Namespace,
+			Type:               util.TemplateTypeConfig,
+			InstanceType:       instance.Kind,
+			CustomData:         customData,
+			Labels:             cmLabels,
+			ConfigOptions:      templateParameters,
+			AdditionalTemplate: strategyTemplates,
 		},
-		{
+	}
+
+	// Add strategy-specific secrets
+	if strategy.GetDeploymentType() == "eventlet" || strategy.GetDeploymentType() == "httpd" {
+		// Add httpd config secret for strategies that use httpd
+		secrets = append(secrets, util.Template{
 			Name:         fmt.Sprintf("%s-httpd-config", instance.Name),
 			Namespace:    instance.Namespace,
 			Type:         util.TemplateTypeNone,
@@ -2051,8 +2075,9 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 			},
 			CommonTemplates: []string{"ssl.conf"},
 			ConfigOptions:   templateParameters,
-		},
+		})
 	}
+
 	return secret.EnsureSecrets(ctx, h, instance, secrets, envVars)
 }
 

@@ -45,6 +45,47 @@ func GetVolumes(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, sv
 
 }
 
+// GetVolumesForStrategy - Strategy-aware volume creation that only includes volumes needed for the deployment type
+func GetVolumesForStrategy(name string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType, deploymentType string) []corev1.Volume {
+	res := []corev1.Volume{
+		{
+			Name: "config",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: name + "-config",
+				},
+			},
+		},
+	}
+
+	// Add httpd-config volume for strategies that use httpd container
+	if deploymentType == "eventlet" || deploymentType == "httpd" {
+		res = append(res, corev1.Volume{
+			Name: "httpd-config",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: name + "-httpd-config",
+				},
+			},
+		})
+	}
+
+	// Add extra volumes from spec
+	for _, exv := range extraVol {
+		for _, vol := range exv.Propagate(svc) {
+			for _, v := range vol.Volumes {
+				volumeSource, _ := v.ToCoreVolumeSource()
+				convertedVolume := corev1.Volume{
+					Name:         v.Name,
+					VolumeSource: *volumeSource,
+				}
+				res = append(res, convertedVolume)
+			}
+		}
+	}
+	return res
+}
+
 // GetVolumeMounts - Neutron API VolumeMounts
 func GetVolumeMounts(serviceName string, extraVol []neutronv1beta1.NeutronExtraVolMounts, svc []storage.PropagationType) []corev1.VolumeMount {
 	res := []corev1.VolumeMount{

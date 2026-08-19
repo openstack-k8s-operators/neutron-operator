@@ -39,6 +39,7 @@
             validation.run_validation true
             identity.v3_endpoint_type public
             identity.v2_admin_endpoint_type public
+            neutron_plugin_options.snat_rules_apply_to_nested_networks true
       cifmw_test_operator_tempest_include_list: |
         neutron_tempest_plugin.api
         neutron_tempest_plugin.scenario
@@ -49,5 +50,48 @@
         neutron_tempest_plugin.scenario.test_mtu.NetworkWritableMtuTest
         # missing https://review.opendev.org/882818 in antelope
         test_qos_dscp_create_and_update
-        # Limit job runtime
-        NetworkSecGroupTest
+        # Needs docker setup
+        NetworkMultipleGWTest
+        # TypeError: NeutronTempestPluginException.__init__() takes 1 positional argument but 2 were given
+        L3AgentSchedulerTestJSON
+
+- job:
+    name: neutron-operator-tempest-multinode-eventlet
+    parent: neutron-operator-tempest-multinode
+
+- job:
+    name: neutron-operator-tempest-multinode-uwsgi
+    parent: neutron-operator-tempest-multinode
+    vars:
+      cifmw_update_containers_custom_images:
+        neutronAPIImage: quay.io/ykarel/openstack-neutron-server:uwsgi
+        testTempestImage: quay.rdoproject.org/podified-master-centos10/openstack-tempest-all:current-tested
+      cifmw_test_operator_tempest_image: quay.rdoproject.org/podified-master-centos10/openstack-tempest-all
+      cifmw_test_operator_tempest_image_tag: current-tested
+
+- job:
+    name: neutron-operator-tempest-multinode-httpd
+    parent: neutron-operator-tempest-multinode
+    vars:
+      cifmw_update_containers_custom_images:
+        ironicNeutronAgentImage: quay.io/openstack-k8s-operators/openstack-ironic-neutron-agent:master-latest
+        neutronAPIImage: quay.io/openstack-k8s-operators/openstack-neutron-server:master-latest
+        edpmNeutronDhcpAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-dhcp-agent:master-latest
+        edpmNeutronSriovAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-sriov-agent:master-latest
+        edpmNeutronOvnAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-ovn-agent:master-latest
+        edpmNeutronMetadataAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-metadata-agent-ovn:master-latest
+        ovnControllerImage: quay.io/ykarel/openstack-ovn-controller:master-latest
+        ovnControllerOvsImage: quay.io/ykarel/openstack-ovn-base:master-latest
+        ovnNbDbclusterImage: quay.io/ykarel/openstack-ovn-nb-db-server:master-latest
+        ovnNorthdImage: quay.io/ykarel/openstack-ovn-northd:master-latest
+        ovnSbDbclusterImage: quay.io/ykarel/openstack-ovn-sb-db-server:master-latest
+        testTempestImage: quay.io/openstack-k8s-operators/openstack-tempest:master-latest
+      cifmw_test_operator_tempest_image: quay.io/openstack-k8s-operators/openstack-tempest
+      cifmw_test_operator_tempest_image_tag: master-latest
+
+- job:
+    name: neutron-operator-tempest-multinode-gunicorn
+    parent: neutron-operator-tempest-multinode
+    vars:
+      cifmw_update_containers_custom_images:
+        neutronAPIImage: quay.io/ykarel/openstack-neutron-server:gunicorn
