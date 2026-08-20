@@ -257,9 +257,10 @@ func main() {
 	}
 
 	if err := (&controller.NeutronAPIReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Kclient: kclient,
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		Kclient:   kclient,
+		APIReader: mgr.GetAPIReader(),
 	}).SetupWithManager(context.Background(), mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NeutronAPI")
 		os.Exit(1)
