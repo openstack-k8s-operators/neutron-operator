@@ -24,6 +24,15 @@ import (
 const (
 	// Neutron External Configs Ready indicates when the external config is ready
 	NeutronExternalConfigsReady condition.Type = "Neutron External Configs Ready"
+
+	// NeutronRPCReadyCondition indicates the status of the neutron-rpc
+	// Deployment (neutron-rpc-server), only used under the WSGI strategy
+	NeutronRPCReadyCondition condition.Type = "NeutronRPCReady"
+
+	// NeutronWorkerReadyCondition indicates the status of the neutron-worker
+	// Deployment (periodic/OVN maintenance workers), only used under the
+	// WSGI strategy
+	NeutronWorkerReadyCondition condition.Type = "NeutronWorkerReady"
 )
 
 // Common Messages used by API objects.
@@ -34,4 +43,24 @@ const (
 
 	//NeutronDhcpAgentConfigErrorMessageW
 	NeutronExternalConfigsErrorMessage = "Neutron external configs generation error occurred %s"
+
+	// NeutronRPCReadyInitMessage
+	NeutronRPCReadyInitMessage = "NeutronRPC not started"
+	// NeutronRPCReadyMessage
+	NeutronRPCReadyMessage = "NeutronRPC ready"
+	// NeutronRPCDisabledMessage
+	NeutronRPCDisabledMessage = "NeutronRPC disabled by rpc_workers=0 in customServiceConfig"
+	// NeutronRPCReadyRunningMessage
+	NeutronRPCReadyRunningMessage = "NeutronRPC deployment in progress"
+	// NeutronRPCReadyErrorMessage
+	NeutronRPCReadyErrorMessage = "NeutronRPC error occurred %s"
+
+	// NeutronWorkerReadyInitMessage
+	NeutronWorkerReadyInitMessage = "NeutronWorker not started"
+	// NeutronWorkerReadyMessage
+	NeutronWorkerReadyMessage = "NeutronWorker ready"
+	// NeutronWorkerReadyRunningMessage
+	NeutronWorkerReadyRunningMessage = "NeutronWorker deployment in progress"
+	// NeutronWorkerReadyErrorMessage
+	NeutronWorkerReadyErrorMessage = "NeutronWorker error occurred %s"
 )

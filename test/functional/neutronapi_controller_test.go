@@ -1574,6 +1574,125 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 			})
 		})
 
+		When("A NeutronAPI is created with TLS and the WSGI strategy enabled", func() {
+			BeforeEach(func() {
+				spec["tls"] = map[string]any{
+					"api": map[string]any{
+						"internal": map[string]any{
+							"secretName": InternalCertSecretName,
+						},
+						"public": map[string]any{
+							"secretName": PublicCertSecretName,
+						},
+					},
+					"caBundleSecretName": CABundleSecretName,
+					"ovn": map[string]any{
+						"secretName": InternalCertSecretName,
+					},
+				}
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPIWithAnnotations(
+					neutronAPIName.Namespace, neutronAPIName.Name, spec,
+					map[string]string{"neutron.openstack.org/wsgi": "true"}))
+
+				DeferCleanup(k8sClient.Delete, ctx, th.CreateCABundleSecret(caBundleSecretName))
+				DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(internalCertSecretName))
+				DeferCleanup(k8sClient.Delete, ctx, th.CreateCertSecret(publicCertSecretName))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateTLSMemcachedReady(memcachedName)
+				DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBTLSDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.Database})
+				th.SimulateJobSuccess(neutronDBSyncJobName)
+				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+			})
+
+			// Regression test: with both TLS (CA bundle) and the WSGI
+			// strategy enabled, the httpd container used to end up with the
+			// CA bundle VolumeMount twice (once from the mounts built for
+			// the eventlet neutron-api container, once from httpd's own),
+			// which the Kubernetes API rejects with "must be unique" and
+			// the Deployment never gets created.
+			It("creates a single-container Deployment without duplicate VolumeMounts", func() {
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.TLSInputReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				deployment := th.GetDeployment(
+					types.NamespacedName{
+						Namespace: neutronAPIName.Namespace,
+						Name:      "neutron",
+					},
+				)
+
+				Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
+				httpdContainer := deployment.Spec.Template.Spec.Containers[0]
+				Expect(httpdContainer.Name).To(Equal("neutron-httpd"))
+
+				seenPaths := map[string]int{}
+				for _, m := range httpdContainer.VolumeMounts {
+					seenPaths[m.MountPath]++
+				}
+				for path, count := range seenPaths {
+					Expect(count).To(Equal(1), "MountPath %s must be unique, got %d", path, count)
+				}
+
+				th.AssertVolumeMountPathExists(caBundleSecretName.Name, "", "tls-ca-bundle.pem", httpdContainer.VolumeMounts)
+				if isOVNEnabled {
+					th.AssertVolumeMountPathExists(ovnDbCertSecretName.Name, "", "tls.key", httpdContainer.VolumeMounts)
+				}
+				th.AssertVolumeMountPathExists(publicCertSecretName.Name, "", "tls.crt", httpdContainer.VolumeMounts)
+				th.AssertVolumeMountPathExists(internalCertSecretName.Name, "", "tls.crt", httpdContainer.VolumeMounts)
+			})
+
+			// Regression test: envtest never runs a real Deployment
+			// controller, so right after neutron-rpc/neutron-worker are
+			// created their Status.ObservedGeneration never catches up to
+			// Generation. NeutronRPCReadyCondition/NeutronWorkerReadyCondition
+			// must still show up as non-true in this state -- not be absent
+			// -- otherwise AllSubConditionIsTrue() would ignore them and the
+			// aggregate Ready condition could go True before either child
+			// Deployment has actually rolled out.
+			It("keeps the RPC and worker conditions present and non-true while their Deployments are not yet observed", func() {
+				th.GetDeployment(
+					types.NamespacedName{Namespace: neutronAPIName.Namespace, Name: "neutron-rpc"},
+				)
+				th.GetDeployment(
+					types.NamespacedName{Namespace: neutronAPIName.Namespace, Name: "neutron-worker"},
+				)
+
+				Eventually(func(g Gomega) {
+					conditions := NeutronAPIConditionGetter(neutronAPIName)
+
+					rpcCond := conditions.Get(neutronv1.NeutronRPCReadyCondition)
+					g.Expect(rpcCond).NotTo(BeNil())
+					g.Expect(rpcCond.Status).NotTo(Equal(corev1.ConditionTrue))
+
+					workerCond := conditions.Get(neutronv1.NeutronWorkerReadyCondition)
+					g.Expect(workerCond).NotTo(BeNil())
+					g.Expect(workerCond.Status).NotTo(Equal(corev1.ConditionTrue))
+
+					g.Expect(conditions.IsTrue(condition.ReadyCondition)).To(BeFalse())
+				}, timeout, interval).Should(Succeed())
+			})
+		})
+
 		When("A NeutronAPI is created with TLS and service override endpointURL set", func() {
 			BeforeEach(func() {
 				spec["tls"] = map[string]any{

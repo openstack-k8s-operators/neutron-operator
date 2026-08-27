@@ -48,6 +48,15 @@ const (
 
 	// ACConsumerFinalizer is added to AC secrets that neutron is actively consuming
 	ACConsumerFinalizer = "openstack.org/neutronapi-ac-consumer"
+
+	// RPCDeploymentSuffix is appended to the NeutronAPI name to name the
+	// neutron-rpc-server Deployment (WSGI strategy only)
+	RPCDeploymentSuffix = "rpc"
+
+	// WorkerDeploymentSuffix is appended to the NeutronAPI name to name the
+	// background worker (periodic/OVN maintenance) Deployment (WSGI strategy
+	// only)
+	WorkerDeploymentSuffix = "worker"
 )
 
 // DbsyncPropagation keeps track of the DBSync Service Propagation Type

@@ -35,12 +35,16 @@ import (
 )
 
 // NeutronAPICommand is the command used to run the native neutron-server
-// process (the neutron-api container).
+// process (the neutron-api container). Only used under the legacy Eventlet
+// strategy (wsgi=false) -- under WSGI, httpd/mod_wsgi loads the API
+// in-process and this container is not created at all.
 const NeutronAPICommand = "neutron-server --config-file /usr/share/neutron/neutron-dist.conf " +
 	"--config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d"
 
-// NeutronHttpdCommand is the command used to run the httpd reverse-proxy
-// (the neutron-httpd container).
+// NeutronHttpdCommand is the command used to run httpd. Under both
+// strategies httpd is the container that serves port 9696: as a reverse
+// proxy to the eventlet neutron-api process (wsgi=false), or as the
+// mod_wsgi host of the API application itself (wsgi=true).
 const NeutronHttpdCommand = "httpd -DFOREGROUND"
 
 // Deployment func
@@ -51,13 +55,17 @@ func Deployment(
 	annotations map[string]string,
 	topology *topologyv1.Topology,
 	memcached *memcachedv1.Memcached,
+	wsgi bool,
 ) (*appsv1.Deployment, error) {
 	// TODO(lucasagomes): Look into how to implement separated probes
-	// for the httpd and neutron-api containers. Right now the code uses
-	// the same liveness and readiness probes for both containers which
-	// only checks the port 9696 (NeutronPublicPort) which is the port
-	// that httpd is listening to. Ideally, we should also include a
-	// probe on port 9697 which is the port that neutron-api binds to
+	// for the httpd and neutron-api containers under the Eventlet (wsgi=false)
+	// strategy. Right now the code uses the same liveness and readiness
+	// probes for both containers which only checks the port 9696
+	// (NeutronPublicPort) which is the port that httpd is listening to.
+	// Ideally, we should also include a probe on port 9697 which is the
+	// port that neutron-api binds to. Under the WSGI (wsgi=true) strategy
+	// this isn't a gap: httpd/mod_wsgi *is* the API process, so probing
+	// port 9696 accurately reflects the API's health.
 	livenessProbe := &corev1.Probe{
 		TimeoutSeconds:      30,
 		PeriodSeconds:       30,
@@ -149,6 +157,57 @@ func Deployment(
 		apiVolumeMounts = append(apiVolumeMounts, svc.CreateVolumeMounts("ovndb")...)
 	}
 
+	// Under the WSGI strategy httpd/mod_wsgi loads the neutron API
+	// application in-process, so the httpd container needs everything the
+	// eventlet neutron-api container would otherwise mount (neutron config,
+	// OVN client certs, etc) in addition to its own httpd config/TLS mounts.
+	// There is no separate neutron-api container at all in this mode.
+	// Some mounts (e.g. the CA bundle) are deliberately added to both
+	// apiVolumeMounts and httpdVolumeMounts above so that each ends up on
+	// whichever container needs it under the Eventlet strategy, where they
+	// land in two different containers -- merged into a single container
+	// here, they must be de-duplicated by MountPath or the Deployment is
+	// rejected ("must be unique").
+	httpdContainerVolumeMounts := httpdVolumeMounts
+	if wsgi {
+		httpdContainerVolumeMounts = dedupeVolumeMountsByPath(
+			append(append([]corev1.VolumeMount{}, httpdVolumeMounts...), apiVolumeMounts...))
+		envVars["OS_NEUTRON_CONFIG_DIR"] = env.SetValue("/etc/neutron/neutron.conf.d")
+		envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf")
+		if instance.Spec.CustomServiceConfig != "" {
+			envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf;02-neutron-custom.conf")
+		}
+	}
+
+	containers := []corev1.Container{}
+	if !wsgi {
+		containers = append(containers, corev1.Container{
+			Name:                     ServiceName + "-api",
+			Command:                  []string{"/bin/bash"},
+			Args:                     apiArgs,
+			Image:                    instance.Spec.ContainerImage,
+			SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
+			Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
+			VolumeMounts:             apiVolumeMounts,
+			Resources:                instance.Spec.Resources,
+			LivenessProbe:            livenessProbe,
+			TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+		})
+	}
+	containers = append(containers, corev1.Container{
+		Name:                     ServiceName + "-httpd",
+		Command:                  []string{"/bin/bash"},
+		Args:                     httpdArgs,
+		Image:                    instance.Spec.ContainerImage,
+		SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
+		Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
+		VolumeMounts:             httpdContainerVolumeMounts,
+		Resources:                instance.Spec.Resources,
+		ReadinessProbe:           readinessProbe,
+		LivenessProbe:            livenessProbe,
+		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+	})
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ServiceName,
@@ -168,39 +227,39 @@ func Deployment(
 					SecurityContext:              pod.RestrictivePodSecurityContext(users.NeutronUID, users.NeutronGID),
 					ServiceAccountName:           instance.RbacResourceName(),
 					AutomountServiceAccountToken: ptr.To(false),
-					Containers: []corev1.Container{
-						{
-							Name:                     ServiceName + "-api",
-							Command:                  []string{"/bin/bash"},
-							Args:                     apiArgs,
-							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
-							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             apiVolumeMounts,
-							Resources:                instance.Spec.Resources,
-							LivenessProbe:            livenessProbe,
-							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-						},
-						{
-							Name:                     ServiceName + "-httpd",
-							Command:                  []string{"/bin/bash"},
-							Args:                     httpdArgs,
-							Image:                    instance.Spec.ContainerImage,
-							SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
-							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
-							VolumeMounts:             httpdVolumeMounts,
-							Resources:                instance.Spec.Resources,
-							ReadinessProbe:           readinessProbe,
-							LivenessProbe:            livenessProbe,
-							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-						},
-					},
-					Volumes: volumes,
+					Containers:                   containers,
+					Volumes:                      volumes,
 				},
 			},
 		},
 	}
 
+	applyPlacement(instance, deployment, topology)
+
+	return deployment, nil
+}
+
+// dedupeVolumeMountsByPath drops later entries that reuse a MountPath
+// already claimed by an earlier one. The Kubernetes API rejects a container
+// with two VolumeMounts sharing a MountPath, which can happen once mounts
+// built for two separate containers (API and httpd, under Eventlet) are
+// merged onto a single one (under WSGI).
+func dedupeVolumeMountsByPath(mounts []corev1.VolumeMount) []corev1.VolumeMount {
+	seen := make(map[string]bool, len(mounts))
+	deduped := make([]corev1.VolumeMount, 0, len(mounts))
+	for _, m := range mounts {
+		if seen[m.MountPath] {
+			continue
+		}
+		seen[m.MountPath] = true
+		deduped = append(deduped, m)
+	}
+	return deduped
+}
+
+// applyPlacement applies NodeSelector, Topology and anti-affinity rules
+// shared by all NeutronAPI-owned Deployments (API, RPC, worker).
+func applyPlacement(instance *neutronv1.NeutronAPI, deployment *appsv1.Deployment, topology *topologyv1.Topology) {
 	if instance.Spec.NodeSelector != nil {
 		deployment.Spec.Template.Spec.NodeSelector = *instance.Spec.NodeSelector
 	}
@@ -214,11 +273,9 @@ func Deployment(
 		deployment.Spec.Template.Spec.Affinity = affinity.DistributePods(
 			common.AppSelector,
 			[]string{
-				ServiceName,
+				deployment.Name,
 			},
 			corev1.LabelHostname,
 		)
 	}
-
-	return deployment, nil
 }

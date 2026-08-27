@@ -11,9 +11,13 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// DbSyncCommand - direct neutron-db-manage command without kolla wrapper
-const DbSyncCommand = "neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf " +
-	"--config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d upgrade heads"
+// DbSyncCommand - direct neutron-db-manage command without kolla wrapper.
+// Deliberately does not pass --config-file for /usr/share/neutron/neutron-dist.conf
+// or /etc/neutron/neutron.conf: unlike kolla, this operator never materializes
+// those paths, and oslo.config aborts if an explicitly named --config-file
+// doesn't exist. --config-dir alone (loading 01-neutron.conf then
+// 02-neutron-custom.conf in order) is sufficient.
+const DbSyncCommand = "neutron-db-manage --config-dir /etc/neutron/neutron.conf.d upgrade heads"
 
 // DbSyncJob func
 func DbSyncJob(

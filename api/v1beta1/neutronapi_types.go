@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	"strconv"
+	"strings"
+
 	rabbitmqv1 "github.com/openstack-k8s-operators/infra-operator/apis/rabbitmq/v1beta1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/condition"
@@ -40,6 +43,16 @@ const (
 
 	// NeutronAPIContainerImage is the fall-back container image for NeutronAPI
 	NeutronAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-neutron-server:current-podified"
+
+	// NeutronWSGILabel is the annotation used to select between the WSGI
+	// (httpd/mod_wsgi + separate neutron-rpc-server/worker Deployments) and
+	// the legacy Eventlet (neutron-server + httpd reverse-proxy) deployment
+	// strategies. It is set by the openstack-operator based on the
+	// OpenStackVersion service defaults
+	// so that upgrading neutron-operator alone never changes the strategy
+	// of an existing deployment. When the annotation is absent, the operator
+	// defaults to the legacy Eventlet strategy to preserve backward compatibility.
+	NeutronWSGILabel = "neutron.openstack.org/wsgi"
 )
 
 // NeutronAPISpec defines the desired state of NeutronAPI
@@ -256,6 +269,15 @@ type NeutronAPIStatus struct {
 	// NotificationsTransportURLSecret - Secret containing
 	// external notifications transportURL
 	NotificationsTransportURLSecret *string `json:"notificationsTransportURLSecret,omitempty"`
+
+	// RPCReadyCount of neutron-rpc-server instances. Only populated when the
+	// WSGI deployment strategy is enabled and the RPC worker is not disabled
+	// via rpc_workers=0 in customServiceConfig.
+	RPCReadyCount int32 `json:"rpcReadyCount,omitempty"`
+
+	// WorkerReadyCount of neutron background worker (periodic/OVN maintenance)
+	// instances. Only populated when the WSGI deployment strategy is enabled.
+	WorkerReadyCount int32 `json:"workerReadyCount,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -332,6 +354,21 @@ func (instance NeutronAPI) RbacResourceName() string {
 	return "neutron-" + instance.Name
 }
 
+// IsWSGI - returns true if this NeutronAPI should be deployed using the
+// WSGI strategy (httpd/mod_wsgi + separate neutron-rpc/neutron-worker
+// Deployments), based on the NeutronWSGILabel annotation. Absent the
+// annotation, it defaults to false (the legacy Eventlet strategy) so that
+// upgrading neutron-operator alone never changes the deployment strategy of
+// an existing NeutronAPI. The annotation is expected to be set explicitly by
+// openstack-operator for both fresh and existing deployments; standalone
+// users of neutron-operator opt in by setting it manually.
+func (instance NeutronAPI) IsWSGI() bool {
+	if v, ok := instance.GetAnnotations()[NeutronWSGILabel]; ok {
+		return v == "true"
+	}
+	return false
+}
+
 func (instance NeutronAPI) IsOVNEnabled() bool {
 	for _, driver := range instance.Spec.Ml2MechanismDrivers {
 		// TODO: use const
@@ -340,6 +377,42 @@ func (instance NeutronAPI) IsOVNEnabled() bool {
 		}
 	}
 	return false
+}
+
+// GetRPCWorkers parses instance.Spec.CustomServiceConfig for an explicit
+// rpc_workers setting under the [DEFAULT] section (the only section
+// rpc_workers is valid in), the same way GetEnabledBackends() does for
+// Glance's enabled_backends. It returns the parsed value and whether
+// rpc_workers was found at all. Used to decide whether the neutron-rpc
+// Deployment should be disabled (rpc_workers=0) when running under the WSGI
+// strategy.
+func GetRPCWorkers(customServiceConfig string) (int, bool) {
+	// Content before any section header belongs to the implicit [DEFAULT]
+	// section, matching Python's configparser (and oslo.config) semantics.
+	section := "DEFAULT"
+	for _, line := range strings.Split(customServiceConfig, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			// Skip blank lines and comments
+			continue
+		}
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			section = strings.TrimSpace(trimmed[1 : len(trimmed)-1])
+			continue
+		}
+		if section != "DEFAULT" {
+			continue
+		}
+		tokenLine := strings.SplitN(trimmed, "=", 2)
+		token := strings.ReplaceAll(tokenLine[0], " ", "")
+		if token == "rpc_workers" && len(tokenLine) == 2 {
+			val, err := strconv.Atoi(strings.TrimSpace(tokenLine[1]))
+			if err == nil {
+				return val, true
+			}
+		}
+	}
+	return -1, false
 }
 
 // SetupDefaults - initializes any CRD field defaults based on environment variables (the defaulting mechanism itself is implemented via webhooks)

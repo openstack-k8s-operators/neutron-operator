@@ -1314,7 +1314,9 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		instance.Status.LastAppliedTopology = nil
 	}
 
-	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached)
+	wsgi := instance.IsWSGI()
+
+	deplDef, err := neutronapi.Deployment(instance, inputHash, serviceLabels, serviceAnnotations, topology, memcached, wsgi)
 	if err != nil {
 		instance.Status.Conditions.Set(condition.FalseCondition(
 			condition.DeploymentReadyCondition,
@@ -1392,6 +1394,160 @@ func (r *NeutronAPIReconciler) reconcileNormal(ctx context.Context, instance *ne
 		}
 	}
 	// create Deployment - end
+
+	//
+	// neutron-rpc / neutron-worker Deployments (WSGI strategy only)
+	//
+	if wsgi {
+		// rpc_workers=0 in customServiceConfig means the human operator has
+		// explicitly asked for no RPC workers -- skip (and clean up) the
+		// neutron-rpc Deployment entirely rather than scaling it to 0, since
+		// there is no HTTP endpoint behind it to keep alive at 0 replicas.
+		rpcWorkers, rpcSet := neutronv1beta1.GetRPCWorkers(instance.Spec.CustomServiceConfig)
+		rpcEnabled := !rpcSet || rpcWorkers != 0
+		rpcName := fmt.Sprintf("%s-%s", neutronapi.ServiceName, neutronapi.RPCDeploymentSuffix)
+
+		if rpcEnabled {
+			// Seed a non-true state before CreateOrPatch: it returns an
+			// empty ctrl.Result even right after creating a brand-new
+			// Deployment, and immediately post-create Generation !=
+			// ObservedGeneration, so the Generation-gated block below can
+			// be skipped entirely on this pass. Without this seed, the
+			// condition would stay absent rather than False -- and
+			// AllSubConditionIsTrue() ignores absent conditions, which
+			// could let the aggregate Ready condition go True before the
+			// RPC Deployment has actually rolled out any pods.
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				neutronv1beta1.NeutronRPCReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				neutronv1beta1.NeutronRPCReadyRunningMessage))
+
+			rpcLabels := map[string]string{
+				common.AppSelector: rpcName,
+			}
+			rpcDeplDef := neutronapi.RPCDeployment(instance, inputHash, rpcLabels, serviceAnnotations, topology, memcached)
+			rpcDepl := deployment.NewDeployment(rpcDeplDef, time.Duration(5)*time.Second)
+
+			ctrlResult, err = rpcDepl.CreateOrPatch(ctx, helper)
+			if err != nil {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					neutronv1beta1.NeutronRPCReadyCondition,
+					condition.ErrorReason,
+					condition.SeverityWarning,
+					neutronv1beta1.NeutronRPCReadyErrorMessage,
+					err.Error()))
+				return ctrlResult, err
+			} else if (ctrlResult != ctrl.Result{}) {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					neutronv1beta1.NeutronRPCReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					neutronv1beta1.NeutronRPCReadyRunningMessage))
+				return ctrlResult, nil
+			}
+
+			rpcDeploy := rpcDepl.GetDeployment()
+			if rpcDeploy.Generation == rpcDeploy.Status.ObservedGeneration {
+				instance.Status.RPCReadyCount = rpcDeploy.Status.ReadyReplicas
+				if deployment.IsReady(rpcDeploy) {
+					instance.Status.Conditions.MarkTrue(
+						neutronv1beta1.NeutronRPCReadyCondition,
+						neutronv1beta1.NeutronRPCReadyMessage)
+				} else {
+					instance.Status.Conditions.Set(condition.FalseCondition(
+						neutronv1beta1.NeutronRPCReadyCondition,
+						condition.RequestedReason,
+						condition.SeverityInfo,
+						neutronv1beta1.NeutronRPCReadyRunningMessage))
+				}
+			}
+		} else {
+			// rpc_workers=0: remove a previously-created neutron-rpc
+			// Deployment, e.g. left over from before the user disabled it.
+			existingRPC := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rpcName, Namespace: instance.Namespace},
+			}
+			if err := helper.GetClient().Delete(ctx, existingRPC); err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+			instance.Status.RPCReadyCount = 0
+			instance.Status.Conditions.MarkTrue(
+				neutronv1beta1.NeutronRPCReadyCondition,
+				neutronv1beta1.NeutronRPCDisabledMessage)
+		}
+
+		// Same seeding rationale as NeutronRPCReadyCondition above: the
+		// worker Deployment is always active under wsgi, so its condition
+		// must never be left absent while CreateOrPatch/Generation catch up.
+		instance.Status.Conditions.Set(condition.FalseCondition(
+			neutronv1beta1.NeutronWorkerReadyCondition,
+			condition.RequestedReason,
+			condition.SeverityInfo,
+			neutronv1beta1.NeutronWorkerReadyRunningMessage))
+
+		workerName := fmt.Sprintf("%s-%s", neutronapi.ServiceName, neutronapi.WorkerDeploymentSuffix)
+		workerLabels := map[string]string{
+			common.AppSelector: workerName,
+		}
+		workerDeplDef := neutronapi.WorkerDeployment(instance, inputHash, workerLabels, serviceAnnotations, topology, memcached)
+		workerDepl := deployment.NewDeployment(workerDeplDef, time.Duration(5)*time.Second)
+
+		ctrlResult, err = workerDepl.CreateOrPatch(ctx, helper)
+		if err != nil {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				neutronv1beta1.NeutronWorkerReadyCondition,
+				condition.ErrorReason,
+				condition.SeverityWarning,
+				neutronv1beta1.NeutronWorkerReadyErrorMessage,
+				err.Error()))
+			return ctrlResult, err
+		} else if (ctrlResult != ctrl.Result{}) {
+			instance.Status.Conditions.Set(condition.FalseCondition(
+				neutronv1beta1.NeutronWorkerReadyCondition,
+				condition.RequestedReason,
+				condition.SeverityInfo,
+				neutronv1beta1.NeutronWorkerReadyRunningMessage))
+			return ctrlResult, nil
+		}
+
+		workerDeploy := workerDepl.GetDeployment()
+		if workerDeploy.Generation == workerDeploy.Status.ObservedGeneration {
+			instance.Status.WorkerReadyCount = workerDeploy.Status.ReadyReplicas
+			if deployment.IsReady(workerDeploy) {
+				instance.Status.Conditions.MarkTrue(
+					neutronv1beta1.NeutronWorkerReadyCondition,
+					neutronv1beta1.NeutronWorkerReadyMessage)
+			} else {
+				instance.Status.Conditions.Set(condition.FalseCondition(
+					neutronv1beta1.NeutronWorkerReadyCondition,
+					condition.RequestedReason,
+					condition.SeverityInfo,
+					neutronv1beta1.NeutronWorkerReadyRunningMessage))
+			}
+		}
+	} else {
+		// Legacy Eventlet strategy: clean up any neutron-rpc/neutron-worker
+		// Deployments left over from a previous wsgi=true reconcile (e.g. the
+		// openstack-operator flipped the annotation back), and drop their
+		// conditions so they don't affect the aggregate Ready condition.
+		for _, name := range []string{
+			fmt.Sprintf("%s-%s", neutronapi.ServiceName, neutronapi.RPCDeploymentSuffix),
+			fmt.Sprintf("%s-%s", neutronapi.ServiceName, neutronapi.WorkerDeploymentSuffix),
+		} {
+			existing := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: instance.Namespace},
+			}
+			if err := helper.GetClient().Delete(ctx, existing); err != nil && !k8s_errors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+		}
+		instance.Status.RPCReadyCount = 0
+		instance.Status.WorkerReadyCount = 0
+		instance.Status.Conditions.Remove(neutronv1beta1.NeutronRPCReadyCondition)
+		instance.Status.Conditions.Remove(neutronv1beta1.NeutronWorkerReadyCondition)
+	}
+
 	if instance.Status.ReadyCount > 0 {
 		// remove finalizers from unused MariaDBAccount records
 		err = mariadbv1.DeleteUnusedMariaDBAccountFinalizers(
@@ -1931,6 +2087,7 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	templateParameters["MemcachedTLS"] = mc.GetMemcachedTLSSupport()
 	templateParameters["TimeOut"] = instance.Spec.APITimeout
 	templateParameters["QuorumQueues"] = quorumQueues
+	templateParameters["WSGI"] = instance.IsWSGI()
 
 	notificationsTransportURL, _, err := r.getTransportURL(ctx, h, instance, instance.Status.NotificationsTransportURLSecret)
 	if err != nil && !errors.Is(err, errTransportURLSecretNameNilOrEmpty) {

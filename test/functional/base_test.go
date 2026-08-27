@@ -86,6 +86,24 @@ func CreateNeutronAPI(namespace string, NeutronAPIName string, spec map[string]a
 	return th.CreateUnstructured(raw)
 }
 
+// CreateNeutronAPIWithAnnotations is CreateNeutronAPI plus metadata
+// annotations, e.g. to set neutron.openstack.org/wsgi in tests.
+func CreateNeutronAPIWithAnnotations(namespace string, NeutronAPIName string, spec map[string]any, annotations map[string]string) client.Object {
+
+	raw := map[string]any{
+		"apiVersion": "neutron.openstack.org/v1beta1",
+		"kind":       "NeutronAPI",
+		"metadata": map[string]any{
+			"name":        NeutronAPIName,
+			"namespace":   namespace,
+			"annotations": annotations,
+		},
+		"spec": spec,
+	}
+
+	return th.CreateUnstructured(raw)
+}
+
 func GetNeutronAPI(name types.NamespacedName) *neutronv1.NeutronAPI {
 	instance := &neutronv1.NeutronAPI{}
 	Eventually(func(g Gomega) {
