@@ -9,13 +9,13 @@ require (
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
 	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260819043641-ffe669333aee
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260819100331-378c3f937b0c
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260822072637-ee55bc9146cd
 	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260815072020-5930e2a9258e
 	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260815072020-5930e2a9258e
 	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260815072020-5930e2a9258e
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260819112814-778e3fc15fb8
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260822071634-259ce9c1164b
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260819100332-fa91cb056a6e
+	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260822082000-68c11c24f583
 	go.uber.org/zap v1.28.0
 	gopkg.in/ini.v1 v1.67.3
 	k8s.io/api v0.33.13
@@ -61,7 +61,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/api v3.9.0+incompatible // indirect
-	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260803111648-57597e898a6c // indirect
+	github.com/openstack-k8s-operators/lib-common/modules/openstack v0.6.1-0.20260815072020-5930e2a9258e // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
