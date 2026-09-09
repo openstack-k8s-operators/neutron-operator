@@ -6,4 +6,8 @@
         - openstack-k8s-operators-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
-        - neutron-operator-tempest-multinode
+        #- neutron-operator-tempest-multinode
+        - neutron-s2i-content-provider
+        - neutron-s2i-test-dvr-tls
+        - neutron-s2i-test-non-dvr-no-tls
+        - neutron-s2i-test-dvr-tls-ovn-agent

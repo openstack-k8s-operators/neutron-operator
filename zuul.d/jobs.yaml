@@ -3,7 +3,7 @@
     name: neutron-operator-tempest-multinode
     parent: podified-multinode-edpm-deployment-crc
     dependencies: ["openstack-k8s-operators-content-provider"]
-    irrelevant-files:
+    irrelevant-files: &irrelevant-files
       - .*/*.md
       - ^.github/.*$
       - .ci-operator.yaml
@@ -51,3 +51,327 @@
         test_qos_dscp_create_and_update
         # Limit job runtime
         NetworkSecGroupTest
+        # Needs docker setup
+        NetworkMultipleGWTest
+        # TypeError: NeutronTempestPluginException.__init__() takes 1 positional argument but 2 were given
+        L3AgentSchedulerTestJSON
+
+- job:
+    name: neutron-s2i-content-provider
+    parent: s2i-openstack-container-content-provider
+    description: |
+      Build s2i neutron images for neutron-s2i-test-<foo> jobs.
+    vars:
+      s2i_ci_images:
+        - neutron/neutron-metadata-agent-ovn
+        - neutron/neutron-ovn-agent
+        - neutron/neutron-server
+
+- job:
+    name: neutron-s2i-test-dvr-tls
+    description: |
+      Validate speculatively-built s2i neutron images against a live
+      OpenStack deployment. s2i-built images from the content provider
+      are applied to OpenStackVersion during edpm_prepare via
+      ci-framework set_containers before the control plane is deployed.
+      The deployment is tls and dvr enabled
+    nodeset: centos-9-2x-centos-9-xxl-crc-cloud-ocp-4-22-1-3xl
+    dependencies:
+      - openstack-k8s-operators-content-provider
+      - neutron-s2i-content-provider
+    parent: s2i-test-base
+    timeout: 18000
+    irrelevant-files: *irrelevant-files
+    vars:
+      cifmw_cls_pv_count: 24
+      cifmw_edpm_deploy_nova_compute_extra_config: |
+        [DEFAULT]
+        force_config_drive = false
+      cifmw_test_operator_tempest_network_attachments:
+        - ctlplane
+      cifmw_edpm_prepare_kustomizations:
+        - apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          namespace: openstack
+          patches:
+          - patch: |-
+              apiVersion: core.openstack.org/v1beta1
+              kind: OpenStackControlPlane
+              metadata:
+                name: unused
+              spec:
+                heat:
+                  enabled: true
+                neutron:
+                  template:
+                    customServiceConfig: |
+                      [DEFAULT]
+                      debug=true
+                      service_plugins = qos,ovn-router,trunk,segments,port_forwarding,log,placement,taas,tapmirror,firewall_v2,pvlan
+                      vlan_transparent = true
+                      global_physnet_mtu = 1400
+                      [QUOTAS]
+                      quota_router = 20
+                      [ovn]
+                      ovn_router_indirect_snat = true
+                      ovs_create_tap = true
+                      [ml2]
+                      path_mtu = 1400
+                      [ovs]
+                      igmp_snooping_enable=True
+                      [service_providers]
+                      service_provider = TAAS:TAAS:neutron_taas.services.taas.service_drivers.ovn.taas_ovn.TaasOvnDriver:default
+                      service_provider = FIREWALL_V2:fwaas_db:neutron_fwaas.services.firewall.service_drivers.ovn.firewall_l3_driver.OVNFwaasDriver:default
+                      [ml2_type_vlan]
+                      network_vlan_ranges=public,datacentre
+                ovn:
+                  template:
+                    ovnDBCluster:
+                      ovndbcluster-nb:
+                        replicas: 3
+                      ovndbcluster-sb:
+                        replicas: 3
+            target:
+              kind: OpenStackControlPlane
+      cifmw_test_operator_timeout: 18000
+      cifmw_test_operator_tempest_external_plugin:
+        - repository: "https://opendev.org/x/whitebox-neutron-tempest-plugin.git"
+      cifmw_test_operator_tempest_extra_images:
+        - URL: "https://github.com/openstack-k8s-operators/openstack-k8s-operators-ci/releases/download/v1.0.0/wntp-custom-v1.0.0.qcow2"
+          name: custom_neutron_guest
+          diskFormat: qcow2
+          ID: "11111111-1111-1111-1111-111111111111"
+          flavor:
+            name: custom_neutron_guest
+            ID: "22222222-2222-2222-2222-222222222222"
+            RAM: 1024
+            disk: 10
+            vcpus: 1
+      cifmw_test_operator_tempest_tempestconf_config:
+        overrides: |
+          compute-feature-enabled.vnc_console true
+          compute-feature-enabled.cold_migration true
+          compute-feature-enabled.block_migration_for_live_migration true
+          compute-feature-enabled.nova_policy_roles admin,manager,member,reader,service
+          network-feature-enabled.port_security true
+          neutron_plugin_options.advanced_image_ssh_user rocky
+          neutron_plugin_options.available_type_drivers geneve
+          neutron_plugin_options.create_shared_resources true
+          neutron_plugin_options.is_igmp_snooping_enabled true
+          neutron_plugin_options.ipv6_metadata false
+          neutron_plugin_options.advanced_image_ref 11111111-1111-1111-1111-111111111111
+          neutron_plugin_options.advanced_image_flavor_ref 22222222-2222-2222-2222-222222222222
+          validation.allowed_network_downtime 15
+          validation.run_validation true
+          identity.v3_endpoint_type public
+          identity.v2_admin_endpoint_type public
+          neutron_plugin_options.snat_rules_apply_to_nested_networks true
+          whitebox_neutron_plugin_options.kubeconfig_path '/home/zuul/.crc/machines/crc/kubeconfig'
+      cifmw_test_operator_tempest_workflow:
+        - stepName: multi-thread-testing
+          tempestRun:
+            concurrency: 4
+            includeList: |
+              #^neutron_tempest_plugin.*
+              #^tempest.scenario.test_server_basic_ops.TestServerBasicOps.test_server_basic_ops
+              #^tempest.api.network.*
+              #^tempest.scenario.test_network_advanced_server_ops
+              #^tempest.scenario.test_network_basic_ops
+              #^tempest.scenario.test_network_v6
+              #^tempest.scenario.test_security_groups_basic_ops
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_basic.NetworkBasicTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_broadcast.BroadcastTestIPv4Common
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_broadcast.BroadcastTestVlanTransparency
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_extra_dhcp_opts.ExtraDhcpOptionsTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_extra_dhcp_opts.OvnExtraDhcpOptionsTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_internal_dns.InternalDNSTestOvn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Common.test_flooding_when_special_groups
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Common.test_igmp_snooping_same_network_and_unsubscribe
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Ovn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestVlanTransparency
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_portsecurity.PortSecurityTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_bw_limit_east_west
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_bw_limit_tenant_network
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_default_qos_policy
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_dscp_marking_east_west
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_dscp_marking_tenant_network
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_qos_after_cold_migration
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_qos_after_live_migration
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestDscpInheritanceOvn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestOvn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestSriovBwLimitTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestSriovMinBwPlacementEnforcementTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_security_groups.NetworkDefaultSecGroupTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vlan_transparency.MtuVlanTransparencyTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vlan_transparency.MultiPortVlanTransparencyTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vlan_transparency.MultiVlanTransparencyTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vrrp.VrrpTest
+            excludeList: |
+              test_multicast.*ext*
+              test_multicast.*restart
+              ^neutron_.*plugin..*scenario.test_.*macvtap
+              # remove when bug OSPRH-11751 resolved
+              vlan_transparent_allowed_address_pairs
+              vlan_transparent_port_sec_disabled
+              vlan_transparent_packet_length_greater_mtu
+              # 'taas' designation indicates ML2/OVS backend, which is not supported in rhoso
+              ^neutron_tempest_plugin.tap_as_a_service.*(taas)
+              # TypeError: NeutronTempestPluginException.__init__() takes 1 positional argument but 2 were given
+              L3AgentSchedulerTestJSON
+              # Needs docker setup
+              NetworkMultipleGWTest
+              # DVR enabled while port forwarding is Centralized
+              neutron_tempest_plugin.scenario.test_port_forwardings.PortForwardingTestJSON
+        - stepName: single-thread-testing
+          tempestRun:
+            concurrency: 1
+            includeList: |
+              ^neutron_.*plugin..*scenario.test_.*macvtap
+              ^whitebox_neutron_tempest_plugin.*
+            excludeList: |
+              # neutron whitebox multi-thread tests (executed on different workflow step)
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_basic.NetworkBasicTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_broadcast.BroadcastTestIPv4Common
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_broadcast.BroadcastTestVlanTransparency
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_extra_dhcp_opts.ExtraDhcpOptionsTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_extra_dhcp_opts.OvnExtraDhcpOptionsTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_internal_dns.InternalDNSTestOvn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Common.test_flooding_when_special_groups
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Common.test_igmp_snooping_same_network_and_unsubscribe
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Common.test_igmp_snooping_after_openvswitch_restart
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Ovn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestVlanTransparency
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_portsecurity.PortSecurityTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_bw_limit_east_west
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_bw_limit_tenant_network
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_default_qos_policy
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_dscp_marking_east_west
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_dscp_marking_tenant_network
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_qos_after_cold_migration
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestCommon.test_qos_after_live_migration
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestDscpInheritanceOvn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestOvn
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestSriovBwLimitTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_qos.QosTestSriovMinBwPlacementEnforcementTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_security_groups.NetworkDefaultSecGroupTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vlan_transparency.MtuVlanTransparencyTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vlan_transparency.MultiPortVlanTransparencyTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vlan_transparency.MultiVlanTransparencyTest
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_vrrp.VrrpTest
+              # executed on d/s:
+              ^whitebox_neutron_tempest_plugin.tests.scenario.test_multicast.MulticastTestIPv4Common.test_igmp_snooping_after_openvswitch_restart
+
+- job:
+    name: neutron-s2i-test-non-dvr-no-tls
+    description: |
+      Validate speculatively-built s2i neutron images against a live
+      OpenStack deployment. s2i-built images from the content provider
+      are applied to OpenStackVersion during edpm_prepare via
+      ci-framework set_containers before the control plane is deployed.
+      The deployment is tls and dvr disabled
+    nodeset: centos-9-2x-centos-9-xxl-crc-cloud-ocp-4-22-1-3xl
+    parent: neutron-s2i-test-dvr-tls
+    timeout: 18000
+    vars:
+      cifmw_install_yamls_vars_patch_tls_disabled:
+        DATAPLANE_TLS_ENABLED: false
+      cifmw_edpm_prepare_kustomizations:
+        - apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          namespace: openstack
+          patches:
+          - patch: |-
+              apiVersion: core.openstack.org/v1beta1
+              kind: OpenStackControlPlane
+              metadata:
+                name: unused
+              spec:
+                tls:
+                  podLevel:
+                    enabled: false
+                heat:
+                  enabled: true
+                neutron:
+                  template:
+                    customServiceConfig: |
+                      [DEFAULT]
+                      debug=true
+                      service_plugins = qos,ovn-router,trunk,segments,port_forwarding,log,placement,taas,tapmirror,firewall_v2,pvlan
+                      vlan_transparent = true
+                      global_physnet_mtu = 1400
+                      [QUOTAS]
+                      quota_router = 20
+                      [ovn]
+                      enable_distributed_floating_ip=False
+                      ovn_router_indirect_snat = true
+                      ovs_create_tap = true
+                      [ml2]
+                      path_mtu = 1400
+                      [ovs]
+                      igmp_snooping_enable=True
+                      [service_providers]
+                      service_provider = TAAS:TAAS:neutron_taas.services.taas.service_drivers.ovn.taas_ovn.TaasOvnDriver:default
+                      service_provider = FIREWALL_V2:fwaas_db:neutron_fwaas.services.firewall.service_drivers.ovn.firewall_l3_driver.OVNFwaasDriver:default
+                      [ml2_type_vlan]
+                      network_vlan_ranges=public,datacentre
+                ovn:
+                  template:
+                    ovnDBCluster:
+                      ovndbcluster-nb:
+                        replicas: 3
+                      ovndbcluster-sb:
+                        replicas: 3
+            target:
+              kind: OpenStackControlPlane
+
+- job:
+    name: neutron-s2i-test-dvr-tls-ovn-agent
+    description: |
+      Validate speculatively-built s2i neutron images against a live
+      OpenStack deployment. s2i-built images from the content provider
+      are applied to OpenStackVersion during edpm_prepare via
+      ci-framework set_containers before the control plane is deployed.
+      The deployment is tls and dvr enabled with ovn agent enabled instead
+      of the metadata agent
+    nodeset: centos-9-2x-centos-9-xxl-crc-cloud-ocp-4-22-1-3xl
+    timeout: 18000
+    parent: neutron-s2i-test-dvr-tls
+    vars:
+      cifmw_test_operator_tempest_workflow:
+        - stepName: multi-thread-testing
+          tempestRun:
+            concurrency: 4
+            includeList: |
+              ^neutron_tempest_plugin.*
+              ^tempest.scenario.test_server_basic_ops.TestServerBasicOps.test_server_basic_ops
+              ^tempest.api.network.*
+              ^tempest.scenario.test_network_advanced_server_ops
+              ^tempest.scenario.test_network_basic_ops
+              ^tempest.scenario.test_network_v6
+              ^tempest.scenario.test_security_groups_basic_ops
+            excludeList: |
+              test_multicast.*ext*
+              test_multicast.*restart
+              ^neutron_.*plugin..*scenario.test_.*macvtap
+              # remove when bug OSPRH-11751 resolved
+              vlan_transparent_allowed_address_pairs
+              vlan_transparent_port_sec_disabled
+              vlan_transparent_packet_length_greater_mtu
+              # 'taas' designation indicates ML2/OVS backend, which is not supported in rhoso
+              ^neutron_tempest_plugin.tap_as_a_service.*(taas)
+              # TypeError: NeutronTempestPluginException.__init__() takes 1 positional argument but 2 were given
+              L3AgentSchedulerTestJSON
+              # Needs docker setup
+              NetworkMultipleGWTest
+              # DVR enabled while port forwarding is Centralized
+              neutron_tempest_plugin.scenario.test_port_forwardings.PortForwardingTestJSON
+        - stepName: single-thread-testing
+          tempestRun:
+            concurrency: 1
+            includeList: |
+              ^neutron_.*plugin..*scenario.test_.*macvtap
+              ^tempest.scenario.test_security_groups_basic_ops
+      pre_deploy_extra:
+        - name: 99 Setup EDPM node, deploy Neutron OVN agent
+          type: playbook
+          source: "{{ ansible_user_dir }}/{{ zuul.projects['github.com/openstack-k8s-operators/neutron-operator'].src_dir }}/playbooks/edpm_neutron_ovn_agent.yml"
