@@ -29,7 +29,23 @@
       cifmw_edpm_deploy_nova_compute_extra_config: |
         [DEFAULT]
         force_config_drive = false
-      cifmw_test_operator_tempest_container: openstack-tempest-all
+      cifmw_update_containers_custom_images:
+        ironicNeutronAgentImage: quay.io/openstack-k8s-operators/openstack-ironic-neutron-agent:master-latest
+        # require operator adoption for eventless master images
+        # neutronAPIImage: quay.io/openstack-k8s-operators/openstack-neutron-server:master-latest
+        edpmNeutronDhcpAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-dhcp-agent:master-latest
+        edpmNeutronSriovAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-sriov-agent:master-latest
+        edpmNeutronOvnAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-ovn-agent:master-latest
+        # need master neutron
+        # edpmNeutronMetadataAgentImage: quay.io/openstack-k8s-operators/openstack-neutron-metadata-agent-ovn:master-latest
+        ovnControllerImage: quay.io/openstack-k8s-operators/openstack-ovn-controller:master-latest
+        ovnControllerOvsImage: quay.io/openstack-k8s-operators/openstack-ovn-base:master-latest
+        ovnNbDbclusterImage: quay.io/openstack-k8s-operators/openstack-ovn-nb-db-server:master-latest
+        ovnNorthdImage: quay.io/openstack-k8s-operators/openstack-ovn-northd:master-latest
+        ovnSbDbclusterImage: quay.io/openstack-k8s-operators/openstack-ovn-sb-db-server:master-latest
+        testTempestImage: quay.io/openstack-k8s-operators/openstack-tempest:master-latest
+      cifmw_test_operator_tempest_image: quay.io/openstack-k8s-operators/openstack-tempest
+      cifmw_test_operator_tempest_image_tag: master-latest
       cifmw_run_test_role: test_operator
       cifmw_test_operator_tempest_network_attachments:
         - ctlplane
@@ -39,6 +55,7 @@
             validation.run_validation true
             identity.v3_endpoint_type public
             identity.v2_admin_endpoint_type public
+            neutron_plugin_options.snat_rules_apply_to_nested_networks true
       cifmw_test_operator_tempest_include_list: |
         neutron_tempest_plugin.api
         neutron_tempest_plugin.scenario
@@ -51,3 +68,7 @@
         test_qos_dscp_create_and_update
         # Limit job runtime
         NetworkSecGroupTest
+        # Needs docker setup
+        NetworkMultipleGWTest
+        # TypeError: NeutronTempestPluginException.__init__() takes 1 positional argument but 2 were given
+        L3AgentSchedulerTestJSON
