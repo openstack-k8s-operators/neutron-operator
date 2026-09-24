@@ -39,6 +39,7 @@
             validation.run_validation true
             identity.v3_endpoint_type public
             identity.v2_admin_endpoint_type public
+            neutron_plugin_options.snat_rules_apply_to_nested_networks true
       cifmw_test_operator_tempest_include_list: |
         neutron_tempest_plugin.api
         neutron_tempest_plugin.scenario
@@ -51,3 +52,11 @@
         test_qos_dscp_create_and_update
         # Limit job runtime
         NetworkSecGroupTest
+        # New test and need docker setup
+        NetworkMultipleGWTest
+        # Not relevant for OVN
+        L3AgentSchedulerTestJSON
+        # Quota exceeded, will be handled with S2I jobs
+        test_update_router_set_gateway_without_snat
+        # DVR enabled while port forwarding is Centralized
+        neutron_tempest_plugin.scenario.test_port_forwardings.PortForwardingTestJSON
