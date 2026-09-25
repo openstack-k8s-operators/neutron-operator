@@ -173,10 +173,13 @@ func Deployment(
 		httpdContainerVolumeMounts = dedupeVolumeMountsByPath(
 			append(append([]corev1.VolumeMount{}, httpdVolumeMounts...), apiVolumeMounts...))
 		envVars["OS_NEUTRON_CONFIG_DIR"] = env.SetValue("/etc/neutron/neutron.conf.d")
+		// Deliberately 01-neutron.conf only: 02-neutron-custom.conf is
+		// already picked up once by oslo.config's own
+		// /etc/neutron/neutron.conf.d auto-discovery (see the
+		// NeutronRPCCommand doc comment in workers.go). Also listing it here
+		// would parse it a second time and duplicate multi-valued options
+		// such as [service_providers] service_provider.
 		envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf")
-		if instance.Spec.CustomServiceConfig != "" {
-			envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf;02-neutron-custom.conf")
-		}
 	}
 
 	// neutron-api (Eventlet only) is listed before neutron-httpd, matching
