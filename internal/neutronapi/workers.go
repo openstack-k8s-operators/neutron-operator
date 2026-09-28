@@ -29,12 +29,25 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// These commands deliberately do not pass --config-file for
-// /usr/share/neutron/neutron-dist.conf or /etc/neutron/neutron.conf: unlike
-// kolla, this operator never materializes those paths, and oslo.config
-// aborts if an explicitly named --config-file doesn't exist. --config-dir
-// alone (loading 01-neutron.conf then 02-neutron-custom.conf in order) is
-// sufficient -- see DbSyncCommand and OSPRH-28742's db-sync-config.json.
+// These commands pass --config-dir /etc/neutron/neutron.conf.d so that
+// oslo.config loads every file mounted there (01-neutron.conf,
+// 02-neutron-custom.conf, and any ExtraMounts-provided files -- see
+// workerVolumesAndMounts/GetVolumeMounts, which mount 02-neutron-custom.conf
+// unconditionally, empty when CustomServiceConfig is unset). Note this is
+// deliberately in addition to, not instead of, OS_NEUTRON_CONFIG_FILES (set
+// below): _get_config_files() aborts with ConfigFilesNotFoundError if
+// OS_NEUTRON_CONFIG_FILES isn't set to a file that exists, since its
+// hardcoded fallback (/etc/neutron/neutron.conf) is never materialized by
+// this operator. OS_NEUTRON_CONFIG_FILES must list only 01-neutron.conf, not
+// 02-neutron-custom.conf: 01-neutron.conf only has single-valued options, so
+// oslo.config loading it twice (once via OS_NEUTRON_CONFIG_FILES, once via
+// --config-dir) is harmless, but 02-neutron-custom.conf can contain
+// multi-valued options (e.g. [service_providers] service_provider) that
+// would be duplicated by a second parse, crashing neutron with "Driver ...
+// is not unique across providers". See DbSyncCommand for the analogous
+// db-sync case, which passes --config-dir but never sets
+// OS_NEUTRON_CONFIG_FILES at all (neutron-db-manage doesn't go through
+// _get_config_files()).
 
 // NeutronRPCCommand runs the neutron-rpc-server process, which handles AMQP
 // RPC calls (e.g. from neutron agents) independently from the WSGI API
@@ -107,10 +120,12 @@ func RPCDeployment(
 	envVars := map[string]env.Setter{}
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 	envVars["OS_NEUTRON_CONFIG_DIR"] = env.SetValue("/etc/neutron/neutron.conf.d")
+	// Deliberately 01-neutron.conf only: 02-neutron-custom.conf is already
+	// picked up once by oslo.config's own /etc/neutron/neutron.conf.d
+	// auto-discovery (see the NeutronRPCCommand doc comment above). Also
+	// listing it here would parse it a second time and duplicate
+	// multi-valued options such as [service_providers] service_provider.
 	envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf")
-	if instance.Spec.CustomServiceConfig != "" {
-		envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf;02-neutron-custom.conf")
-	}
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -172,10 +187,12 @@ func WorkerDeployment(
 	envVars := map[string]env.Setter{}
 	envVars["CONFIG_HASH"] = env.SetValue(configHash)
 	envVars["OS_NEUTRON_CONFIG_DIR"] = env.SetValue("/etc/neutron/neutron.conf.d")
+	// Deliberately 01-neutron.conf only: 02-neutron-custom.conf is already
+	// picked up once by oslo.config's own /etc/neutron/neutron.conf.d
+	// auto-discovery (see the NeutronRPCCommand doc comment above). Also
+	// listing it here would parse it a second time and duplicate
+	// multi-valued options such as [service_providers] service_provider.
 	envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf")
-	if instance.Spec.CustomServiceConfig != "" {
-		envVars["OS_NEUTRON_CONFIG_FILES"] = env.SetValue("01-neutron.conf;02-neutron-custom.conf")
-	}
 
 	containers := []corev1.Container{
 		{
