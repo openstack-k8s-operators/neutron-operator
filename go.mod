@@ -8,14 +8,14 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.1
-	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260912123221-4c04f3294593
-	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260913082604-de9a6afccf2a
-	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260906094540-d1f379df10ce
-	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260906094540-d1f379df10ce
-	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260906094540-d1f379df10ce
-	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260908111158-dd08db57ce92
+	github.com/openstack-k8s-operators/infra-operator/apis v0.6.1-0.20260925105829-6ba1a13274df
+	github.com/openstack-k8s-operators/keystone-operator/api v0.6.1-0.20260923153722-f18ac925a95f
+	github.com/openstack-k8s-operators/lib-common/modules/common v0.6.1-0.20260920095155-a193dedd4c06
+	github.com/openstack-k8s-operators/lib-common/modules/storage v0.6.1-0.20260920095155-a193dedd4c06
+	github.com/openstack-k8s-operators/lib-common/modules/test v0.6.1-0.20260920095155-a193dedd4c06
+	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20260923153729-31cc00c6bee3
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260912123222-ecd6671e692e
+	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20260923153755-07cd03532cfb
 	go.uber.org/zap v1.28.0
 	gopkg.in/ini.v1 v1.67.3
 	k8s.io/api v0.33.13
@@ -51,7 +51,7 @@ require (
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
-	github.com/gophercloud/gophercloud/v2 v2.14.0 // indirect
+	github.com/gophercloud/gophercloud/v2 v2.15.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
