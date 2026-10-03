@@ -1,9 +1,38 @@
 ---
-- project:
-    name: openstack-k8s-operators/neutron-operator
+# project template to be used locally for operator testing
+- project-template:
+    name: neutron-operator-s2i-testing
     github-check:
       jobs:
         - openstack-k8s-operators-content-provider:
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
-        - neutron-operator-tempest-multinode
+        - neutron-s2i-content-provider
+        - neutron-s2i-test-dvr-tls: &deps
+            dependencies:
+              - openstack-k8s-operators-content-provider
+              - neutron-s2i-content-provider
+        - neutron-s2i-test-non-dvr-no-tls: *deps
+        - neutron-s2i-test-dvr-tls-ovn-agent: *deps
+
+# project template to be used in the s2i repository
+- project-template:
+    name: neutron-operator-s2i-component-jobs
+    github-check:
+      jobs:
+        - neutron-s2i-test-dvr-tls: &s2i
+            vars:
+              content_provider_registry_ip: "{{ s2i_content_provider_registry_ip }}"
+            files:
+              - ^containers/base/
+              - ^containers/neutron/
+              - ^containers/tempest/
+              - ^containers/ovn/
+            dependencies:
+              - s2i-openstack-container-content-provider
+        - neutron-s2i-test-non-dvr-no-tls: *s2i
+
+- project:
+    name: openstack-k8s-operators/neutron-operator
+    templates:
+      - neutron-operator-s2i-testing
