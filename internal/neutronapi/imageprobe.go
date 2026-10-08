@@ -12,6 +12,7 @@ import (
 	neutronv1beta1 "github.com/openstack-k8s-operators/neutron-operator/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -33,10 +34,14 @@ import (
 // Neutron images. Its absence indicates a WSGI-only (Eventlet-removed) image.
 const NeutronServerBinaryPath = "/usr/bin/neutron-server"
 
-// ImageProbeCommand exits 0 if NeutronServerBinaryPath is present (a
-// pre-WSGI, Eventlet-capable image) and non-zero otherwise, so the result
-// can be read straight off the Job's Succeeded/Failed status.
-var ImageProbeCommand = fmt.Sprintf("test -f %s", NeutronServerBinaryPath)
+// ImageProbeCommand exits 0 if NeutronServerBinaryPath is absent (a
+// WSGI-only image) and non-zero if it is present (a pre-WSGI,
+// Eventlet-capable image), so the result can be read straight off the Job's
+// Succeeded/Failed status. The check is inverted relative to the path it
+// tests so that the now-common case -- WSGI-only images -- produces a
+// Succeeded Job instead of a Failed one that keeps hitting BackoffLimit on
+// every re-run of this Job.
+var ImageProbeCommand = fmt.Sprintf("test ! -f %s", NeutronServerBinaryPath)
 
 // imageProbeHash is only used as the job.NewJob jobType for log messages.
 const imageProbeHash = "imageprobe"
@@ -101,11 +106,17 @@ func ImageProbeJob(
 // and falls back to the Eventlet strategy once that Job finds
 // NeutronServerBinaryPath in the resolved ContainerImage.
 //
-// The probe result is read straight off the Job's own status on every call
-// instead of being persisted on the NeutronAPI: job.DoJob already tracks
-// whether ImageProbeJob needs to be (re)created via a hash stored as an
-// annotation on the Job itself, so no CR status/hash bookkeeping is needed
-// here. Until the Job completes, this just keeps returning instance.IsWSGI().
+// The probe result is read straight off the Job's own status rather than
+// being persisted on the NeutronAPI. Unlike most job.DoJob callers, the Job
+// is only (re)created when it does not exist at all: once it exists --
+// Succeeded, Failed, or still running -- its result/preserved state is
+// authoritative and DoJob is not called again, so a stale hash can't make
+// DoJob repeatedly recreate it. The Job is also always preserved (no TTL),
+// so it isn't garbage-collected and then re-run by the next reconcile. If
+// instance.Spec.ContainerImage no longer matches the image the existing Job
+// was probing, the stale Job is deleted so a later reconcile re-probes the
+// new image. Until the Job completes, this just keeps returning
+// instance.IsWSGI().
 func IsWSGIEffective(
 	ctx context.Context,
 	h *helper.Helper,
@@ -118,17 +129,48 @@ func IsWSGIEffective(
 	}
 
 	probeJobDef := ImageProbeJob(instance, labels, annotations)
-	probeJob := job.NewJob(probeJobDef, imageProbeHash, instance.Spec.PreserveJobs, time.Duration(5)*time.Second, "")
-	if _, err := probeJob.DoJob(ctx, h); err != nil {
-		// A Failed image-probe Job just means NeutronServerBinaryPath was
-		// not found (a WSGI-only image) -- not a real error.
-		h.GetLogger().Info(fmt.Sprintf("Image probe Job %s: %v", probeJobDef.Name, err))
-	}
 
 	existingProbeJob := &batchv1.Job{}
 	err := h.GetClient().Get(ctx, types.NamespacedName{Name: probeJobDef.Name, Namespace: instance.Namespace}, existingProbeJob)
-	if err == nil && existingProbeJob.Status.Succeeded > 0 {
-		return false
+
+	if err == nil && len(existingProbeJob.Spec.Template.Spec.Containers) > 0 &&
+		existingProbeJob.Spec.Template.Spec.Containers[0].Image != instance.Spec.ContainerImage {
+		// ContainerImage changed since this Job was created/preserved: its
+		// result is for a different image and no longer applies. Delete it
+		// so a later reconcile (once the delete has actually completed)
+		// recreates and re-probes it against the new image.
+		h.GetLogger().Info(fmt.Sprintf("Image probe Job %s: ContainerImage changed, deleting stale Job", probeJobDef.Name))
+		if delErr := job.DeleteJob(ctx, h, existingProbeJob.Name, existingProbeJob.Namespace); delErr != nil {
+			h.GetLogger().Info(fmt.Sprintf("Image probe Job %s: failed to delete stale Job: %v", probeJobDef.Name, delErr))
+		}
+		return true
 	}
+
+	switch {
+	case err == nil && existingProbeJob.Status.Succeeded > 0:
+		// NeutronServerBinaryPath was not found: a WSGI-only image, the
+		// common case as the global rollout progresses.
+		return true
+	case err == nil && existingProbeJob.Status.Failed > 0:
+		// NeutronServerBinaryPath was found: a pre-WSGI image, the
+		// shrinking legacy case. Fall back to the Eventlet strategy.
+		return false
+	case err == nil:
+		// Job exists but hasn't finished yet.
+		return true
+	case !k8s_errors.IsNotFound(err):
+		h.GetLogger().Info(fmt.Sprintf("Image probe Job %s: error getting Job: %v", probeJobDef.Name, err))
+		return true
+	}
+
+	// Job doesn't exist yet: fire it off without blocking reconcile on it.
+	// preserve is hardcoded true (regardless of instance.Spec.PreserveJobs)
+	// so the Job is never TTL-deleted and thus never re-run once it has a
+	// result.
+	probeJob := job.NewJob(probeJobDef, imageProbeHash, true, time.Duration(5)*time.Second, "")
+	if _, err := probeJob.DoJob(ctx, h); err != nil {
+		h.GetLogger().Info(fmt.Sprintf("Image probe Job %s: %v", probeJobDef.Name, err))
+	}
+
 	return true
 }
