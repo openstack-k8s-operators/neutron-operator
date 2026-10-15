@@ -849,8 +849,15 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 						ContainSubstring("backend = dogpile.cache.memcached"))
 					Expect(neutronCfg).Should(
 						ContainSubstring(fmt.Sprintf("memcache_servers = %s", memcacheInstance.GetMemcachedServerListWithInetString())))
+					// [keystone_authtoken] must use the inet-prefixed plain
+					// listener list when memcached TLS is not enabled, and must
+					// not enable memcache TLS or emit MTLS cert files.
 					Expect(neutronCfg).Should(
-						ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListString())))
+						ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListWithInetString())))
+					Expect(neutronCfg).ShouldNot(ContainSubstring("memcache_tls_enabled = true"))
+					Expect(neutronCfg).ShouldNot(ContainSubstring("memcache_tls_certfile"))
+					Expect(neutronCfg).ShouldNot(ContainSubstring("memcache_tls_keyfile"))
+					Expect(neutronCfg).ShouldNot(ContainSubstring("memcache_tls_cafile"))
 				}
 			})
 
@@ -1010,6 +1017,55 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 					}, timeout, interval).Should(Succeed())
 				})
 			}
+		})
+
+		When("required dependency services are available with MTLS memcached", func() {
+			BeforeEach(func() {
+				DeferCleanup(th.DeleteInstance, CreateNeutronAPI(neutronAPIName.Namespace, neutronAPIName.Name, spec))
+				DeferCleanup(k8sClient.Delete, ctx, CreateNeutronAPISecret(namespace, SecretName))
+				DeferCleanup(infra.DeleteMemcached, infra.CreateMTLSMemcached(namespace, "memcached", memcachedSpec))
+				infra.SimulateMTLSMemcachedReady(memcachedName)
+				DeferCleanup(
+					mariadb.DeleteDBService,
+					mariadb.CreateDBService(
+						namespace,
+						GetNeutronAPI(neutronAPIName).Spec.DatabaseInstance,
+						corev1.ServiceSpec{
+							Ports: []corev1.ServicePort{{Port: 3306}},
+						},
+					),
+				)
+				SimulateTransportURLReady(apiTransportURLName)
+				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
+				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
+			})
+
+			It("enables memcache TLS and MTLS certs in [keystone_authtoken]", func() {
+				if isOVNEnabled {
+					DeferCleanup(DeleteOVNDBClusters, CreateOVNDBClusters(namespace))
+				}
+				DeferCleanup(keystone.DeleteKeystoneAPI, keystone.CreateKeystoneAPI(namespace))
+
+				secret := types.NamespacedName{
+					Namespace: neutronAPIName.Namespace,
+					Name:      fmt.Sprintf("%s-%s", neutronAPIName.Name, "config"),
+				}
+				Eventually(func() corev1.Secret {
+					return th.GetSecret(secret)
+				}, timeout, interval).ShouldNot(BeNil())
+
+				memcacheInstance := infra.GetMemcached(memcachedName)
+				neutronCfg := string(th.GetSecret(secret).Data["01-neutron.conf"])
+				// TLS-enabled memcached: [keystone_authtoken] uses the TLS
+				// listener list, enables memcache TLS and renders the MTLS
+				// cert files.
+				Expect(neutronCfg).Should(
+					ContainSubstring(fmt.Sprintf("memcached_servers=%s", memcacheInstance.GetMemcachedServerListString())))
+				Expect(neutronCfg).Should(ContainSubstring("memcache_tls_enabled = true"))
+				Expect(neutronCfg).Should(ContainSubstring("memcache_tls_certfile ="))
+				Expect(neutronCfg).Should(ContainSubstring("memcache_tls_keyfile ="))
+				Expect(neutronCfg).Should(ContainSubstring("memcache_tls_cafile ="))
+			})
 		})
 
 		When("DB is created", func() {
