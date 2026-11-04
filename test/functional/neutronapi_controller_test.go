@@ -1165,6 +1165,66 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Expect(endpoints).To(HaveKeyWithValue("internal", MatchRegexp(regexp)))
 			})
 
+			It("wraps eventlet service commands with dumb-init", func() {
+				Eventually(func(g Gomega) {
+					instance := GetNeutronAPI(neutronAPIName)
+					if instance.Annotations == nil {
+						instance.Annotations = map[string]string{}
+					}
+					instance.Annotations["neutron.openstack.org/wsgi"] = "false"
+					g.Expect(k8sClient.Update(ctx, instance)).To(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					deployment := th.GetDeployment(types.NamespacedName{Namespace: namespace, Name: "neutron"})
+					g.Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(2))
+					apiContainer := deployment.Spec.Template.Spec.Containers[0]
+					g.Expect(apiContainer.Name).To(Equal("neutron-api"))
+					g.Expect(apiContainer.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+					g.Expect(apiContainer.Args).To(Equal([]string{"--single-child", "--", "/bin/bash", "-c", "neutron-server --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/neutron.conf.d"}))
+					httpdContainer := deployment.Spec.Template.Spec.Containers[1]
+					g.Expect(httpdContainer.Name).To(Equal("neutron-httpd"))
+					g.Expect(httpdContainer.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+					g.Expect(httpdContainer.Args).To(Equal([]string{"--single-child", "--", "/bin/bash", "-c", "httpd -DFOREGROUND"}))
+				}, timeout, interval).Should(Succeed())
+			})
+
+			It("wraps WSGI worker commands with dumb-init", func() {
+				rpc := th.GetDeployment(types.NamespacedName{Namespace: namespace, Name: "neutron-rpc"})
+				Expect(rpc.Spec.Template.Spec.Containers).To(HaveLen(1))
+				container := rpc.Spec.Template.Spec.Containers[0]
+				Expect(container.Name).To(Equal("neutron-rpc"))
+				Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+				Expect(container.Args).To(Equal([]string{
+					"--single-child",
+					"--",
+					"/bin/bash",
+					"-c",
+					"neutron-rpc-server --config-dir /etc/neutron/neutron.conf.d",
+				}))
+
+				expected := map[string]string{
+					"neutron-periodic-workers": "neutron-periodic-workers --config-dir /etc/neutron/neutron.conf.d",
+				}
+				if GetNeutronAPI(neutronAPIName).IsOVNEnabled() {
+					expected["neutron-ovn-maintenance-worker"] = "neutron-ovn-maintenance-worker --config-dir /etc/neutron/neutron.conf.d"
+				}
+				worker := th.GetDeployment(types.NamespacedName{Namespace: namespace, Name: "neutron-worker"})
+				Expect(worker.Spec.Template.Spec.Containers).To(HaveLen(len(expected)))
+				for _, container := range worker.Spec.Template.Spec.Containers {
+					Expect(expected).To(HaveKey(container.Name))
+					Expect(container.Command).To(Equal([]string{"/usr/bin/dumb-init"}), container.Name)
+					Expect(container.Args).To(Equal([]string{
+						"--single-child",
+						"--",
+						"/bin/bash",
+						"-c",
+						expected[container.Name],
+					}), container.Name)
+					delete(expected, container.Name)
+				}
+			})
+
 			It("Deployment is created as expected", func() {
 				deployment := th.GetDeployment(
 					types.NamespacedName{
@@ -1181,6 +1241,8 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 				httpdContainer := deployment.Spec.Template.Spec.Containers[0]
+				Expect(httpdContainer.Command).To(Equal([]string{"/usr/bin/dumb-init"}))
+				Expect(httpdContainer.Args).To(Equal([]string{"--single-child", "--", "/bin/bash", "-c", "httpd -DFOREGROUND"}))
 				Expect(httpdContainer.Name).To(Equal("neutron-httpd"))
 				Expect(httpdContainer.LivenessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
 				Expect(httpdContainer.ReadinessProbe.HTTPGet.Port.IntVal).To(Equal(int32(9696)))
