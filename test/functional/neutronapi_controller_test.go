@@ -35,6 +35,7 @@ import (
 	"github.com/google/uuid"
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	topologyv1 "github.com/openstack-k8s-operators/infra-operator/apis/topology/v1beta1"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/clusterdns"
 	"github.com/openstack-k8s-operators/lib-common/modules/common/util"
 	mariadbv1 "github.com/openstack-k8s-operators/mariadb-operator/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1785,6 +1786,15 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				serviceOverride := map[string]any{}
 				serviceOverride["public"] = map[string]any{
 					"endpointURL": "https://neutron-openstack.apps-crc.testing",
+					"spec": map[string]any{
+						"type": "LoadBalancer",
+					},
+				}
+				serviceOverride["internal"] = map[string]any{
+					"endpointURL": "https://neutron-internal-openstack.apps-crc.testing",
+					"spec": map[string]any{
+						"type": "LoadBalancer",
+					},
 				}
 
 				spec["override"] = map[string]any{
@@ -1815,6 +1825,8 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				mariadb.SimulateMariaDBAccountCompleted(types.NamespacedName{Namespace: namespace, Name: GetNeutronAPI(neutronAPIName).Spec.DatabaseAccount})
 				mariadb.SimulateMariaDBDatabaseCompleted(types.NamespacedName{Namespace: namespace, Name: neutronapi.DatabaseCRName})
 				th.SimulateJobSuccess(neutronDBSyncJobName)
+				th.SimulateLoadBalancerServiceIP(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
+				th.SimulateLoadBalancerServiceIP(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
 				keystone.SimulateKeystoneServiceReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				keystone.SimulateKeystoneEndpointReady(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 			})
@@ -1830,7 +1842,72 @@ func getNeutronAPIControllerSuite(ml2MechanismDrivers []string) func() {
 				keystoneEndpoint := keystone.GetKeystoneEndpoint(types.NamespacedName{Namespace: namespace, Name: "neutron"})
 				endpoints := keystoneEndpoint.Spec.Endpoints
 				Expect(endpoints).To(HaveKeyWithValue("public", "https://neutron-openstack.apps-crc.testing"))
-				Expect(endpoints).To(HaveKeyWithValue("internal", "https://neutron-internal."+neutronAPIName.Namespace+".svc:9696"))
+				Expect(endpoints).To(HaveKeyWithValue("internal", "https://neutron-internal-openstack.apps-crc.testing"))
+			})
+
+			It("renders both endpointURL vhosts and preserves Service object names with bare port names", func() {
+				th.ExpectCondition(
+					neutronAPIName,
+					ConditionGetterFunc(NeutronAPIConditionGetter),
+					condition.CreateServiceReadyCondition,
+					corev1.ConditionTrue,
+				)
+
+				configName := types.NamespacedName{Namespace: namespace, Name: neutronAPIName.Name + "-httpd-config"}
+				var config string
+				Eventually(func(g Gomega) {
+					secret := th.GetSecret(configName)
+					g.Expect(secret).NotTo(BeNil())
+					config = string(secret.Data["10-neutron-httpd.conf"])
+					g.Expect(config).NotTo(BeEmpty())
+				}, timeout, interval).Should(Succeed())
+
+				customHosts := map[service.Endpoint]string{
+					service.EndpointPublic:   "neutron-openstack.apps-crc.testing",
+					service.EndpointInternal: "neutron-internal-openstack.apps-crc.testing",
+				}
+				for _, endpoint := range []service.Endpoint{service.EndpointPublic, service.EndpointInternal} {
+					defaultName := fmt.Sprintf("neutron-%s.%s.svc", endpoint, namespace)
+					fqdn := defaultName + "." + clusterdns.GetDNSClusterDomain()
+					vhostStart := strings.Index(config, fmt.Sprintf("# %s vhost ", endpoint))
+					Expect(vhostStart).To(BeNumerically(">=", 0))
+					vhostEnd := strings.Index(config[vhostStart:], "</VirtualHost>")
+					Expect(vhostEnd).To(BeNumerically(">=", 0))
+					vhostConfig := config[vhostStart : vhostStart+vhostEnd]
+					Expect(vhostConfig).To(ContainSubstring("ServerName " + customHosts[endpoint]))
+					Expect(vhostConfig).To(ContainSubstring("ServerAlias " + defaultName))
+					Expect(vhostConfig).To(ContainSubstring("ServerAlias " + fqdn))
+
+					serviceName := fmt.Sprintf("neutron-%s", endpoint)
+					th.AssertServiceExists(types.NamespacedName{Namespace: namespace, Name: serviceName})
+					svc := th.GetService(types.NamespacedName{Namespace: namespace, Name: serviceName})
+					Expect(svc.Name).To(Equal(serviceName))
+					Expect(svc.Spec.Ports).To(HaveLen(1))
+					Expect(svc.Spec.Ports[0].Name).To(Equal(string(endpoint)))
+					if endpoint == service.EndpointPublic {
+						Expect(svc.Annotations).NotTo(HaveKey(service.AnnotationHostnameKey))
+					} else {
+						Expect(svc.Annotations).To(HaveKeyWithValue(service.AnnotationHostnameKey, defaultName))
+					}
+				}
+			})
+
+			It("keeps the internal dnsmasq hostname and omits it on the public LoadBalancer after endpointURLs are cleared", func() {
+				api := GetNeutronAPI(neutronAPIName)
+				for _, endpoint := range []service.Endpoint{service.EndpointPublic, service.EndpointInternal} {
+					override := api.Spec.Override.Service[endpoint]
+					override.EndpointURL = nil
+					api.Spec.Override.Service[endpoint] = override
+				}
+				Expect(k8sClient.Update(ctx, api)).To(Succeed())
+
+				Eventually(func(g Gomega) {
+					internal := th.GetService(types.NamespacedName{Namespace: namespace, Name: "neutron-internal"})
+					g.Expect(internal.Annotations).To(HaveKeyWithValue(
+						service.AnnotationHostnameKey, fmt.Sprintf("neutron-internal.%s.svc", namespace)))
+					public := th.GetService(types.NamespacedName{Namespace: namespace, Name: "neutron-public"})
+					g.Expect(public.Annotations).NotTo(HaveKey(service.AnnotationHostnameKey))
+				}, timeout, interval).Should(Succeed())
 			})
 		})
 
@@ -2636,6 +2713,104 @@ var _ = Describe("NeutronAPI Webhook", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	It("accepts bare service port names for both endpoints", func() {
+		serviceOverrides := map[string]any{}
+		for _, endpoint := range []string{"public", "internal"} {
+			serviceOverrides[endpoint] = map[string]any{
+				"spec": map[string]any{
+					"ports": []any{
+						map[string]any{"name": endpoint, "port": 9696},
+					},
+				},
+			}
+		}
+		spec := GetDefaultNeutronAPISpec()
+		spec["override"] = map[string]any{"service": serviceOverrides}
+		raw := map[string]any{
+			"apiVersion": "neutron.openstack.org/v1beta1",
+			"kind":       "NeutronAPI",
+			"metadata": map[string]any{
+				"name":      neutronAPIName.Name,
+				"namespace": neutronAPIName.Namespace,
+			},
+			"spec": spec,
+		}
+		obj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(th.Ctx, th.K8sClient, obj, func() error { return nil })
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(th.DeleteInstance, GetNeutronAPI(neutronAPIName))
+	})
+
+	It("rejects wrong service port names for both endpoints on create", func() {
+		for _, endpoint := range []string{"public", "internal"} {
+			spec := GetDefaultNeutronAPISpec()
+			spec["override"] = map[string]any{
+				"service": map[string]any{
+					endpoint: map[string]any{
+						"spec": map[string]any{
+							"ports": []any{
+								map[string]any{"name": "wrong", "port": 9696},
+							},
+						},
+					},
+				},
+			}
+			raw := map[string]any{
+				"apiVersion": "neutron.openstack.org/v1beta1",
+				"kind":       "NeutronAPI",
+				"metadata": map[string]any{
+					"name":      neutronAPIName.Name + "-wrong-" + endpoint,
+					"namespace": neutronAPIName.Namespace,
+				},
+				"spec": spec,
+			}
+			obj := &unstructured.Unstructured{Object: raw}
+			_, err := controllerutil.CreateOrPatch(th.Ctx, th.K8sClient, obj, func() error { return nil })
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(
+				"spec.override.service[%s].spec.ports[0].name: Invalid value: %q: must be %q",
+				endpoint, "wrong", endpoint)))
+		}
+	})
+
+	DescribeTable("validates endpointURL for both endpoints on create",
+		func(endpointURL string, port int, errSubstring string) {
+			for _, endpoint := range []string{"public", "internal"} {
+				override := map[string]any{"endpointURL": endpointURL}
+				if port != 0 {
+					override["spec"] = map[string]any{
+						"ports": []any{map[string]any{"name": endpoint, "port": port}},
+					}
+				}
+				spec := GetDefaultNeutronAPISpec()
+				spec["override"] = map[string]any{"service": map[string]any{endpoint: override}}
+				obj := &unstructured.Unstructured{Object: map[string]any{
+					"apiVersion": "neutron.openstack.org/v1beta1",
+					"kind":       "NeutronAPI",
+					"metadata": map[string]any{
+						"name":      neutronAPIName.Name + "-url-" + endpoint,
+						"namespace": neutronAPIName.Namespace,
+					},
+					"spec": spec,
+				}}
+				_, err := controllerutil.CreateOrPatch(th.Ctx, th.K8sClient, obj, func() error { return nil })
+				if errSubstring == "" {
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(th.DeleteInstance, GetNeutronAPI(types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}))
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(errSubstring))
+				}
+			}
+		},
+		Entry("accepts an FQDN URL", "https://neutron.example.com", 0, ""),
+		Entry("accepts a matching ports[].port", "https://neutron.example.com:9697", 9697, ""),
+		Entry("rejects a bare short name", "https://neutron", 0, "endpointURL"),
+		Entry("rejects a missing scheme", "neutron.example.com", 0, "must be a valid URL with a scheme and host"),
+		Entry("rejects an IP literal host", "https://192.0.2.10", 0, "host must not be an IP literal"),
+		Entry("rejects a ports[].port that differs from the endpointURL port", "https://neutron.example.com:9697", 9696, "must match the port in endpointURL"),
+	)
+
 	It("rejects with wrong NeutronAPI service override endpoint type", func() {
 		spec := GetDefaultNeutronAPISpec()
 		spec["override"] = map[string]any{
@@ -2783,6 +2958,27 @@ var _ = Describe("NeutronAPI Webhook", func() {
 					"invalid: spec.override.service[wrooong]: " +
 						"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
 			)
+		})
+
+		It("rejects update with wrong service port names for both endpoints", func() {
+			for _, endpoint := range []service.Endpoint{service.EndpointPublic, service.EndpointInternal} {
+				api := GetNeutronAPI(neutronAPIName)
+				if api.Spec.Override.Service == nil {
+					api.Spec.Override.Service = map[service.Endpoint]service.RoutedOverrideSpec{}
+				}
+				api.Spec.Override.Service[endpoint] = service.RoutedOverrideSpec{
+					OverrideSpec: service.OverrideSpec{
+						Spec: &service.OverrideServiceSpec{
+							Ports: []service.OverrideServicePort{{Name: "wrong", Port: 9696}},
+						},
+					},
+				}
+				err := k8sClient.Update(ctx, api)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(
+					"spec.override.service[%s].spec.ports[0].name: Invalid value: %q: must be %q",
+					endpoint, "wrong", endpoint)))
+			}
 		})
 
 		It("rejects update with wrong defaultConfigOverwrite", func() {

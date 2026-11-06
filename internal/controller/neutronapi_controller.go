@@ -809,7 +809,7 @@ func (r *NeutronAPIReconciler) reconcileInit(
 				Labels:    exportLabels,
 				Selector:  serviceLabels,
 				Port: service.GenericServicePort{
-					Name:     endpointName,
+					Name:     endpointTypeStr,
 					Port:     data.Port,
 					Protocol: corev1.ProtocolTCP,
 				},
@@ -841,7 +841,10 @@ func (r *NeutronAPIReconciler) reconcileInit(
 			svc.AddAnnotation(map[string]string{
 				service.AnnotationIngressCreateKey: "false",
 			})
-			if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer {
+			// The public endpoint's DNS is user-managed (its hostname is the
+			// endpointURL host, not the in-cluster Service name), so skip
+			// registering it in dnsmasq even when it is a LoadBalancer.
+			if svc.GetServiceType() == corev1.ServiceTypeLoadBalancer && endpointType != service.EndpointPublic {
 				svc.AddAnnotation(map[string]string{
 					service.AnnotationHostnameKey: svc.GetServiceHostname(), // add annotation to register service name in dnsmasq
 				})
@@ -2352,7 +2355,13 @@ func (r *NeutronAPIReconciler) generateServiceSecrets(
 	httpdVhostConfig := map[string]any{}
 	for _, endpt := range []service.Endpoint{service.EndpointInternal, service.EndpointPublic} {
 		endptConfig := map[string]any{}
-		endptConfig["ServerName"] = fmt.Sprintf("neutron-%s.%s.svc", endpt.String(), instance.Namespace)
+		defaultName := fmt.Sprintf("%s-%s.%s.svc", neutronapi.ServiceName, endpt.String(), instance.Namespace)
+		serverName, serverAliases, err := service.GetVHostServerName(instance.Spec.Override.Service[endpt], defaultName)
+		if err != nil {
+			return err
+		}
+		endptConfig["ServerName"] = serverName
+		endptConfig["ServerAliases"] = serverAliases
 		endptConfig["TLS"] = false // default TLS to false, and set it bellow to true if enabled
 		if instance.Spec.TLS.API.Enabled(endpt) {
 			endptConfig["TLS"] = true

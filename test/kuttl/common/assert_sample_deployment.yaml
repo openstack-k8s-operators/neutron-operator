@@ -180,7 +180,7 @@ spec:
   - IPv4
   ipFamilyPolicy: SingleStack
   ports:
-  - name: neutron-internal
+  - name: internal
     port: 9696
     protocol: TCP
     targetPort: 9696
@@ -202,7 +202,7 @@ spec:
   - IPv4
   ipFamilyPolicy: SingleStack
   ports:
-  - name: neutron-public
+  - name: public
     port: 9696
     protocol: TCP
     targetPort: 9696
