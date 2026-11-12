@@ -114,6 +114,7 @@ func (r *NeutronAPISpecCore) ValidateCreate(basePath *field.Path, namespace stri
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), r.Override.Service)...)
+	allErrs = append(allErrs, validateServicePortNames(basePath.Child("override").Child("service"), r.Override.Service)...)
 
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, r.DefaultConfigOverwrite)...)
 
@@ -165,6 +166,7 @@ func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath 
 
 	// validate the service override key is valid
 	allErrs = append(allErrs, service.ValidateRoutedOverrides(basePath.Child("override").Child("service"), spec.Override.Service)...)
+	allErrs = append(allErrs, validateServicePortNames(basePath.Child("override").Child("service"), spec.Override.Service)...)
 	// validate the defaultConfigOverwrite is valid
 	allErrs = append(allErrs, ValidateDefaultConfigOverwrite(basePath, spec.DefaultConfigOverwrite)...)
 
@@ -173,6 +175,10 @@ func (spec *NeutronAPISpecCore) ValidateUpdate(old NeutronAPISpecCore, basePath 
 	allErrs = append(allErrs, spec.ValidateTopology(basePath, namespace)...)
 
 	return allWarns, allErrs
+}
+
+func validateServicePortNames(basePath *field.Path, overrides map[service.Endpoint]service.RoutedOverrideSpec) field.ErrorList {
+	return common_webhook.ValidatePortNameOverrides(basePath, overrides, common_webhook.DefaultServicePortNames())
 }
 
 // getDeprecatedFields returns the centralized list of deprecated fields for NeutronAPISpecCore
