@@ -70,8 +70,11 @@ spec:
       # the separate eventlet neutron-api + httpd reverse-proxy pair.
       containers:
       - command:
-        - /bin/bash
+        - /usr/bin/dumb-init
         args:
+        - --single-child
+        - --
+        - /bin/bash
         - -c
         - httpd -DFOREGROUND
         imagePullPolicy: IfNotPresent
