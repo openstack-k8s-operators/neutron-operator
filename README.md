@@ -244,3 +244,7 @@ or in Visual Studio Code by defining the following in your settings.json:
     "KUBEBUILDER_ASSETS":"<location of kubebuilder-envtest installation>"
 },
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and DCO information.
