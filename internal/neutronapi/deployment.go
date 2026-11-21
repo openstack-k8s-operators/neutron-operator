@@ -190,9 +190,15 @@ func Deployment(
 	containers := []corev1.Container{}
 	if !wsgi {
 		containers = append(containers, corev1.Container{
-			Name:                     ServiceName + "-api",
-			Command:                  []string{"/bin/bash"},
-			Args:                     apiArgs,
+			Name: ServiceName + "-api",
+			Command: []string{
+				"/usr/bin/dumb-init",
+			},
+			Args: append([]string{
+				"--single-child",
+				"--",
+				"/bin/bash",
+			}, apiArgs...),
 			Image:                    instance.Spec.ContainerImage,
 			SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 			Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
@@ -203,9 +209,15 @@ func Deployment(
 		})
 	}
 	containers = append(containers, corev1.Container{
-		Name:                     ServiceName + "-httpd",
-		Command:                  []string{"/bin/bash"},
-		Args:                     httpdArgs,
+		Name: ServiceName + "-httpd",
+		Command: []string{
+			"/usr/bin/dumb-init",
+		},
+		Args: append([]string{
+			"--single-child",
+			"--",
+			"/bin/bash",
+		}, httpdArgs...),
 		Image:                    instance.Spec.ContainerImage,
 		SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 		Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
