@@ -16,7 +16,7 @@ require (
 	github.com/openstack-k8s-operators/lib-common/modules/users v0.0.0-20261020132816-6109367117f2
 	github.com/openstack-k8s-operators/mariadb-operator/api v0.6.1-0.20261104180656-b48dbd3ab33c
 	github.com/openstack-k8s-operators/neutron-operator/api v0.0.0-00010101000000-000000000000
-	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20261026075302-181eec8e397e
+	github.com/openstack-k8s-operators/ovn-operator/api v0.6.1-0.20261116082836-b907405053b4
 	go.uber.org/zap v1.28.0
 	gopkg.in/ini.v1 v1.67.3
 	k8s.io/api v0.33.13
