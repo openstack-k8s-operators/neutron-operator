@@ -27,5 +27,12 @@
 
 - project:
     name: openstack-k8s-operators/neutron-operator
-    templates:
-      - neutron-operator-s2i-testing
+    # templates:
+    #   - neutron-operator-s2i-testing
+    github-check:
+      jobs:
+        - s2i-openstack-container-content-provider
+        - neutron-s2i-test-dvr-tls: &s2i_test
+            dependencies:
+              - s2i-openstack-container-content-provider
+        - neutron-s2i-test-non-dvr-no-tls: *s2i_test
