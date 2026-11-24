@@ -8,6 +8,15 @@
             vars:
               cifmw_install_yamls_sdk_version: v1.41.1
         - neutron-operator-tempest-multinode
+    github-experimental-trigger:
+      jobs:
+        - neutron-s2i-content-provider:
+            vars:
+              cifmw_install_yamls_sdk_version: v1.41.1
+        - neutron-s2i-test-dvr-tls: &s2i_overrides
+            dependencies:
+              - neutron-s2i-content-provider
+        - neutron-s2i-test-non-dvr-no-tls: *s2i_overrides
 
 # project template to be used in the s2i repository
 - project-template:

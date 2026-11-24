@@ -62,6 +62,19 @@
         neutron_tempest_plugin.scenario.test_port_forwardings.PortForwardingTestJSON
 
 - job:
+    name: neutron-s2i-content-provider
+    parent: openstack-s2i-content-provider
+    description: |
+      Build s2i neutron service images for neutron-s2i test jobs and
+      also build neutron-operator
+    required-projects:
+      - github.com/openstack-k8s-operators/neutron-operator
+    vars:
+      s2i_ci_images:
+        - neutron/neutron-server
+        - neutron/neutron-ovn-agent
+
+- job:
     name: neutron-s2i-test-dvr-tls
     description: |
       Validate speculatively-built s2i neutron images against a live
