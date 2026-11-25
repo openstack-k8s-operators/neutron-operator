@@ -70,7 +70,7 @@
       ci-framework set_containers before the control plane is deployed.
       The deployment is tls and dvr enabled
     nodeset: centos-10-2x-centos-9-xxl-crc-cloud-ocp-4-22-1-3xl
-    parent: s2i-test-base
+    parent: s2i-test-base-2comp
     timeout: 18000
     irrelevant-files: *irrelevant-files
     vars:
