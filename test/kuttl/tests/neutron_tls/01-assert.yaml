@@ -38,7 +38,12 @@ spec:
       # httpd and api mount lists internally -- deployment.go de-duplicates
       # by MountPath when merging them onto this one container.
       containers:
-      - args:
+      - command:
+        - /usr/bin/dumb-init
+        args:
+        - --single-child
+        - --
+        - /bin/bash
         - -c
         - httpd -DFOREGROUND
         volumeMounts:

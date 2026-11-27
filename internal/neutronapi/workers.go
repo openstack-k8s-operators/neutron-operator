@@ -148,9 +148,15 @@ func RPCDeployment(
 					AutomountServiceAccountToken: ptr.To(false),
 					Containers: []corev1.Container{
 						{
-							Name:                     ServiceName + "-" + RPCDeploymentSuffix,
-							Command:                  []string{"/bin/bash"},
-							Args:                     []string{"-c", NeutronRPCCommand},
+							Name:    ServiceName + "-" + RPCDeploymentSuffix,
+							Command: []string{"/usr/bin/dumb-init"},
+							Args: []string{
+								"--single-child",
+								"--",
+								"/bin/bash",
+								"-c",
+								NeutronRPCCommand,
+							},
 							Image:                    instance.Spec.ContainerImage,
 							SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 							Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
@@ -196,9 +202,15 @@ func WorkerDeployment(
 
 	containers := []corev1.Container{
 		{
-			Name:                     ServiceName + "-periodic-workers",
-			Command:                  []string{"/bin/bash"},
-			Args:                     []string{"-c", NeutronPeriodicWorkersCommand},
+			Name:    ServiceName + "-periodic-workers",
+			Command: []string{"/usr/bin/dumb-init"},
+			Args: []string{
+				"--single-child",
+				"--",
+				"/bin/bash",
+				"-c",
+				NeutronPeriodicWorkersCommand,
+			},
 			Image:                    instance.Spec.ContainerImage,
 			SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 			Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
@@ -210,9 +222,15 @@ func WorkerDeployment(
 
 	if instance.IsOVNEnabled() {
 		containers = append(containers, corev1.Container{
-			Name:                     ServiceName + "-ovn-maintenance-worker",
-			Command:                  []string{"/bin/bash"},
-			Args:                     []string{"-c", NeutronOVNMaintenanceCommand},
+			Name:    ServiceName + "-ovn-maintenance-worker",
+			Command: []string{"/usr/bin/dumb-init"},
+			Args: []string{
+				"--single-child",
+				"--",
+				"/bin/bash",
+				"-c",
+				NeutronOVNMaintenanceCommand,
+			},
 			Image:                    instance.Spec.ContainerImage,
 			SecurityContext:          pod.RestrictiveSecurityContext(users.NeutronUID, users.NeutronGID),
 			Env:                      env.MergeEnvs([]corev1.EnvVar{}, envVars),
